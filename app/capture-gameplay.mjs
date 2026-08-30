@@ -31,7 +31,7 @@ const OUT = process.argv[3] ?? './capture';
 /** Portrait. At deviceScaleFactor 2 the screencast lands at 860x1760. */
 const VIEWPORT = { width: 430, height: 880 };
 const SCALE = 2;
-const PLAY_MS = 34_000;
+const PLAY_MS = 45_000;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -59,7 +59,12 @@ const main = async () => {
   // headless shell but rendered in software, and the compositor only managed
   // ~4 frames a second — the screencast can never be smoother than the frames
   // the page actually produces. Metal via ANGLE holds 30.
+  // An explicit binary when MEMPIRE_CHROME is set. Playwright pins one build
+  // per package version, and a half-downloaded pin fails at launch with a
+  // missing-framework dlopen error rather than anything about the download —
+  // so this lets a known-good build on disk be used without a reinstall.
   const browser = await chromium.launch({
+    executablePath: process.env.MEMPIRE_CHROME || undefined,
     headless: false,
     args: ['--use-gl=angle', '--use-angle=metal', '--hide-scrollbars', '--mute-audio'],
   });

@@ -58,7 +58,12 @@ const main = async () => {
   const framesDir = join(OUT, 'frames');
   await mkdir(framesDir, { recursive: true });
 
+  // An explicit binary when MEMPIRE_CHROME is set. Playwright pins one build
+  // per package version, and a half-downloaded pin fails at launch with a
+  // missing-framework dlopen error rather than anything about the download —
+  // so this lets a known-good build on disk be used without a reinstall.
   const browser = await chromium.launch({
+    executablePath: process.env.MEMPIRE_CHROME || undefined,
     headless: false,
     args: ['--use-gl=angle', '--use-angle=metal', '--hide-scrollbars', '--mute-audio'],
   });
