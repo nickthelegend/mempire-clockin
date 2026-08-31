@@ -14,6 +14,7 @@
  * Usage:  node capture-tour.mjs [devServerUrl] [outDir]
  */
 import { chromium } from 'playwright';
+import { resolveChrome } from './capture-chrome.mjs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -58,12 +59,10 @@ const main = async () => {
   const framesDir = join(OUT, 'frames');
   await mkdir(framesDir, { recursive: true });
 
-  // An explicit binary when MEMPIRE_CHROME is set. Playwright pins one build
-  // per package version, and a half-downloaded pin fails at launch with a
-  // missing-framework dlopen error rather than anything about the download —
-  // so this lets a known-good build on disk be used without a reinstall.
+  // resolveChrome() picks a build that actually launches; see that file for
+  // why the pinned one cannot be trusted to exist.
   const browser = await chromium.launch({
-    executablePath: process.env.MEMPIRE_CHROME || undefined,
+    executablePath: resolveChrome(),
     headless: false,
     args: ['--use-gl=angle', '--use-angle=metal', '--hide-scrollbars', '--mute-audio'],
   });
