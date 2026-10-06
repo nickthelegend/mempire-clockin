@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Image, ScrollView, StyleSheet, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { UI_ART, CARD_ART } from '../data/art';
+import { BY_TICKER } from '../game/rules';
 import { useUi } from '../state/ui';
 import { MWA_AVAILABLE, useWallet } from '../wallet/wallet';
 import { C } from '../theme';
@@ -21,11 +23,13 @@ export function ConnectScreen() {
       <Rise delay={60}>
         <View style={st.fan}>
           {HERO.map((t, i) => (
-            <Image
+            <LinearGradient
               key={t}
-              source={CARD_ART[t]}
+              colors={[`hsl(${BY_TICKER.get(t)?.hue ?? 220},70%,55%)`, `hsl(${BY_TICKER.get(t)?.hue ?? 220},60%,22%)`]}
               style={[st.card, { transform: [{ rotate: `${(i - 2) * 9}deg` }, { translateY: Math.abs(i - 2) * 10 }], zIndex: 5 - Math.abs(i - 2) }]}
-            />
+            >
+              <Image source={CARD_ART[t]} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+            </LinearGradient>
           ))}
         </View>
       </Rise>
@@ -78,5 +82,5 @@ const st = StyleSheet.create({
   wrap: { padding: 20, paddingTop: 70, gap: 16, paddingBottom: 60 },
   logo: { width: '78%', height: 100, alignSelf: 'center' },
   fan: { height: 190, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginVertical: 8 },
-  card: { width: 104, height: 138, borderRadius: 12, marginHorizontal: -22, borderWidth: 2, borderColor: 'rgba(0,0,0,0.6)' },
+  card: { width: 104, height: 138, borderRadius: 12, marginHorizontal: -22, borderWidth: 2, borderColor: 'rgba(0,0,0,0.6)', overflow: 'hidden' },
 });

@@ -45,7 +45,7 @@
     "web": "expo start --web",
     "build:www": "sh scripts/build-www.sh",
     "ios:sim": "bash scripts/ios-sim.sh",
-    "apk": "cd android && ./gradlew assembleRelease",
+    "apk": "bash scripts/build-apk.sh",
     "postinstall": "patch-package"
   },
   "private": true

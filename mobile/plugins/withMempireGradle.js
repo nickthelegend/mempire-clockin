@@ -12,35 +12,37 @@ const { withAppBuildGradle } = require('expo/config-plugins');
  * A plugin runs on every prebuild, so the generated project is correct by
  * construction rather than by someone remembering a step in DEPLOY.md.
  *
- *  1. **Release signing.** Points at `mobile/keys/mempire-release.keystore`,
- *     overridable by environment so CI can inject its own without a patch.
- *  2. **ABI splits.** A universal APK carries four architectures and any given
- *     phone uses one; arm64 alone is 29 MB against 70. The universal build is
- *     still produced for older armeabi-v7a devices and emulators.
+ *  1. **Release signing.** From MEMPIRE_KEYSTORE / MEMPIRE_KEYSTORE_PASSWORD
+ *     (kept outside the public repo); debug key only as a labelled fallback.
+ *  2. **ABIs.** arm64-v8a (Seeker and any modern phone) plus x86_64 (emulators),
+ *     in one APK.
  */
 const SIGNING = `
         // Added by plugins/withMempireGradle.js — do not hand-edit, prebuild
-        // regenerates this file.
+        // regenerates this file. The keystore and its passwords live OUTSIDE
+        // the repo and arrive by environment (see HANDOFF.md). Without them a
+        // release build falls back to the debug key, loudly.
         mempireRelease {
-            storeFile System.getenv('MEMPIRE_KEYSTORE')
-                ? file(System.getenv('MEMPIRE_KEYSTORE'))
-                : rootProject.file('../keys/mempire-release.keystore')
-            storePassword System.getenv('MEMPIRE_KEYSTORE_PASSWORD') ?: 'mempire-devnet'
-            keyAlias System.getenv('MEMPIRE_KEY_ALIAS') ?: 'mempire'
-            keyPassword System.getenv('MEMPIRE_KEY_PASSWORD') ?: 'mempire-devnet'
+            if (System.getenv('MEMPIRE_KEYSTORE')) {
+                storeFile file(System.getenv('MEMPIRE_KEYSTORE'))
+                storePassword System.getenv('MEMPIRE_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('MEMPIRE_KEY_ALIAS') ?: 'mempire'
+                keyPassword System.getenv('MEMPIRE_KEY_PASSWORD') ?: System.getenv('MEMPIRE_KEYSTORE_PASSWORD')
+            } else {
+                println("WARNING: MEMPIRE_KEYSTORE not set - release APK will be signed with the DEBUG key")
+                storeFile file('debug.keystore')
+                storePassword 'android'
+                keyAlias 'androiddebugkey'
+                keyPassword 'android'
+            }
         }
 `;
 
-const SPLITS = `
-    // Added by plugins/withMempireGradle.js
-    splits {
-        abi {
-            enable true
-            reset()
-            include 'arm64-v8a', 'armeabi-v7a', 'x86_64'
-            universalApk true
-        }
-    }
+const ABIS = `
+        // Added by plugins/withMempireGradle.js: Seeker and modern phones are
+        // arm64; x86_64 keeps the APK installable on an emulator. One APK,
+        // no 32-bit ARM, roughly a third smaller than a four-ABI universal.
+        ndk { abiFilters "arm64-v8a", "x86_64" }
 `;
 
 module.exports = function withMempireGradle(config) {
@@ -58,8 +60,8 @@ module.exports = function withMempireGradle(config) {
       );
     }
 
-    if (!src.includes('splits {')) {
-      src = src.replace('    signingConfigs {', `${SPLITS}\n    signingConfigs {`);
+    if (!src.includes('abiFilters')) {
+      src = src.replace(/(defaultConfig \{\n)/, `$1${ABIS}`);
     }
 
     cfg.modResults.contents = src;

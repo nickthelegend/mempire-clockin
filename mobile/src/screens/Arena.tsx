@@ -84,7 +84,7 @@ export function ArenaHost() {
   if (!match) return null;
   // The match spec is planted before any page script runs.
   const inject = `window.__MEMPIRE_MATCH__ = ${JSON.stringify({
-    player: match.player, bot: match.bot, tier: match.tier, opponent: match.rival,
+    player: match.player, bot: match.bot, tier: match.tier, opponent: match.rival, rush: match.rush,
   })};\n${BRIDGE}`;
 
   return (

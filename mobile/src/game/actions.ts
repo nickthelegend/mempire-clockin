@@ -1,7 +1,7 @@
 import { PublicKey } from '@solana/web3.js';
 import { clockInMemo, explorerTx } from '../chain/solana';
 import { SKR_LIVE, earnIxs, payIxs } from '../chain/skr';
-import { chestReminder, haptic, streakReminder } from '../notify';
+import { askPermission, chestReminder, haptic, streakReminder } from '../notify';
 import { useGame, avgDeckLevel } from '../state/game';
 import { useUi, type PendingMatch } from '../state/ui';
 import { useWallet } from '../wallet/wallet';
@@ -79,7 +79,8 @@ export async function doClockIn(seeker: boolean): Promise<ClockInResult | null> 
   // SKR minted in the same transaction when it went through; otherwise owed.
   if (!sig || !SKR_LIVE) useGame.getState().addSkrSim(done.reward.skr);
   haptic.success();
-  void streakReminder(done.outcome.streak.count);
+  // Asked here, not at launch: the first Clock-In is when a reminder means something.
+  void askPermission().then((ok) => { if (ok) void streakReminder(done.outcome.streak.count); });
   return {
     streak: done.outcome.streak.count,
     skr: done.reward.skr,
@@ -148,12 +149,13 @@ export function openChest(id: string): void {
   useUi.getState().showReveal({ title: CHESTS[c.tier].name, tier: c.tier, drops });
 }
 
-export function prepareMatch(rivalIndex: number): PendingMatch {
+export function prepareMatch(rivalIndex: number, rush = false): PendingMatch {
   const g = useGame.getState();
   const rival = RIVALS[rivalIndex] ?? RIVALS[0];
   const avg = avgDeckLevel(g);
   return {
     rival: rival.name,
+    rush,
     tier: Math.min(3, Math.max(0, rivalIndex)),
     player: g.deck.map((t) => ({ ticker: t, mint: BY_TICKER.get(t)!.mint, level: g.cards[t]?.level ?? 1 })),
     bot: rivalDeck(rival, avg),

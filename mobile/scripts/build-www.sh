@@ -21,4 +21,9 @@ mkdir -p "$HERE/web"
 cp -R "$APP/dist-native" "$HERE/web/www"
 # Crawler files mean nothing inside an app.
 rm -f "$HERE/web/www/robots.txt" "$HERE/web/www/sitemap.xml"
+# The client renders WebP everywhere; the PNG masters exist for on-chain NFT
+# metadata (chars/, nft/, art/*.png) and are never fetched by the arena. Only
+# the wood texture is still read as PNG. ~30 MB the APK does not need.
+find "$HERE/web/www/art" -name '*.png' ! -name 'wood_seamless.png' -delete
+rm -rf "$HERE/web/www/chars" "$HERE/web/www/nft"
 echo "staged $(du -sh "$HERE/web/www" | cut -f1) at mobile/web/www"

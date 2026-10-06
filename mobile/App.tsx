@@ -19,7 +19,7 @@ import { findSgtMint, mainnetSkr } from './src/chain/seeker';
 import { SKR_LIVE } from './src/chain/skr';
 import { short } from './src/chain/solana';
 import { COPIES_TO_LEVEL, MAX_LEVEL } from './src/game/rules';
-import { askPermission, ensureChannel, haptic } from './src/notify';
+import { ensureChannel, haptic } from './src/notify';
 import { C } from './src/theme';
 import { Body, Chip } from './src/ui/kit';
 import { ConnectScreen } from './src/screens/Connect';
@@ -172,7 +172,7 @@ function Root() {
 
   useEffect(() => {
     void restore();
-    void ensureChannel().then(() => askPermission());
+    void ensureChannel();
   }, [restore]);
 
   useEffect(() => {

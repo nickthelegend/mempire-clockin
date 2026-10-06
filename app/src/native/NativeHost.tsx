@@ -23,6 +23,8 @@ export interface NativeMatchSpec {
   bot: { mint: string; ticker: string; level: number }[];
   tier: number;
   opponent: string;
+  /** 30-second Rush format instead of the 3-minute standard match. */
+  rush?: boolean;
 }
 
 declare global {
@@ -50,35 +52,19 @@ const toCards = (list: NativeMatchSpec['player']): MatchCard[] => list.map((c) =
 export function NativeHost() {
   const nav = useNavigate();
   const status = useMatch((s) => s.status);
-  const reported = useRef(false);
-
   useEffect(() => {
     if (startedOnce) return;
     startedOnce = true;
     const spec = window.__MEMPIRE_MATCH__;
     if (!spec) { post({ channel: 'exit', reason: 'no match' }); return; }
     const err = startNativeMatch(toCards(spec.player), toCards(spec.bot), {
-      tier: spec.tier, opponent: spec.opponent,
+      tier: spec.tier, opponent: spec.opponent, rush: !!spec.rush,
     });
     if (err) post({ channel: 'exit', reason: err });
   }, []);
 
   useEffect(() => {
     if (status === 'battle') nav('/battle', { replace: true });
-    if (status === 'settled' && !reported.current) {
-      reported.current = true;
-      const s = useMatch.getState();
-      const sim = s.sim;
-      post({
-        channel: 'result',
-        won: !!s.result?.won,
-        draw: !!s.result?.draw,
-        crowns: s.result?.crowns ?? [0, 0],
-        hashes: s.result?.hashes ?? 0,
-        ticks: sim?.tick ?? 0,
-        finalHash: sim ? (hashState(sim) >>> 0) : 0,
-      });
-    }
   }, [status, nav]);
 
   return (
@@ -93,12 +79,32 @@ export function NativeHost() {
   );
 }
 
-/** A forfeit or "return" inside the arena hands control back to the app. */
+/**
+ * Mounted above the router for the whole embedded session (NativeHost itself
+ * unmounts once the arena route takes over): reports the settled result, and
+ * hands control back to the app on a forfeit or "return".
+ */
 export function useNativeExit(): void {
   const status = useMatch((s) => s.status);
   const seen = useRef(false);
+  const reported = useRef(false);
   useEffect(() => {
-    if (status === 'battle' || status === 'settled') seen.current = true;
-    if (status === 'idle' && seen.current) post({ channel: 'exit', reason: 'left' });
+    if (status === 'battle') seen.current = true;
+    if (status === 'settled' && !reported.current) {
+      reported.current = true;
+      seen.current = true;
+      const s = useMatch.getState();
+      const sim = s.sim;
+      post({
+        channel: 'result',
+        won: !!s.result?.won,
+        draw: !!s.result?.draw,
+        crowns: s.result?.crowns ?? [0, 0],
+        hashes: s.result?.hashes ?? 0,
+        ticks: sim?.tick ?? 0,
+        finalHash: sim ? (hashState(sim) >>> 0) : 0,
+      });
+    }
+    if (status === 'idle' && seen.current && !reported.current) post({ channel: 'exit', reason: 'left' });
   }, [status]);
 }

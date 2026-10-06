@@ -6,6 +6,7 @@ export type Tab = 'home' | 'cards' | 'deck' | 'shop';
 export interface PendingMatch {
   rival: string;
   tier: number;
+  rush: boolean;
   player: { mint: string; ticker: string; level: number }[];
   bot: { mint: string; ticker: string; level: number }[];
 }

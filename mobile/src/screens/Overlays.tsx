@@ -87,7 +87,7 @@ export function ResultSheet() {
         <Body size={15} color="#fff">vs {r.rival}</Body>
         <Panel style={{ width: '88%', marginTop: 18 }}>
           <View style={st.row}><Body color={C.dimOnWood}>Crowns</Body><Display size={20}>{r.crowns[0]} – {r.crowns[1]}</Display></View>
-          <View style={st.row}><Body color={C.dimOnWood}>Trophies</Body><Display size={20} color={r.trophyDelta >= 0 ? C.teal : C.red}>{r.trophyDelta >= 0 ? '+' : ''}{r.trophyDelta}</Display></View>
+          <View style={st.row}><Body color={C.dimOnWood}>Trophies</Body><Display size={20} color={r.trophyDelta > 0 ? C.teal : r.trophyDelta < 0 ? C.red : "#fff"}>{r.trophyDelta > 0 ? '+' : ''}{r.trophyDelta}</Display></View>
           {r.won ? (
             <View style={st.row}>
               <Body color={C.dimOnWood}>{SKR_LABEL}</Body>

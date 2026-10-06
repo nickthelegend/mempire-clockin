@@ -164,6 +164,7 @@ function Chests() {
 
 function Battle() {
   const [rival, setRival] = useState(1);
+  const [rush, setRush] = useState(false);
   const openBattle = useUi((s) => s.openBattle);
   const avg = useGame((s) => avgDeckLevel(s));
   const wins = useGame((s) => s.wins);
@@ -189,7 +190,26 @@ function Battle() {
           </Pressable>
         ))}
       </ScrollView>
-      <Btn label="BATTLE" sub="3D arena · 3 min · chest + SKR on a win" size="lg" tone="blue" onPress={() => openBattle(prepareMatch(rival))} />
+      <View style={st.modes}>
+        {[{ id: false, label: 'Standard · 3:00' }, { id: true, label: 'Rush · 0:30' }].map((m) => (
+          <Pressable
+            key={m.label}
+            onPress={() => { haptic.tap(); setRush(m.id); }}
+            style={[st.mode, rush === m.id && st.modeOn]}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: rush === m.id }}
+          >
+            <Body size={12} bold color={rush === m.id ? C.ink : '#fff'}>{m.label}</Body>
+          </Pressable>
+        ))}
+      </View>
+      <Btn
+        label="BATTLE"
+        sub={`3D arena · ${rush ? '30 s rush' : '3 min'} · chest + SKR on a win`}
+        size="lg"
+        tone="blue"
+        onPress={() => openBattle(prepareMatch(rival, rush))}
+      />
     </Panel>
   );
 }
@@ -263,6 +283,9 @@ const st = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.3)',
     borderWidth: 2, borderColor: 'transparent',
   },
+  modes: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  mode: { flex: 1, alignItems: 'center', paddingVertical: 7, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.3)' },
+  modeOn: { backgroundColor: C.gold },
   rivalOn: { borderColor: C.gold, backgroundColor: 'rgba(255,196,34,0.15)' },
   coach: {
     borderRadius: R.panel, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10,
