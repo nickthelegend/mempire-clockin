@@ -15,8 +15,8 @@
  * context, not this bundle's. It must run before the app's scripts, which is
  * what `injectedJavaScriptBeforeContentLoaded` guarantees.
  */
-export function injectedBridge(platform: 'android' | 'ios'): string {
-  return `var __MEMPIRE_PLATFORM = ${JSON.stringify(platform)};\n${BRIDGE}`;
+export function injectedBridge(platform: 'android' | 'ios', opts: { wallet?: boolean } = {}): string {
+  return `var __MEMPIRE_PLATFORM = ${JSON.stringify(platform)};\nvar __MEMPIRE_WALLET = ${opts.wallet ? 'true' : 'false'};\n${BRIDGE}`;
 }
 
 /*
@@ -28,7 +28,7 @@ const BRIDGE = String.raw`
 (function () {
   if (window.__mempireBridge) return;
   window.__mempireBridge = true;
-  var MWA = __MEMPIRE_PLATFORM === 'android';
+  var MWA = __MEMPIRE_PLATFORM === 'android' && __MEMPIRE_WALLET;
 
   var nextId = 1;
   var pending = {};

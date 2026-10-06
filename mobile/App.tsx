@@ -1,298 +1,241 @@
-import 'react-native-get-random-values';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import {
-  ActivityIndicator, AppState, BackHandler, Linking, Platform,
-  StyleSheet, Text, TouchableOpacity, View,
+  Animated, AppState, Image, Pressable, StyleSheet, View,
 } from 'react-native';
-import { WebView, type WebViewMessageEvent } from 'react-native-webview';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
-import { Paths } from 'expo-file-system';
-import { injectedBridge } from './src/injected';
-import { handle, type BridgeRequest } from './src/walletBridge';
+import { useFonts, LilitaOne_400Regular } from '@expo-google-fonts/lilita-one';
+import {
+  HankenGrotesk_500Medium, HankenGrotesk_600SemiBold, HankenGrotesk_800ExtraBold,
+} from '@expo-google-fonts/hanken-grotesk';
+import { UI_ART } from './src/data/art';
+import { useWallet } from './src/wallet/wallet';
+import { useGame } from './src/state/game';
+import { useUi, type Tab } from './src/state/ui';
+import { findSgtMint, mainnetSkr } from './src/chain/seeker';
+import { SKR_LIVE } from './src/chain/skr';
+import { short } from './src/chain/solana';
+import { COPIES_TO_LEVEL, MAX_LEVEL } from './src/game/rules';
+import { askPermission, ensureChannel, haptic } from './src/notify';
+import { C } from './src/theme';
+import { Body, Chip } from './src/ui/kit';
+import { ConnectScreen } from './src/screens/Connect';
+import { HomeScreen } from './src/screens/Home';
+import { CardsScreen } from './src/screens/Cards';
+import { DeckScreen } from './src/screens/Deck';
+import { ShopScreen } from './src/screens/Shop';
+import { CoachSheet } from './src/screens/Coach';
+import { ArenaHost } from './src/screens/Arena';
+import { ResultSheet, RevealSheet, Toast, WalletSheet } from './src/screens/Overlays';
 
 /**
- * Mempire, as an Android app.
+ * Mempire for Seeker.
  *
- * # Why a WebView and not a rewrite
- *
- * The game is a WebGL arena — React Three Fiber, instanced meshes, a
- * deterministic fixed-point simulation — sitting under a full DOM interface.
- * Rebuilding that natively would take months and produce a *second*
- * implementation of a simulation whose entire correctness argument is that both
- * players run the same one. A divergent native sim would desync against every
- * web opponent, which is the one bug this architecture cannot tolerate.
- *
- * So the game is the game, and this is a real Android shell around it: a native
- * wallet path that a browser cannot have, notifications a backgrounded web page
- * cannot schedule, an app icon, a splash, deep links, and hardware back.
- *
- * # What the shell actually adds
- *
- * - **Mobile Wallet Adapter.** On Android there is no wallet extension. Without
- *   this the game could only ever offer Guest play, which is the difference
- *   between a demo and an app that can hold a stake.
- * - **Notifications with the game's own sound.** A chest finishing is the one
- *   event worth interrupting someone for.
- * - **Back that means back.** Android's back button navigating the WebView
- *   rather than killing the app.
+ * Native React Native for the whole daily loop: wallet (Mobile Wallet Adapter,
+ * or a labelled devnet dev wallet), Clock-In streak, chests, collection, deck,
+ * SKR shop, AI coach and results. The 3D battle (React Three Fiber over the
+ * deterministic sim) runs in a bundled WebView only for the length of a match.
  */
-
-/**
- * The game ships inside the binary (see plugins/withBundledWeb.js) and loads
- * from file://, so the APK needs no hosted web server and plays straight
- * against Solana devnet. `EXPO_PUBLIC_GAME_URL` points the shell at a dev
- * server instead (e.g. http://localhost:4173) for iterating on the client.
- */
-function bundledGameUrl(): string {
-  if (Platform.OS === 'android') return 'file:///android_asset/www/index.html';
-  const root = Paths.bundle.uri.endsWith('/') ? Paths.bundle.uri : `${Paths.bundle.uri}/`;
-  return `${root}www/index.html`;
-}
-const GAME_URL = process.env.EXPO_PUBLIC_GAME_URL || bundledGameUrl();
-const GAME_ROOT = GAME_URL.replace(/[^/]*$/, '');
-const INJECTED = injectedBridge(Platform.OS === 'android' ? 'android' : 'ios');
-
-/** Foreground notifications still play the sound — the chest chime is the point. */
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
+    shouldPlaySound: true, shouldSetBadge: false, shouldShowBanner: true, shouldShowList: true,
   }),
 });
-
 void SplashScreen.preventAutoHideAsync();
 
-/**
- * Android puts the sound on the *channel*, not the notification.
- *
- * A channel's sound is fixed when it is created and cannot be changed
- * afterwards — the OS ignores an update. So the id carries a version: shipping
- * a new chime means bumping it, otherwise everyone who already installed the
- * app keeps hearing the old one forever.
- */
-const CHANNEL_ID = 'mempire-v1';
+const TABS: { id: Tab; label: string; icon: keyof typeof UI_ART }[] = [
+  { id: 'home', label: 'Home', icon: 'tab_arena' },
+  { id: 'cards', label: 'Cards', icon: 'tab_cards' },
+  { id: 'deck', label: 'Deck', icon: 'tab_deck' },
+  { id: 'shop', label: 'Shop', icon: 'tab_swap' },
+];
 
-async function ensureChannel() {
-  if (Platform.OS !== 'android') return;
-  await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
-    name: 'Mempire',
-    importance: Notifications.AndroidImportance.HIGH,
-    sound: 'mempire_chime.wav',
-    vibrationPattern: [0, 120, 80, 120],
-    lightColor: '#FFC422',
-    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-  });
-}
-
-export default function App() {
-  const webRef = useRef<WebView>(null);
-  const [ready, setReady] = useState(false);
-  const [failed, setFailed] = useState<string | null>(null);
-  const canGoBack = useRef(false);
-
-  useEffect(() => {
-    void (async () => {
-      await ensureChannel();
-      // Asked for once, on a real device. An emulator has no notification
-      // surface worth prompting about and the request just fails.
-      if (Device.isDevice) {
-        const { status } = await Notifications.getPermissionsAsync();
-        if (status !== 'granted') await Notifications.requestPermissionsAsync();
-      }
-    })();
-  }, []);
-
-  // Android back navigates the game rather than closing the app — the tab bar
-  // is inside the WebView, so without this every back press is an exit.
-  useEffect(() => {
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (canGoBack.current) {
-        webRef.current?.goBack();
-        return true;
-      }
-      return false;
-    });
-    return () => sub.remove();
-  }, []);
-
-  // A match runs on a socket. Coming back from the background after the socket
-  // died leaves a screen that looks live and is not, so the page is told to
-  // re-check rather than left to discover it mid-match.
-  useEffect(() => {
-    const sub = AppState.addEventListener('change', (s) => {
-      if (s === 'active') {
-        webRef.current?.injectJavaScript(
-          'window.dispatchEvent(new Event("mempire-resumed")); true;',
-        );
-      }
-    });
-    return () => sub.remove();
-  }, []);
-
-  const reply = useCallback((id: number, ok: boolean, result?: unknown, error?: string) => {
-    const payload = JSON.stringify(result ?? null);
-    webRef.current?.injectJavaScript(
-      `window.__mempireResolve(${id}, ${ok}, ${payload}, ${JSON.stringify(error ?? null)}); true;`,
-    );
-  }, []);
-
-  const onMessage = useCallback(async (e: WebViewMessageEvent) => {
-    let msg: Record<string, unknown>;
-    try {
-      msg = JSON.parse(e.nativeEvent.data);
-    } catch {
-      return; // not ours — the page posts other things
-    }
-
-    switch (msg.channel) {
-      case 'ready':
-        setReady(true);
-        void SplashScreen.hideAsync();
-        return;
-
-      case 'wallet': {
-        const res = await handle(msg as unknown as BridgeRequest);
-        reply(res.id, res.ok, res.result, res.error);
-        return;
-      }
-
-      case 'notify': {
-        const after = Math.max(0, Number(msg.afterSeconds) || 0);
-        await Notifications.scheduleNotificationAsync({
-          identifier: typeof msg.tag === 'string' ? msg.tag : undefined,
-          content: {
-            title: String(msg.title ?? 'Mempire'),
-            body: String(msg.body ?? ''),
-            sound: 'mempire_chime.wav',
-          },
-          trigger: after > 0
-            ? {
-              type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-              seconds: after,
-              channelId: CHANNEL_ID,
-            }
-            : null,
-        });
-        return;
-      }
-
-      case 'cancel': {
-        if (typeof msg.tag === 'string') {
-          await Notifications.cancelScheduledNotificationAsync(msg.tag);
-        }
-        return;
-      }
-
-      default:
-    }
-  }, [reply]);
-
-  if (failed) {
-    return (
-      <View style={styles.fill}>
-        <StatusBar style="light" />
-        <Text style={styles.title}>MEMPIRE</Text>
-        <Text style={styles.body}>
-          Could not reach the arena. Check your connection and try again.
-        </Text>
-        <Text style={styles.fine}>{failed}</Text>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => { setFailed(null); webRef.current?.reload(); }}
-        >
-          <Text style={styles.buttonText}>RETRY</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
+function Header() {
+  const insets = useSafeAreaInsets();
+  const address = useWallet((s) => s.address);
+  const kind = useWallet((s) => s.kind);
+  const sol = useWallet((s) => s.sol);
+  const skr = useWallet((s) => s.skr);
+  const skrSim = useGame((s) => s.skrSim);
+  const trophies = useGame((s) => s.trophies);
+  const sgt = useUi((s) => s.sgt);
+  const setWalletOpen = useUi((s) => s.setWalletOpen);
+  const setTab = useUi((s) => s.setTab);
   return (
-    <View style={styles.fill}>
-      <StatusBar style="light" />
-      <WebView
-        ref={webRef}
-        source={{ uri: GAME_URL }}
-        // Before the page's own scripts, so the wallet provider exists by the
-        // time the adapter looks for one.
-        injectedJavaScriptBeforeContentLoaded={INJECTED}
-        onMessage={onMessage}
-        onNavigationStateChange={(nav) => { canGoBack.current = nav.canGoBack; }}
-        onError={(e) => setFailed(e.nativeEvent.description)}
-        onHttpError={(e) => {
-          // A 404 on a sub-resource is not a dead app; only the document is.
-          if (e.nativeEvent.url === GAME_URL) setFailed(`server returned ${e.nativeEvent.statusCode}`);
-        }}
-        // The arena is WebGL and the sim runs on a timer. Without these the
-        // canvas falls back to software rendering and the game is a slideshow.
-        renderToHardwareTextureAndroid
-        androidLayerType="hardware"
-        javaScriptEnabled
-        domStorageEnabled
-        // Guest identity lives in localStorage; clearing it would sign the
-        // player out every launch.
-        thirdPartyCookiesEnabled
-        // A game is not a document: bounce and long-press selection both read
-        // as bugs inside a canvas.
-        bounces={false}
-        overScrollMode="never"
-        allowsInlineMediaPlayback
-        mediaPlaybackRequiresUserAction={false}
-        setSupportMultipleWindows={false}
-        // file:// game: the page reads its own art, audio and fonts from the
-        // bundle. Scoped to the www folder on iOS.
-        originWhitelist={['*']}
-        allowFileAccess
-        allowFileAccessFromFileURLs
-        allowUniversalAccessFromFileURLs
-        allowingReadAccessToURL={GAME_ROOT}
-        // Wallet apps and the explorer open outside; everything else stays in.
-        onShouldStartLoadWithRequest={(r) => {
-          if (r.url.startsWith(GAME_ROOT) || r.url.startsWith('about:') || r.url.startsWith('data:') || r.url.startsWith('blob:')) return true;
-          if (/^(https?|solana|phantom|intent):/.test(r.url)) {
-            void Linking.openURL(r.url).catch(() => {});
-            return false;
-          }
-          return false;
-        }}
-        style={styles.fill}
-      />
-      {!ready && (
-        <View style={styles.loading} pointerEvents="none">
-          <ActivityIndicator size="large" color="#ffc422" />
+    <View style={[st.header, { paddingTop: insets.top + 6 }]}>
+      <Pressable style={st.who} onPress={() => { haptic.tap(); setWalletOpen(true); }} accessibilityLabel="Wallet">
+        <Image source={UI_ART.avatar_guest} style={st.avatar} />
+        <View>
+          <Body size={13} color="#fff" bold>{address ? short(address, 4) : '-'}</Body>
+          <Body size={10} color={sgt ? C.teal : kind === 'dev' ? C.goldHi : C.dim} bold>
+            {sgt ? 'SEEKER VERIFIED' : kind === 'dev' ? 'DEV WALLET' : 'MWA WALLET'}
+          </Body>
         </View>
-      )}
+      </Pressable>
+      <View style={{ flexDirection: 'row', gap: 6 }}>
+        <Chip label="TROPHY" value={String(trophies)} color={C.gold} />
+        <Chip label="SOL" value={sol === null ? '…' : sol.toFixed(2)} color={C.bluePale} onPress={() => setWalletOpen(true)} tag="devnet" />
+        <Chip
+          label="SKR"
+          value={String(SKR_LIVE ? Math.floor(skr ?? 0) : skrSim)}
+          color={C.skr}
+          tag={SKR_LIVE ? 'stand-in' : 'sim'}
+          onPress={() => setTab('shop')}
+        />
+      </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  fill: { flex: 1, backgroundColor: '#0d2a5c' },
-  loading: {
-    ...StyleSheet.absoluteFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#0d2a5c',
+function TabBar() {
+  const insets = useSafeAreaInsets();
+  const tab = useUi((s) => s.tab);
+  const setTab = useUi((s) => s.setTab);
+  const upgradable = useGame((s) => Object.values(s.cards)
+    .some((c) => c.level < MAX_LEVEL && c.copies >= COPIES_TO_LEVEL[c.level]));
+  const chestReady = useGame((s) => s.chests.some((c) => c.unlockAt !== null && c.unlockAt <= Date.now()));
+  return (
+    <View style={[st.tabs, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+      {TABS.map((t) => {
+        const on = tab === t.id;
+        const dot = (t.id === 'cards' && upgradable) || (t.id === 'home' && chestReady);
+        return (
+          <Pressable
+            key={t.id}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: on }}
+            accessibilityLabel={t.label}
+            onPress={() => { if (!on) { haptic.tap(); setTab(t.id); } }}
+            style={[st.tab, on && st.tabOn]}
+          >
+            <Image source={UI_ART[t.icon]} style={{ width: on ? 40 : 32, height: on ? 40 : 32 }} />
+            <Body size={11} color={on ? '#fff' : C.dim} bold>{t.label}</Body>
+            {dot ? <View style={st.dot} /> : null}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+/** Each tab slides in from the side it lives on. */
+function Screens() {
+  const tab = useUi((s) => s.tab);
+  const v = useRef(new Animated.Value(1)).current;
+  const prev = useRef<Tab>(tab);
+  const dir = TABS.findIndex((t) => t.id === tab) >= TABS.findIndex((t) => t.id === prev.current) ? 1 : -1;
+  useEffect(() => {
+    prev.current = tab;
+    v.setValue(0);
+    Animated.timing(v, { toValue: 1, duration: 240, useNativeDriver: true }).start();
+  }, [tab, v]);
+  return (
+    <Animated.View
+      style={{
+        flex: 1,
+        opacity: v,
+        transform: [{ translateX: v.interpolate({ inputRange: [0, 1], outputRange: [24 * dir, 0] }) }],
+      }}
+    >
+      {tab === 'home' ? <HomeScreen /> : tab === 'cards' ? <CardsScreen /> : tab === 'deck' ? <DeckScreen /> : <ShopScreen />}
+    </Animated.View>
+  );
+}
+
+function Game() {
+  return (
+    <View style={{ flex: 1 }}>
+      <Header />
+      <Screens />
+      <TabBar />
+      <CoachSheet />
+      <ArenaHost />
+      <ResultSheet />
+      <RevealSheet />
+      <WalletSheet />
+    </View>
+  );
+}
+
+function Root() {
+  const address = useWallet((s) => s.address);
+  const kind = useWallet((s) => s.kind);
+  const restoring = useWallet((s) => s.restoring);
+  const restore = useWallet((s) => s.restore);
+  const refresh = useWallet((s) => s.refresh);
+  const loadedFor = useGame((s) => s.address);
+  const load = useGame((s) => s.load);
+  const setSeeker = useUi((s) => s.setSeeker);
+
+  useEffect(() => {
+    void restore();
+    void ensureChannel().then(() => askPermission());
+  }, [restore]);
+
+  useEffect(() => {
+    if (address && loadedFor !== address) void load(address);
+  }, [address, loadedFor, load]);
+
+  // Seeker perks are a mainnet *read* for a real wallet; a dev key never has one.
+  useEffect(() => {
+    if (!address) return;
+    if (kind !== 'mwa') { setSeeker({ sgt: null, mainnetSkr: null }); return; }
+    void Promise.all([findSgtMint(address).catch(() => null), mainnetSkr(address).catch(() => null)])
+      .then(([sgt, skr]) => setSeeker({ sgt, mainnetSkr: skr }));
+  }, [address, kind, setSeeker]);
+
+  // Coming back to the app is when balances and chest timers matter.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (s) => { if (s === 'active') void refresh(); });
+    return () => sub.remove();
+  }, [refresh]);
+
+  if (restoring) return null;
+  return (
+    <>
+      {address && loadedFor === address ? <Game /> : address ? null : <ConnectScreen />}
+      <Toast />
+    </>
+  );
+}
+
+export default function App() {
+  const [fontsLoaded] = useFonts({
+    LilitaOne_400Regular, HankenGrotesk_500Medium, HankenGrotesk_600SemiBold, HankenGrotesk_800ExtraBold,
+  });
+  useEffect(() => {
+    if (fontsLoaded) void SplashScreen.hideAsync();
+  }, [fontsLoaded]);
+  if (!fontsLoaded) return null;
+  return (
+    <SafeAreaProvider>
+      <LinearGradient colors={[C.blueLit, C.blue, C.blueDeep]} style={{ flex: 1 }}>
+        <StatusBar style="light" />
+        <Root />
+      </LinearGradient>
+    </SafeAreaProvider>
+  );
+}
+
+const st = StyleSheet.create({
+  header: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 12, paddingBottom: 8, backgroundColor: 'rgba(9,22,48,0.55)',
+    borderBottomWidth: 2, borderBottomColor: 'rgba(0,0,0,0.4)',
   },
-  title: {
-    color: '#ffc422', fontSize: 34, fontWeight: '900', letterSpacing: 2,
-    textAlign: 'center', marginTop: 'auto',
+  who: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  avatar: { width: 38, height: 38, borderRadius: 10, borderWidth: 2, borderColor: C.gold },
+  tabs: {
+    flexDirection: 'row', backgroundColor: C.woodDark, borderTopWidth: 3, borderTopColor: C.woodEdge,
+    paddingTop: 6, paddingHorizontal: 6,
   },
-  body: {
-    color: '#dbe8ff', fontSize: 15, textAlign: 'center',
-    paddingHorizontal: 34, marginTop: 12,
+  tab: { flex: 1, alignItems: 'center', paddingVertical: 4, borderRadius: 12 },
+  tabOn: { backgroundColor: 'rgba(255,196,34,0.18)' },
+  dot: {
+    position: 'absolute', top: 2, right: '28%', width: 10, height: 10, borderRadius: 5,
+    backgroundColor: C.red, borderWidth: 1.5, borderColor: '#fff',
   },
-  fine: {
-    color: '#7c8db5', fontSize: 12, textAlign: 'center',
-    paddingHorizontal: 34, marginTop: 8, marginBottom: 'auto',
-  },
-  button: {
-    backgroundColor: '#f5b423', borderRadius: 12, paddingVertical: 14,
-    marginHorizontal: 40, marginBottom: 60, alignItems: 'center',
-  },
-  buttonText: { color: '#10203f', fontWeight: '900', fontSize: 16, letterSpacing: 1 },
 });
