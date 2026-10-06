@@ -7,7 +7,7 @@ plays your deck before you do.
 
 - **Repo:** https://github.com/nickthelegend/mempire-clockin
 - **APK:** `mempire-clockin.apk` (release, signed with a dedicated release key).
-  sha256 `__APK_SHA__`, __APK_SIZE__. See *Install* below for how to download it.
+  sha256 `9344f208d00759965ccb47b2c6c737b00bf99b1d97e5d14139125793c71ac371`, 59,394,666 bytes (56.6 MiB). See *Install* below for how to download it.
 - **Network:** Solana **devnet** only. No real funds move.
 - **Team:** Nivesh Gajengi (@nickthelegend).
 
@@ -64,7 +64,12 @@ SKR earned from streaks buys **Streak Shields**, so the habit protects itself.
   The web game uses these. The Seeker app's fighters use the same devnet coin
   registry mints, and archetypes come from the same hash the program uses.
 
-__CHAIN_EVIDENCE__
+**Devnet transaction links: none yet, and that is the honest state.** Every
+devnet faucet request on Oct 6 returned 429, so neither the deployer nor the
+demo wallet has SOL, and no Clock-In memo or SKR transfer from the app has been
+sent. The app handles this case on screen: the Clock-In is kept on the device
+and labelled "Not on-chain: no devnet SOL for the network fee". HANDOFF.md
+lists the two funding steps that turn on the on-chain path.
 
 ## SKR integration
 
@@ -91,7 +96,11 @@ decimals, `transferChecked`. The public `spl-token-faucet` program
 (`4bXpkKSV8swHSnwqtzuboGPaPDeEgAn4Vt8GfarV5rZt`) holds its mint authority, so
 the Clock-In transaction mints the day's reward and no key ships in the APK.
 `mobile/scripts/setup-skr-devnet.mjs` creates the mint with one command.
-__SKR_STATUS__
+**Status in the submitted APK:** the stand-in mint has **not** been deployed
+yet (it needs about 0.02 devnet SOL). The APK therefore runs SKR as a
+device-local balance, labelled **SIMULATED** on every screen where it
+appears. After `setup-skr-devnet.mjs` runs, a rebuild switches the same
+screens over to the on-chain stand-in.
 
 ## AI
 

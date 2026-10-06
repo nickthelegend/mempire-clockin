@@ -1,6 +1,6 @@
 # HANDOFF — Mempire for Seeker (Solana Mobile CLOCK IN)
 
-Status as of __HANDOFF_DATE__. This file records only what was run and seen.
+Status as of 2026-10-06, 21:30 IST. This file records only what was run and seen.
 
 ## What was verified, and how
 
@@ -25,14 +25,14 @@ Also verified: the shared battle sim is deterministic (`npx tsx app/scripts/sim-
 ## APK
 
 - `/Volumes/Extreme SSD/Projects/clockin/apks/mempire-clockin.apk`
-- sha256 `__APK_SHA__`
-- __APK_SIZE__, ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 1
+- sha256 `9344f208d00759965ccb47b2c6c737b00bf99b1d97e5d14139125793c71ac371`
+- 59,394,666 bytes (56.6 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 1
 - Signed with a **new dedicated release key**. The keystore and its password
   are **outside the repo** at
   `/Volumes/Extreme SSD/Projects/clockin/keys/mempire-release.keystore` and
   `mempire-release.env`. **Back both up.** Every future update, including the
   dApp Store, must be signed with this key.
-- `apksigner` certificate: __APK_CERT__
+- `apksigner` certificate: CN=Mempire, O=Mempire, C=IN; cert SHA-256 510a32d604173681a92bd6cb9c9b3809c4042c7d59a3fbbaf02316769fc3d943
 
 ## What the user must do
 

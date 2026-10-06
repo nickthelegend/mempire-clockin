@@ -11,7 +11,8 @@ HERE="$(cd "$(dirname "$0")/.." && pwd)"
 export LANG=en_US.UTF-8
 cd "$HERE"
 sh scripts/build-www.sh
-CI=1 npx expo prebuild --platform android --clean
+# plugins are idempotent; use --clean after native dependency changes
+CI=1 npx expo prebuild --platform android
 cd android
 # cap memory: 3g heap, a single worker, no parallel project execution
 sed -i '' -E 's/^org\.gradle\.jvmargs=.*/org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=768m/' gradle.properties
