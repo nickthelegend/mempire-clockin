@@ -146,3 +146,12 @@ the build falls back to the debug key and prints a warning.
   shared through env.sh, so it may have stopped another agent's Gradle daemon.
 - Gradle builds are capped (`-Xmx3g`, 2 workers, `--no-daemon`). No Metro,
   validator or emulator was left running.
+- Build outputs are kept so rebuilds stay fast: `mobile/android` (~465 MB),
+  `mobile/ios` (~620 MB) and the Xcode derived data at
+  `/Volumes/Extreme SSD/Projects/clockin/.cache/derived/mempire` (~1.7 GB).
+  Free all of it with
+  `rm -rf mobile/android mobile/ios/build "/Volumes/Extreme SSD/Projects/clockin/.cache/derived/mempire"`.
+  `npx expo prebuild` regenerates the native projects.
+- The simulator was left with the app installed and running on the Home tab.
+  While I was working, someone else played on it: a recorded Blue Chips win
+  and a Rush Unlock purchase.
