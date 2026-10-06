@@ -44,3 +44,15 @@ app/.demo-recording/
 # assemble scripts plus the recordings.
 videos/*/renders/
 videos/product-demo/*.mp4
+
+# CLOCK IN
+videos/gtm-shorts/.batch/
+clockin/apk/
+*.apk
+*.aab
+*.keystore
+*.jks
+mobile/keys/
+mobile/ios/
+mobile/android/
+mobile/www/
