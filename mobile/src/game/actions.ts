@@ -75,6 +75,10 @@ export async function doClockIn(seeker: boolean): Promise<ClockInResult | null> 
   }
 
   const done = game.commitClockIn(seeker, { sig, offlineReason });
+  if (sig && done) {
+    const ledger = useUi.getState().chainLedger ?? [];
+    useUi.getState().setChainLedger([{ day, streak: done.outcome.streak.count, sig }, ...ledger]);
+  }
   if (!done) return null;
   // SKR minted in the same transaction when it went through; otherwise owed.
   if (!sig || !SKR_LIVE) useGame.getState().addSkrSim(done.reward.skr);

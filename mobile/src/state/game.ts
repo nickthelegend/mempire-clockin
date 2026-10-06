@@ -104,6 +104,11 @@ interface GameState extends Save {
   addShield: () => void;
   recordBattle: (b: Omit<BattleRecord, 'at' | 'trophyDelta'>) => { record: BattleRecord; chest: Chest | null };
   noteCoachRun: () => void;
+  /**
+   * Restore the streak from the chain's Clock-In memos when they are ahead of
+   * this device (a reinstall, a second phone). The chain is the record.
+   */
+  adoptChainStreak: (latest: { day: number; streak: number }) => boolean;
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -263,6 +268,17 @@ export const useGame = create<GameState>((set, get) => {
     },
 
     noteCoachRun: () => put({ coachRuns: get().coachRuns + 1 }),
+
+    adoptChainStreak: (latest) => {
+      const st = get().streak;
+      if (latest.day <= st.lastDay) return false;
+      put({
+        streak: {
+          ...st, count: latest.streak, lastDay: latest.day, best: Math.max(st.best, latest.streak),
+        },
+      });
+      return true;
+    },
   };
 });
 

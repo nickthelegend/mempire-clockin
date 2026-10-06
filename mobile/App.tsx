@@ -17,7 +17,7 @@ import { useGame } from './src/state/game';
 import { useUi, type Tab } from './src/state/ui';
 import { findSgtMint, mainnetSkr } from './src/chain/seeker';
 import { SKR_LIVE } from './src/chain/skr';
-import { short } from './src/chain/solana';
+import { readClockIns, short } from './src/chain/solana';
 import { COPIES_TO_LEVEL, MAX_LEVEL } from './src/game/rules';
 import { ensureChannel, haptic } from './src/notify';
 import { C } from './src/theme';
@@ -178,6 +178,20 @@ function Root() {
   useEffect(() => {
     if (address && loadedFor !== address) void load(address);
   }, [address, loadedFor, load]);
+
+  // The streak lives on chain too: if this device is behind (reinstall, new
+  // phone), adopt the latest signed Clock-In memo.
+  const adoptChainStreak = useGame((s) => s.adoptChainStreak);
+  const setChainLedger = useUi((s) => s.setChainLedger);
+  useEffect(() => {
+    if (!address || loadedFor !== address) return;
+    void readClockIns(address).then((list) => {
+      setChainLedger(list);
+      if (list[0] && adoptChainStreak(list[0])) {
+        useUi.getState().say(`Streak restored from Solana: day ${list[0].streak}`, 'ok');
+      }
+    }).catch(() => setChainLedger(null));
+  }, [address, loadedFor, adoptChainStreak, setChainLedger]);
 
   // Seeker perks are a mainnet *read* for a real wallet; a dev key never has one.
   useEffect(() => {

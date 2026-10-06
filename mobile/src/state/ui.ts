@@ -49,6 +49,9 @@ interface UiState {
   sgtChecked: boolean;
   mainnetSkr: number | null;
   setSeeker: (p: { sgt: string | null; mainnetSkr: number | null }) => void;
+  /** This wallet's Clock-In memos read back from devnet; null = could not read, undefined = reading. */
+  chainLedger: { day: number; streak: number; sig: string }[] | null | undefined;
+  setChainLedger: (l: { day: number; streak: number; sig: string }[] | null) => void;
 }
 
 let toastId = 0;
@@ -73,4 +76,6 @@ export const useUi = create<UiState>((set) => ({
   sgtChecked: false,
   mainnetSkr: null,
   setSeeker: ({ sgt, mainnetSkr }) => set({ sgt, mainnetSkr, sgtChecked: true }),
+  chainLedger: undefined,
+  setChainLedger: (chainLedger) => set({ chainLedger }),
 }));

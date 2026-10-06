@@ -33,6 +33,7 @@ function ClockIn() {
   const last = useGame((s) => s.clockIns[0]);
   const sgt = useUi((s) => s.sgt);
   const say = useUi((s) => s.say);
+  const ledger = useUi((s) => s.chainLedger);
   const [busy, setBusy] = useState(false);
   const pop = useRef(new Animated.Value(0)).current;
   const state = streakState(streak);
@@ -110,6 +111,15 @@ function ClockIn() {
           <Tag text="saved on device" color={C.goldHi} />
         ) : null}
       </View>
+      <Body size={11} color={C.dimOnWood} style={{ marginTop: 4 }}>
+        {ledger === undefined
+          ? 'Chain ledger: reading devnet…'
+          : ledger === null
+          ? 'Chain ledger: could not reach devnet.'
+          : ledger.length
+            ? `Chain ledger: ${ledger.length} signed Clock-In${ledger.length === 1 ? '' : 's'} on devnet · latest day ${ledger[0].streak}`
+            : 'Chain ledger: no signed Clock-Ins yet — they appear once the wallet has devnet SOL.'}
+      </Body>
       {last?.day === dayKey() && last.offlineReason ? (
         <Body size={11} color={C.dimOnWood} style={{ marginTop: 4 }}>
           Not on-chain: {last.offlineReason}. Your streak and chest are kept{SKR_LIVE ? '; the SKR is owed — claim it in the Shop once you have devnet SOL.' : `; ${SKR_LABEL} was credited.`}
