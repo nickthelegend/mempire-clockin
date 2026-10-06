@@ -1,0 +1,5 @@
+{
+  "configured": false,
+  "label": "SKR (devnet stand-in)",
+  "note": "Not deployed yet. Run `node scripts/setup-skr-devnet.mjs` with a funded devnet keypair; until then the app uses a simulated, clearly labelled SKR balance."
+}

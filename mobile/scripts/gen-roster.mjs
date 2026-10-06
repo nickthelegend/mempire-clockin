@@ -14,6 +14,7 @@
  *
  *   node scripts/gen-roster.mjs
  */
+import { execFileSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -48,6 +49,9 @@ const EXTRA = [
   'wood_seamless', 'arena_ground',
 ];
 for (const e of EXTRA) copyFileSync(join(ART, `${e}.webp`), join(OUT_ART, `${e}.webp`));
+
+// Cards are drawn on magenta; key it out once here (the web does it on a canvas).
+execFileSync('python3', [join(HERE, 'key-art.py'), OUT_ART], { stdio: 'inherit' });
 
 writeFileSync(join(MOBILE, 'src/data/roster.json'), `${JSON.stringify(roster, null, 1)}\n`);
 const lines = [
