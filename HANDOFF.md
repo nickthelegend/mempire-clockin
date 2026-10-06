@@ -1,6 +1,6 @@
 # HANDOFF — Mempire for Seeker (Solana Mobile CLOCK IN)
 
-Status as of 2026-10-06, 21:30 IST. This file records only what was run and seen.
+Status as of 2026-10-06, 21:50 IST. This file records only what was run and seen.
 
 ## What was verified, and how
 
@@ -17,6 +17,7 @@ are in `clockin/screens/`.
 | Chest timer → open | Works. A 3-minute silver chest unlocked, then opened with the reveal animation, giving 2 new fighters and +1 copy. |
 | **3D battle** from the native app | Works. The bundled arena loads from `file://` in WKWebView, cards can be dragged and played, and the AI rival plays back. A **Rush** match ran to the end and the native **DEFEAT** result sheet appeared with crowns and trophies. |
 | **AI Coach** | Works. It ran 24 simulated matches in 1.3 s on the simulator, then the swap search suggested $BTC → $NVDA. (Since then the coach uses 4 seeds and like-for-like seeds for the swap comparison.) |
+| Chain ledger read | Works. On load, the app read the dev wallet's signature history from **devnet** and showed "no signed Clock-Ins yet". So devnet RPC is reachable from the app, and the restore-streak-from-chain path runs. |
 | Fighters / Shop screens | Render correctly. SKR shows as **SIMULATED** because the stand-in mint is not deployed. |
 | Release APK | **Built and signed with Gradle**; signature checked with `apksigner`, details below. **It has NOT been run on an Android device or emulator.** The user ordered no emulator use (it exhausted the Mac's RAM), and no device was attached. MWA on Android is therefore **untested**. |
 
@@ -35,8 +36,9 @@ Also verified: the shared battle sim is deterministic (`npx tsx app/scripts/sim-
 ## APK
 
 - `/Volumes/Extreme SSD/Projects/clockin/apks/mempire-clockin.apk`
-- sha256 `9344f208d00759965ccb47b2c6c737b00bf99b1d97e5d14139125793c71ac371`
-- 59,394,666 bytes (56.6 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 1
+- sha256 `4edc4afaee50d55f1930cb06f819046b60f45bf7d1f79a95d4896ed30fd540ee`
+- 59,396,786 bytes (56.6 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 1
+- Built from commit `f6afc7e` (all features above, including the chain-ledger streak restore).
 - Signed with a **new dedicated release key**. The keystore and its password
   are **outside the repo** at
   `/Volumes/Extreme SSD/Projects/clockin/keys/mempire-release.keystore` and
