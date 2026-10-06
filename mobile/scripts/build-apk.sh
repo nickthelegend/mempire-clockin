@@ -15,7 +15,7 @@ CI=1 npx expo prebuild --platform android --clean
 cd android
 # cap memory: 3g heap, a single worker, no parallel project execution
 sed -i '' -E 's/^org\.gradle\.jvmargs=.*/org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=768m/' gradle.properties
-grep -q '^org.gradle.workers.max' gradle.properties || echo 'org.gradle.workers.max=2' >> gradle.properties
+grep -q '^org.gradle.workers.max' gradle.properties || printf '\norg.gradle.workers.max=2\n' >> gradle.properties
 sed -i '' -E 's/^org\.gradle\.parallel=.*/org.gradle.parallel=false/' gradle.properties
 ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,x86_64 --no-daemon
 APK=app/build/outputs/apk/release/app-release.apk

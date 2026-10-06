@@ -53,7 +53,7 @@ export function RevealSheet() {
             {reveal.drops.slice(0, shown).map((d) => (
               <View key={d.ticker} style={{ alignItems: 'center', gap: 4 }}>
                 <CardTile ticker={d.ticker} owned={cards[d.ticker]} width={88} />
-                <Tag text={d.fresh ? 'NEW!' : `+${d.copies} copies`} color={d.fresh ? C.gold : C.teal} />
+                <Tag text={d.fresh ? 'NEW!' : `+${d.copies} ${d.copies === 1 ? 'copy' : 'copies'}`} color={d.fresh ? C.gold : C.teal} />
               </View>
             ))}
           </View>

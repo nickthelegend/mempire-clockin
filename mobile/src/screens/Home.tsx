@@ -228,7 +228,7 @@ function CoachTeaser() {
           <Body size={12} color={C.dim}>
             Plays your deck against every rival with the real battle engine, then finds the swap that wins more.
           </Body>
-          {runs > 0 ? <Body size={11} color={C.teal}>{runs} scouting runs so far</Body> : null}
+          {runs > 0 ? <Body size={11} color={C.teal}>{runs} scouting {runs === 1 ? 'run' : 'runs'} so far</Body> : null}
         </View>
         <Display size={30} color={C.gold}>›</Display>
       </LinearGradient>

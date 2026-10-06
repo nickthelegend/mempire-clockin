@@ -14,7 +14,7 @@ import { Body, Btn, CardTile, Display, Panel, Progress, Tag, Well } from '../ui/
  * Seeds are fixed per run so pressing "Scout" twice on the same deck gives the
  * same answer — a coach that changes its mind on a re-roll is not a coach.
  */
-const SEEDS = 3;
+const SEEDS = 4;
 
 export function CoachSheet() {
   const open = useUi((s) => s.coachOpen);
@@ -54,7 +54,7 @@ export function CoachSheet() {
     if (!ev) return;
     setPhase('searching');
     const pool = Object.keys(cards).map(toCoach);
-    const s = await bestSwap(deck.map(toCoach), pool, rivals(), ev, { slots: 3, candidates: 3, seeds: 1 }, (label, done, total) => {
+    const s = await bestSwap(deck.map(toCoach), pool, rivals(), ev, { slots: 3, candidates: 3, seeds: SEEDS }, (label, done, total) => {
       if (!cancelled.current) setProgress({ done, total, label: `Trying ${label}` });
     });
     if (cancelled.current) return;
@@ -78,7 +78,7 @@ export function CoachSheet() {
             <Btn label="✕" tone="ghost" size="sm" onPress={close} />
           </View>
           <Body size={13}>
-            The coach plays your eight cards against all {RIVALS.length} rival decks — {SEEDS} seeded matches each, from both sides of the arena — using the same deterministic battle engine as the 3D arena, with the game&apos;s AI pilot on both seats. 90-second matches, so it fits on a phone. Nothing leaves this device.
+            The coach plays your eight cards against all {RIVALS.length} rival decks — {SEEDS} seeds each, every seed played from both sides of the arena — using the same deterministic battle engine as the 3D arena, with the game&apos;s AI pilot on both seats. 90-second matches, so it fits on a phone. Nothing leaves this device.
           </Body>
 
           {phase === 'idle' ? <Btn label="SCOUT MY DECK" size="lg" onPress={() => void scout()} /> : null}
@@ -132,7 +132,7 @@ export function CoachSheet() {
                 <CardTile ticker={swap.in.ticker} owned={cards[swap.in.ticker]} width={92} />
               </View>
               <Body size={13} color="#fff">
-                Win rate {Math.round(swap.before * 100)}% → {Math.round(swap.after * 100)}% across {swap.games} test matches.
+                Win rate {Math.round(swap.before * 100)}% → {Math.round(swap.after * 100)}%, each measured over {swap.games} matches on the same seeds.
               </Body>
               <Btn
                 label="APPLY SWAP"
@@ -157,7 +157,7 @@ export function CoachSheet() {
 }
 
 const st = StyleSheet.create({
-  wrap: { flex: 1, backgroundColor: 'rgba(8,18,42,0.97)' },
+  wrap: { flex: 1, backgroundColor: '#0a1a3d' },
   between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   swapRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, marginVertical: 10 },
 });

@@ -1,18 +1,36 @@
 # Mempire
 
-**Every coin is a fighter.** A 3D real-time Clash Royale-style card battler on
-Solana where the roster is the market itself — memecoins, majors and tokenised
-stocks, each one a card with its own art, archetype and stats. Collect them,
-build an 8-card deck, and fight 1v1 for a staked SOL pot. Winner takes 90%.
+**Every coin is a fighter — and the Seeker app gives you a reason to show up every day.**
+A 3D real-time Clash Royale-style card battler on Solana where the roster is the
+market itself — memecoins, majors and tokenised stocks, each one a card with its
+own art, archetype and stats. This repository is Mempire's entry to the
+**Solana Mobile CLOCK IN** hackathon: a native Android (Seeker) and iOS app built
+around a daily Clock-In loop, with the 3D arena carried inside the binary.
 
-**You never hand over your holdings.** Mempire does not custody, lock or stake
-anyone's tokens. The coins are *characters*, not collateral: you play with BONK
-the way you'd play with a chess piece. The only thing you ever risk is the SOL
-you choose to put on a match, and even that is escrowed by a program that pays
-out to whoever wins.
+## Mempire for Seeker (CLOCK IN)
 
-[play.mempire.fun](https://play.mempire.fun) · live on devnet, free, no install,
-no wallet required to start.
+`mobile/` is an Expo 57 / React Native 0.86 app. The whole daily loop is native;
+the battle itself is the game's React Three Fiber arena, bundled into the APK and
+opened full-screen only for the length of a match.
+
+| | What it does | Where |
+|---|---|---|
+| **Mobile Wallet Adapter** | Primary sign-in on Android (Seed Vault on Seeker, Phantom, Solflare). Auth token kept in the OS keystore, every transaction approved in the wallet. A clearly labelled **devnet-only dev wallet** covers iOS and wallet-less emulators. | `mobile/src/wallet/wallet.ts` |
+| **Daily Clock-In** | One tap a day. A 7-day reward ladder (chests and SKR, Legendary chest on day 7), streak + best streak, reminders before the streak lapses. Each Clock-In is a **signed devnet memo** (`mempire:clockin:v1:day=…:streak=…`), so the streak is a public record anyone can rebuild from chain. | `mobile/src/game/rules.ts`, `mobile/src/chain/solana.ts` |
+| **SKR** | Earned by clocking in and winning; spent on **Streak Shields** (miss a day, keep the streak), a **Seeker Chest**, and **Rush Unlock**. Never on power. On devnet it is a labelled stand-in mint with real SKR's shape (classic SPL, 6 decimals, `transferChecked`), paid out by the public `spl-token-faucet` program so no key ships in the app. **Seeker Genesis Token** holders earn double SKR (read-only mainnet check). | `mobile/src/chain/skr.ts`, `mobile/src/chain/seeker.ts` |
+| **AI Coach (on-device)** | Runs the game's real deterministic battle engine headless on the phone: your deck vs every rival, both seats, fixed seeds — then searches for the single swap from your collection that wins more, and shows the numbers behind it. No server, no LLM, nothing leaves the device. | `mobile/src/game/coach.ts` |
+| **Collection, deck, chests** | 64 fighters, levels from duplicates, chest timers with local notifications, haptics throughout. | `mobile/src/screens/` |
+| **3D arena** | The same sim the web game and the on-chain match log use, opened from the native app with the deck and rival chosen natively; the result comes back over the bridge. Standard (3 min) or Rush (30 s). | `app/src/native/NativeHost.tsx` |
+
+Build and run (details in [HANDOFF.md](HANDOFF.md)): from `mobile/`, `npm run ios:sim`
+(iOS simulator), `npm run apk` (signed release APK). Submission material is in
+[`clockin/`](clockin/).
+
+## The game
+
+The game below is the web client the arena comes from. You never hand over your
+holdings: coins are *characters*, not collateral. The web build also runs at
+[play.mempire.fun](https://play.mempire.fun) on devnet.
 
 ## How it plays
 
@@ -231,8 +249,8 @@ problem, not a fixing problem.
    separate `mempire_rollup` deploy that adds VRF-rolled chests, the
    play-by-play log, PER sealing and session keys. Grown in place with
    `solana program extend` and funded out of rake rather than out of pocket.
-5. **Then** — clan tournaments with rake-funded prizes, the Android wrapper
-   (keystore already cut), a third-party audit, higher tiers.
+5. **Then** — clan tournaments with rake-funded prizes, the Seeker app on the
+   Solana dApp Store, a third-party audit, higher tiers.
 
 ### Revenue is shipping, not planned
 
@@ -256,7 +274,7 @@ Verified at 320/375/430px: no readable string under 12px, no touch target under
 44px, no horizontal overflow.
 Full authority in `DESIGN.md`; product truth in `PRODUCT.md`; the monetization
 argument in `FEATURES.md`; the 50-item build plan in `ROADMAP.md`; what comes
-after the deadline in `AFTER_HACKATHON.md`.
+after the hackathon in `AFTER_HACKATHON.md`.
 
 Art and audio are generated through the Higgsfield CLI and committed:
 `design/gen.sh` (images), `design/gen-audio.sh` (sound), `design/slice.py`
