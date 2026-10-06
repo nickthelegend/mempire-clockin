@@ -8,16 +8,16 @@ export type Sfx =
   | 'click' | 'chestOpen' | 'reward' | 'error';
 
 const FILES: Record<Sfx, string> = {
-  deploy: '/sfx/sfx_deploy.mp3',
-  hit: '/sfx/sfx_hit.mp3',
-  tower: '/sfx/sfx_tower.mp3',
-  victory: '/sfx/sfx_victory.mp3',
-  defeat: '/sfx/sfx_defeat.mp3',
-  coin: '/sfx/sfx_coin.mp3',
-  click: '/sfx/sfx_click.mp3',
-  chestOpen: '/sfx/sfx_chest.mp3',
-  reward: '/sfx/sfx_reward.mp3',
-  error: '/sfx/sfx_error.mp3',
+  deploy: 'sfx/sfx_deploy.mp3',
+  hit: 'sfx/sfx_hit.mp3',
+  tower: 'sfx/sfx_tower.mp3',
+  victory: 'sfx/sfx_victory.mp3',
+  defeat: 'sfx/sfx_defeat.mp3',
+  coin: 'sfx/sfx_coin.mp3',
+  click: 'sfx/sfx_click.mp3',
+  chestOpen: 'sfx/sfx_chest.mp3',
+  reward: 'sfx/sfx_reward.mp3',
+  error: 'sfx/sfx_error.mp3',
 };
 
 const VOLUME: Record<Sfx, number> = {
@@ -113,10 +113,10 @@ function startTrack(src: string, volume: number, loop = true): void {
 }
 
 export function startMenuMusic(): void {
-  startTrack('/sfx/music_menu.m4a', 0.16);
+  startTrack('sfx/music_menu.m4a', 0.16);
 }
 
-export function startMusic(src = '/sfx/music_battle.m4a', volume = 0.22): void {
+export function startMusic(src = 'sfx/music_battle.m4a', volume = 0.22): void {
   startTrack(src, volume);
 }
 

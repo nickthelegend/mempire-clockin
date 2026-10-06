@@ -152,7 +152,7 @@ function build(): Coin[] {
       kind: KIND_BY_TICKER.get(c.ticker.toUpperCase()) ?? 'meme',
       // Round badge only for the originally-arted coins; everything else relies
       // on its character card, with CoinBadge's procedural fallback behind it.
-      logoUrl: look ? `/art/${look.art}.webp` : undefined,
+      logoUrl: look ? `art/${look.art}.webp` : undefined,
       /*
        * WebP, and the conventional path.
        *
@@ -171,7 +171,7 @@ function build(): Coin[] {
        * billboard fall back to the round badge on a load error, so dropping
        * `card_<ticker>.webp` into /art is the whole install step.
        */
-      cardArt: `/art/card_${c.ticker.toLowerCase()}.webp`,
+      cardArt: `art/card_${c.ticker.toLowerCase()}.webp`,
     };
   });
 }

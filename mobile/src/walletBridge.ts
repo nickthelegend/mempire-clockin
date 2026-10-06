@@ -1,4 +1,5 @@
-import { transact, Web3MobileWallet } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js';
+import type { Web3MobileWallet } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js';
+import { Platform } from 'react-native';
 import { PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 
@@ -33,6 +34,21 @@ import { Buffer } from 'buffer';
  */
 
 const CLUSTER = 'devnet';
+
+/**
+ * MWA is an Android intent protocol and its native module only exists there. A
+ * static import throws at startup on iOS ("TurboModuleRegistry ...
+ * 'SolanaMobileWalletAdapter' could not be found"), so it is required lazily.
+ */
+type Transact = typeof import('@solana-mobile/mobile-wallet-adapter-protocol-web3js').transact;
+function transact<T>(cb: (w: Web3MobileWallet) => Promise<T>): Promise<T> {
+  if (Platform.OS !== 'android') {
+    return Promise.reject(new Error('Mobile Wallet Adapter is Android-only'));
+  }
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const mod = require('@solana-mobile/mobile-wallet-adapter-protocol-web3js') as { transact: Transact };
+  return mod.transact(cb) as Promise<T>;
+}
 const IDENTITY = {
   name: 'Mempire',
   uri: 'https://play.mempire.fun',

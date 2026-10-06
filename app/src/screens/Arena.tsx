@@ -55,7 +55,7 @@ const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
 export function Logo({ width = 260 }: { width?: number }) {
   return (
     <img
-      src="/art/logo.webp"
+      src="art/logo.webp"
       alt="Mempire"
       width={width}
       draggable={false}
@@ -153,7 +153,7 @@ function TopHud({ onReplayTutorial }: { onReplayTutorial: () => void }) {
         }}
       >
         <img
-          src="/art/avatar_guest.webp"
+          src="art/avatar_guest.webp"
           alt=""
           aria-hidden
           width={34}

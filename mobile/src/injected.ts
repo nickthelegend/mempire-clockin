@@ -15,10 +15,20 @@
  * context, not this bundle's. It must run before the app's scripts, which is
  * what `injectedJavaScriptBeforeContentLoaded` guarantees.
  */
-export const INJECTED_BRIDGE = String.raw`
+export function injectedBridge(platform: 'android' | 'ios'): string {
+  return `var __MEMPIRE_PLATFORM = ${JSON.stringify(platform)};\n${BRIDGE}`;
+}
+
+/*
+ * iOS has no Mobile Wallet Adapter (it is an Android intent protocol), so on
+ * iOS the Phantom-shaped provider is not planted at all and the game offers
+ * its built-in devnet guest keypair instead. Android gets the full provider.
+ */
+const BRIDGE = String.raw`
 (function () {
   if (window.__mempireBridge) return;
   window.__mempireBridge = true;
+  var MWA = __MEMPIRE_PLATFORM === 'android';
 
   var nextId = 1;
   var pending = {};
@@ -197,17 +207,22 @@ export const INJECTED_BRIDGE = String.raw`
     removeAllListeners: function () { listeners = {}; },
   };
 
+  provider.isMobileWalletAdapter = true;
+  if (MWA) {
   window.phantom = { solana: provider };
   window.solana = provider;
   // The adapter requires this flag as well as isPhantom; without it readyState
   // never leaves NotDetected and the picker offers an install link instead of
   // a connect button.
   window.isPhantomInstalled = true;
+  }
 
   // ── the small native surface the game can ask for ────────────────────────
   window.MempireNative = {
-    platform: 'android',
-    version: 1,
+    platform: __MEMPIRE_PLATFORM,
+    version: 2,
+    /** True when a Mobile Wallet Adapter wallet (Seed Vault, Phantom, Solflare…) is reachable. */
+    mwa: MWA,
     /**
      * Schedule a local notification.
      *

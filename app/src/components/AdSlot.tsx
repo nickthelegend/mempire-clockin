@@ -58,7 +58,7 @@ export function AdSlot({ side }: { side: 'left' | 'right' }) {
       <div className="adboard" style={{ position: 'sticky', top: 48, width: 300, maxWidth: '100%' }}>
         <div style={{ position: 'relative', width: '100%', aspectRatio: '512 / 762' }}>
           <img
-            src="/art/ad_frame.webp"
+            src="art/ad_frame.webp"
             alt=""
             aria-hidden
             draggable={false}

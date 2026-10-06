@@ -70,12 +70,23 @@
           }
         }
       ],
-      "./plugins/withMempireGradle"
+      "./plugins/withMempireGradle",
+      "./plugins/withBundledWeb",
+      "expo-secure-store",
+      "expo-font"
     ],
     "extra": {
       "eas": {
         "projectId": "00000000-0000-0000-0000-000000000000"
       }
-    }
+    },
+    "ios": {
+      "bundleIdentifier": "fun.mempire.app",
+      "supportsTablet": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "description": "Mempire — every coin is a fighter. A Solana Seeker card battler with a daily Clock-In streak, SKR-powered chests and an on-device AI coach. Devnet."
   }
 }

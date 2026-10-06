@@ -9,7 +9,8 @@ import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
-import { INJECTED_BRIDGE } from './src/injected';
+import { Paths } from 'expo-file-system';
+import { injectedBridge } from './src/injected';
 import { handle, type BridgeRequest } from './src/walletBridge';
 
 /**
@@ -39,7 +40,20 @@ import { handle, type BridgeRequest } from './src/walletBridge';
  *   rather than killing the app.
  */
 
-const GAME_URL = 'https://play.mempire.fun';
+/**
+ * The game ships inside the binary (see plugins/withBundledWeb.js) and loads
+ * from file://, so the APK needs no hosted web server and plays straight
+ * against Solana devnet. `EXPO_PUBLIC_GAME_URL` points the shell at a dev
+ * server instead (e.g. http://localhost:4173) for iterating on the client.
+ */
+function bundledGameUrl(): string {
+  if (Platform.OS === 'android') return 'file:///android_asset/www/index.html';
+  const root = Paths.bundle.uri.endsWith('/') ? Paths.bundle.uri : `${Paths.bundle.uri}/`;
+  return `${root}www/index.html`;
+}
+const GAME_URL = process.env.EXPO_PUBLIC_GAME_URL || bundledGameUrl();
+const GAME_ROOT = GAME_URL.replace(/[^/]*$/, '');
+const INJECTED = injectedBridge(Platform.OS === 'android' ? 'android' : 'ios');
 
 /** Foreground notifications still play the sound — the chest chime is the point. */
 Notifications.setNotificationHandler({
@@ -205,7 +219,7 @@ export default function App() {
         source={{ uri: GAME_URL }}
         // Before the page's own scripts, so the wallet provider exists by the
         // time the adapter looks for one.
-        injectedJavaScriptBeforeContentLoaded={INJECTED_BRIDGE}
+        injectedJavaScriptBeforeContentLoaded={INJECTED}
         onMessage={onMessage}
         onNavigationStateChange={(nav) => { canGoBack.current = nav.canGoBack; }}
         onError={(e) => setFailed(e.nativeEvent.description)}
@@ -229,9 +243,16 @@ export default function App() {
         allowsInlineMediaPlayback
         mediaPlaybackRequiresUserAction={false}
         setSupportMultipleWindows={false}
+        // file:// game: the page reads its own art, audio and fonts from the
+        // bundle. Scoped to the www folder on iOS.
+        originWhitelist={['*']}
+        allowFileAccess
+        allowFileAccessFromFileURLs
+        allowUniversalAccessFromFileURLs
+        allowingReadAccessToURL={GAME_ROOT}
         // Wallet apps and the explorer open outside; everything else stays in.
         onShouldStartLoadWithRequest={(r) => {
-          if (r.url.startsWith(GAME_URL) || r.url.startsWith('about:')) return true;
+          if (r.url.startsWith(GAME_ROOT) || r.url.startsWith('about:') || r.url.startsWith('data:') || r.url.startsWith('blob:')) return true;
           if (/^(https?|solana|phantom|intent):/.test(r.url)) {
             void Linking.openURL(r.url).catch(() => {});
             return false;

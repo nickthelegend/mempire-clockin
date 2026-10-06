@@ -55,4 +55,5 @@ clockin/apk/
 mobile/keys/
 mobile/ios/
 mobile/android/
-mobile/www/
+mobile/web/
+app/dist-native/

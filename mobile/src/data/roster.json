@@ -1,0 +1,514 @@
+[
+ {
+  "ticker": "BTC",
+  "name": "Bitcoin",
+  "mint": "9RRBPuMLxh9iGBkyPZMN1QEAGUWYLedAENcgqa35Gzwy",
+  "hue": 38,
+  "kind": "crypto",
+  "eligible": true
+ },
+ {
+  "ticker": "ETH",
+  "name": "Ethereum",
+  "mint": "Ajhjp33b1BhfXAd464rWdDCHL34KNtqoR2gwmu5CT9cF",
+  "hue": 320,
+  "kind": "crypto",
+  "eligible": true
+ },
+ {
+  "ticker": "SOL",
+  "name": "Solana",
+  "mint": "5ztNTjRJobphmfs7oPbp37pubg5mz57zTsXAAnpCtrHi",
+  "hue": 265,
+  "kind": "crypto",
+  "eligible": true
+ },
+ {
+  "ticker": "BNB",
+  "name": "BNB",
+  "mint": "5wXRvFdrufegN6XAkQZyka9pzKZKnUKQjCeeWCZzHi3X",
+  "hue": 205,
+  "kind": "crypto",
+  "eligible": true
+ },
+ {
+  "ticker": "XRP",
+  "name": "XRP",
+  "mint": "FWFJhvSAG8gpaPoWA6aonsPQHqP36okpYHroFjVGPigc",
+  "hue": 130,
+  "kind": "crypto",
+  "eligible": true
+ },
+ {
+  "ticker": "ADA",
+  "name": "Cardano",
+  "mint": "63ukW4pSrDtqSWF78Ai4RSNf4YUnagSw2qpwUXYLM5mo",
+  "hue": 52,
+  "kind": "crypto",
+  "eligible": true
+ },
+ {
+  "ticker": "DOGE",
+  "name": "Dogecoin",
+  "mint": "9zbZq3Wgm7gHCNEPkgeGrMHq7cgj1unmMe7qBjHudqs9",
+  "hue": 12,
+  "kind": "crypto",
+  "eligible": true
+ },
+ {
+  "ticker": "AVAX",
+  "name": "Avalanche",
+  "mint": "4fdUfaeqKPnZZt8mzwfaMYiAqcwKLoVkXVwRtYMQGuo9",
+  "hue": 350,
+  "kind": "crypto",
+  "eligible": true
+ },
+ {
+  "ticker": "LINK",
+  "name": "Chainlink",
+  "mint": "FjaJpVhP6KX1Vaxg74MfF1VGkFsvDZ4iGMZBw7yZfvqf",
+  "hue": 88,
+  "kind": "crypto",
+  "eligible": true
+ },
+ {
+  "ticker": "DOT",
+  "name": "Polkadot",
+  "mint": "HfiqGNep8hmxNn9hpDdYVLrjhFiMn5XGhBu7EgYAk64i",
+  "hue": 228,
+  "kind": "crypto",
+  "eligible": true
+ },
+ {
+  "ticker": "MATIC",
+  "name": "Polygon",
+  "mint": "69EZJyXVUs7VESjnKK4JEL6RN6eS1uoVEVz5vs8FaJH6",
+  "hue": 190,
+  "kind": "crypto",
+  "eligible": true
+ },
+ {
+  "ticker": "TRX",
+  "name": "TRON",
+  "mint": "HBZmGzaHoo1PED2MHdKaGCUi4rH8bUx2wJvTkyezz736",
+  "hue": 28,
+  "kind": "crypto",
+  "eligible": true
+ },
+ {
+  "ticker": "LTC",
+  "name": "Litecoin",
+  "mint": "3pbyF77KkpPuyNeGcN8Hfw5pHEmeKM8JeVanizPeswAU",
+  "hue": 165,
+  "kind": "crypto",
+  "eligible": true
+ },
+ {
+  "ticker": "SHIB",
+  "name": "Shiba Inu",
+  "mint": "3zaHEBMosEJHNrB1hsypxktPic6xJtDYUS4NRwXiCZAH",
+  "hue": 300,
+  "kind": "crypto",
+  "eligible": true
+ },
+ {
+  "ticker": "UNI",
+  "name": "Uniswap",
+  "mint": "5PqAkrUBLVRtA8VUrKSzP46HeHfdeM578rkk5YqRmPyb",
+  "hue": 15,
+  "kind": "crypto",
+  "eligible": true
+ },
+ {
+  "ticker": "ATOM",
+  "name": "Cosmos",
+  "mint": "ATfXa6emupmRdrGU1NMuEFc7QM7uBJzyLpvx5KREmvQW",
+  "hue": 72,
+  "kind": "crypto",
+  "eligible": true
+ },
+ {
+  "ticker": "XLM",
+  "name": "Stellar",
+  "mint": "78JNuVeogJqE3jr8W6SeW79hxCLWdomtSh4ZdNbta9wQ",
+  "hue": 255,
+  "kind": "crypto",
+  "eligible": true
+ },
+ {
+  "ticker": "APT",
+  "name": "Aptos",
+  "mint": "HnXMLDVuqUQf6UeQWS527ZrBRcwrshUcn87vmyBwR2wY",
+  "hue": 110,
+  "kind": "crypto",
+  "eligible": true
+ },
+ {
+  "ticker": "ARB",
+  "name": "Arbitrum",
+  "mint": "s1xH8F83bKQREPuY79WsTkUbBcYntvt2fncea8Javfz",
+  "hue": 340,
+  "kind": "crypto",
+  "eligible": true
+ },
+ {
+  "ticker": "OP",
+  "name": "Optimism",
+  "mint": "59HfsR6UnMPn2puBumfnTZCo2ohsFwAPHWSgdz5fNWdp",
+  "hue": 200,
+  "kind": "crypto",
+  "eligible": true
+ },
+ {
+  "ticker": "AAPL",
+  "name": "Apple",
+  "mint": "3a5hEYu4ZTiJFxzhnV58U6WdSni1TEZidosijwGq9HUG",
+  "hue": 38,
+  "kind": "stock",
+  "eligible": true
+ },
+ {
+  "ticker": "TSLA",
+  "name": "Tesla",
+  "mint": "GgBqdHq7NeUbRSRvsFmCcR8APfpLccQdMxAXyuuS2USo",
+  "hue": 320,
+  "kind": "stock",
+  "eligible": true
+ },
+ {
+  "ticker": "NVDA",
+  "name": "Nvidia",
+  "mint": "A4dGzX24Zc1fXRXmazVaJj75yYFgn4hkH8byybwxRSZj",
+  "hue": 265,
+  "kind": "stock",
+  "eligible": true
+ },
+ {
+  "ticker": "MSFT",
+  "name": "Microsoft",
+  "mint": "EXhFMPZY7B1cQFx59csaGNBCUZNL6QyBBX2Xar5hbQ9N",
+  "hue": 205,
+  "kind": "stock",
+  "eligible": true
+ },
+ {
+  "ticker": "GOOGL",
+  "name": "Alphabet",
+  "mint": "8eqtJHbq1HMg5kQLhANFyBuEHUAo4B3vU7TSHPAHC1mw",
+  "hue": 130,
+  "kind": "stock",
+  "eligible": true
+ },
+ {
+  "ticker": "AMZN",
+  "name": "Amazon",
+  "mint": "HXn84MvwErT41PGZPfU3i1RS4sM8HH1dwSj8oRsnM6xK",
+  "hue": 52,
+  "kind": "stock",
+  "eligible": true
+ },
+ {
+  "ticker": "META",
+  "name": "Meta",
+  "mint": "2rf6QchntbxnRByBaR4JgxbtahX6XQpXfyFRWpeNLAHX",
+  "hue": 12,
+  "kind": "stock",
+  "eligible": true
+ },
+ {
+  "ticker": "NFLX",
+  "name": "Netflix",
+  "mint": "9KGERBH1czt9riW9on31oWyqEqDihCqzArV9xiGZBVzT",
+  "hue": 350,
+  "kind": "stock",
+  "eligible": true
+ },
+ {
+  "ticker": "AMD",
+  "name": "AMD",
+  "mint": "25BsHyBw4gvr4ZfzasUwQDXexdsYJToMUqENkXHAH3ea",
+  "hue": 88,
+  "kind": "stock",
+  "eligible": true
+ },
+ {
+  "ticker": "INTC",
+  "name": "Intel",
+  "mint": "HMPPaEjasA2wtYjCZST6V1JPBUecoBJTHBEjJQ9JUxLJ",
+  "hue": 228,
+  "kind": "stock",
+  "eligible": true
+ },
+ {
+  "ticker": "COIN",
+  "name": "Coinbase",
+  "mint": "5do6RMVdYQtfcC3ZJtUKtPe3fH1Dnbx8RDFV7G8nwyTQ",
+  "hue": 190,
+  "kind": "stock",
+  "eligible": true
+ },
+ {
+  "ticker": "HOOD",
+  "name": "Robinhood",
+  "mint": "BHi3N5aiwpdxSLAPh4sKCMvfWgvM5h1v4pibdGyXkRuv",
+  "hue": 28,
+  "kind": "stock",
+  "eligible": true
+ },
+ {
+  "ticker": "MSTR",
+  "name": "MicroStrategy",
+  "mint": "5Wna9zSxyzgwkfjQLFJwuyW6kjBZ8fdUDumB7iHzLmo7",
+  "hue": 165,
+  "kind": "stock",
+  "eligible": true
+ },
+ {
+  "ticker": "SPY",
+  "name": "S and P 500",
+  "mint": "C2svHMQzDJHEomGWjrVKyBLPN1AETUNGHBFvpGXBoBaF",
+  "hue": 300,
+  "kind": "stock",
+  "eligible": true
+ },
+ {
+  "ticker": "QQQ",
+  "name": "Nasdaq 100",
+  "mint": "EScVQkxiimNKLVeEJvyhf39GS1S72T4wZ8jFsUYnNYZZ",
+  "hue": 15,
+  "kind": "stock",
+  "eligible": true
+ },
+ {
+  "ticker": "DIS",
+  "name": "Disney",
+  "mint": "GcwGFiw71VKSaKRdjyPpuqU45CBbLkG3wi3B2UJzJ2a4",
+  "hue": 72,
+  "kind": "stock",
+  "eligible": true
+ },
+ {
+  "ticker": "JPM",
+  "name": "JPMorgan",
+  "mint": "2HrxqA1YQesqy1xueU64FJ1ksikjfJ9dh51EtjPrCAEg",
+  "hue": 255,
+  "kind": "stock",
+  "eligible": true
+ },
+ {
+  "ticker": "V",
+  "name": "Visa",
+  "mint": "5ML9ZAkquUWqRjscx8A8Hp5nsVGtnnffX3SZ3nhWKbUf",
+  "hue": 110,
+  "kind": "stock",
+  "eligible": true
+ },
+ {
+  "ticker": "PLTR",
+  "name": "Palantir",
+  "mint": "iXzSQRmciNaNQiUpdyZDHnkoSKAKeAaG4bZHHCHGGXH",
+  "hue": 340,
+  "kind": "stock",
+  "eligible": true
+ },
+ {
+  "ticker": "SBUX",
+  "name": "Starbucks",
+  "mint": "9KAde1LdM65KMjozEFa55wjU5b2WVhwV7fn4QbWcXXr1",
+  "hue": 200,
+  "kind": "stock",
+  "eligible": true
+ },
+ {
+  "ticker": "BONK",
+  "name": "Bonk",
+  "mint": "4sycHzKkDvkwPw3yQmExCoKaPfDFf4D89cPMMQcBNorv",
+  "hue": 38,
+  "kind": "meme",
+  "eligible": true
+ },
+ {
+  "ticker": "WIF",
+  "name": "dogwifhat",
+  "mint": "7i4sYdHpCyRFPUDJ6qA31EtBTBUgNfWnPEmcs7pmhDEF",
+  "hue": 320,
+  "kind": "meme",
+  "eligible": true
+ },
+ {
+  "ticker": "POPCAT",
+  "name": "Popcat",
+  "mint": "HnMMay43XKgLWNWkKyKdJKwn4QSTyQtiHX79i7Su3frR",
+  "hue": 265,
+  "kind": "meme",
+  "eligible": true
+ },
+ {
+  "ticker": "PNUT",
+  "name": "Peanut the Squirrel",
+  "mint": "BsSsRwCHPjtBQj9uHH47Tc5jkdJQjLi4tajt36SRVPKC",
+  "hue": 205,
+  "kind": "meme",
+  "eligible": true
+ },
+ {
+  "ticker": "FWOG",
+  "name": "Fwog",
+  "mint": "o7fgs1qPGYXFwbTZqN3cVVjqkmYcALfTFDfFqFHWJqn",
+  "hue": 130,
+  "kind": "meme",
+  "eligible": true
+ },
+ {
+  "ticker": "GOAT",
+  "name": "Goatseus Maximus",
+  "mint": "2C6U13U3nGWBsmxRZUj49EPk87APGS335yKAfB2A9hbF",
+  "hue": 52,
+  "kind": "meme",
+  "eligible": true
+ },
+ {
+  "ticker": "CHILLGUY",
+  "name": "Chill Guy",
+  "mint": "7DLguPoPNoj4bQVa4vHuhrf71U2eYktzEpLdt9YmLpuj",
+  "hue": 12,
+  "kind": "meme",
+  "eligible": true
+ },
+ {
+  "ticker": "MOODENG",
+  "name": "Moo Deng",
+  "mint": "2tbjNBF4pS9tbesyFBBhGtAp1J1Z7VqmhAMU8o96Jw9B",
+  "hue": 350,
+  "kind": "meme",
+  "eligible": true
+ },
+ {
+  "ticker": "AI16Z",
+  "name": "ai16z",
+  "mint": "2sga3KT6zXEXwpZYe7tn3ucWVgvprrrG9Jz2So6yADB8",
+  "hue": 88,
+  "kind": "meme",
+  "eligible": true
+ },
+ {
+  "ticker": "TRUMPC",
+  "name": "Trump Coin",
+  "mint": "4e8V1qASqH8nJ8xpZ6eBGUL1VbJN6NtbNT2oxzhqd2zd",
+  "hue": 228,
+  "kind": "meme",
+  "eligible": true
+ },
+ {
+  "ticker": "MEW",
+  "name": "cat in a dogs world",
+  "mint": "BbUgNb6M165dshYxy55HL8JqYv8K7AjaQDtGUmoDjT4g",
+  "hue": 190,
+  "kind": "meme",
+  "eligible": true
+ },
+ {
+  "ticker": "CATS",
+  "name": "Cats",
+  "mint": "Ek7FG5ghFKUJc4TYCAYFeZApXrcSWQk96yYJLzNvgTUo",
+  "hue": 28,
+  "kind": "meme",
+  "eligible": true
+ },
+ {
+  "ticker": "PEPE",
+  "name": "Pepe",
+  "mint": "GAWFt81Xkyc3qrfFkvgtw1huBbX6QHZyCsZ9vciC9Vtu",
+  "hue": 165,
+  "kind": "meme",
+  "eligible": true
+ },
+ {
+  "ticker": "BRETT",
+  "name": "Brett",
+  "mint": "5LCcLhfgZWEtXL9aBUtx9XKrHRYj8xfBukV5dWGER5W3",
+  "hue": 300,
+  "kind": "meme",
+  "eligible": true
+ },
+ {
+  "ticker": "MOG",
+  "name": "Mog",
+  "mint": "Bx6vBixfnavzFSNKMa2iNRoX6SH3nA2DpzQVg76JAwa5",
+  "hue": 15,
+  "kind": "meme",
+  "eligible": true
+ },
+ {
+  "ticker": "PONKE",
+  "name": "Ponke",
+  "mint": "3DMBYMJGFbJNjTSjQ7Wx5sY8RKV4hrJ1i69555SCaKuF",
+  "hue": 72,
+  "kind": "meme",
+  "eligible": true
+ },
+ {
+  "ticker": "MICHI",
+  "name": "Michi",
+  "mint": "89XqwawYisE6iqxwqxtDetbxAX7ov3qvnx4L5ys47wwY",
+  "hue": 255,
+  "kind": "meme",
+  "eligible": true
+ },
+ {
+  "ticker": "GIGA",
+  "name": "Gigachad",
+  "mint": "6XimYmCfq9w7SSnP3v8VaSYCPCGF6ksXMa2Xr79MpT8",
+  "hue": 110,
+  "kind": "meme",
+  "eligible": true
+ },
+ {
+  "ticker": "RETARDIO",
+  "name": "Retardio",
+  "mint": "C6ye8KKKK7Wt9KCQMu9MNAbADUw3Q3C6iHrFWh16XgXp",
+  "hue": 340,
+  "kind": "meme",
+  "eligible": true
+ },
+ {
+  "ticker": "SLERF",
+  "name": "Slerf",
+  "mint": "66LwhfHQgGV1Bo4sZvdyoaPGCBecJdKccVmaYztcPh9h",
+  "hue": 200,
+  "kind": "meme",
+  "eligible": true
+ },
+ {
+  "ticker": "BOME",
+  "name": "Book of Meme",
+  "mint": "3sLNve8Tx7wV4yq8T9DRodnyaxSmcnK9wuGwGwJGLfgu",
+  "hue": 38,
+  "kind": "meme",
+  "eligible": true
+ },
+ {
+  "ticker": "SILLY",
+  "name": "Silly Dragon",
+  "mint": "DVMWiGLQG9FZUhxS8fMc9riDwBBbyyFTbiEmcVsqsdrM",
+  "hue": 320,
+  "kind": "meme",
+  "eligible": true
+ },
+ {
+  "ticker": "HARAMBE",
+  "name": "Harambe",
+  "mint": "2vtYubbuWn6pc1ehCxvakYHEMeg3u4HzUNNw7cwATXvC",
+  "hue": 265,
+  "kind": "meme",
+  "eligible": true
+ },
+ {
+  "ticker": "WEN",
+  "name": "Wen",
+  "mint": "Ce3XEMH8FuEvvZCWvLgEySQApA7UtBpqXL5QgUQ2A8QU",
+  "hue": 205,
+  "kind": "meme",
+  "eligible": true
+ }
+]
