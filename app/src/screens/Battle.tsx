@@ -537,7 +537,7 @@ export function Battle() {
             className={match.practice ? 'label' : 'money'}
             style={{ fontSize: 12, whiteSpace: 'nowrap' }}
           >
-            {match.practice ? 'practice · no stake' : fmtSol(match.stakeSol * 2)}
+            {match.nativeLabel ?? (match.practice ? 'practice · no stake' : fmtSol(match.stakeSol * 2))}
           </span>
         </div>
         {/* Which layer this match is running on, and where its money is. Both

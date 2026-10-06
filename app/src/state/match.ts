@@ -137,6 +137,8 @@ interface MatchStore {
    * it is player 0.
    */
   perspective: 0 | 1;
+  /** Set by the native app: replaces the "practice" HUD label for its matches. */
+  nativeLabel?: string | null;
   startQueue: (opts?: MatchOpts) => string | null; // error string or null
   cancelQueue: () => void;
   playCard: (deckIndex: number, xFp: number, yFp: number) => void;
@@ -913,7 +915,7 @@ export const useMatch = create<MatchStore>((set, get) => ({
     stopMusic();
     set({
       status: 'idle', sim: null, result: null, version: 0, crowns: [0, 0],
-      shock: null, practice: false, mode: 'bot', perspective: 0,
+      shock: null, practice: false, mode: 'bot', perspective: 0, nativeLabel: null,
     });
   },
 }));
@@ -1624,4 +1626,47 @@ function settle(): void {
       useClan.getState().reportCrowns(wallet.address, crowns[0], useDeck.getState().power());
     }
   }
+}
+
+/**
+ * Start a match whose deck, levels and opponent were chosen by the native app.
+ *
+ * In the Seeker / iOS app the collection, deck, chests and rewards live in
+ * native screens; this page is only the 3D arena. The native side hands over
+ * the eight cards and the opponent's deck, and the match runs on exactly the
+ * same deterministic sim and bot as any other — it is entered as `practice`
+ * here only so the *web* economy (chests, history, escrow, relay) stays out of
+ * it: the native app owns the reward and reads the result off the bridge.
+ */
+export function startNativeMatch(
+  player: MatchCard[],
+  bot: MatchCard[],
+  opts: { tier: number; opponent: string; rush?: boolean },
+): string | null {
+  if (player.length !== 8 || bot.length !== 8) return 'a match needs two decks of eight';
+  const current = useMatch.getState().status;
+  if (current === 'queuing' || current === 'found' || current === 'battle') return null;
+  clearTimers();
+  pvpClose();
+  useErMatch.getState().reset();
+  useMatch.setState({
+    status: 'queuing',
+    playerDeck: player,
+    botDeck: bot,
+    stakeSol: 0,
+    practice: true,
+    ranked: false,
+    rush: opts.rush ?? false,
+    waitingForHuman: false,
+    soloVsBot: false,
+    mode: 'bot',
+    perspective: 0,
+    result: null,
+    opponentName: opts.opponent,
+    nativeLabel: 'no stake · chest on a win',
+  });
+  warmMatchArt([...player, ...bot].map((c) => c.coinId));
+  warmBattleChunk();
+  beginBotFlow(true, Math.max(0, Math.min(TIERS.length - 1, opts.tier)), player, bot);
+  return null;
 }

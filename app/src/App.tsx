@@ -23,9 +23,38 @@ import { Deck } from './screens/Deck';
 import { Swap } from './screens/Swap';
 import { Empire } from './screens/Empire';
 
+import { NativeHost, isEmbedded, useNativeExit } from './native/NativeHost';
+
 const Battle = lazy(() => import('./screens/Battle').then((m) => ({ default: m.Battle })));
 
+/** Inside the Seeker / iOS app this page is only the arena; see native/NativeHost. */
+function EmbeddedArena() {
+  useNativeExit();
+  return (
+    <HashRouter>
+      <Routes>
+        <Route path="/" element={<NativeHost />} />
+        <Route
+          path="/battle"
+          element={(
+            <Suspense fallback={<Loading />}>
+              <Battle />
+            </Suspense>
+          )}
+        />
+      </Routes>
+    </HashRouter>
+  );
+}
+
 export default function App() {
+  if (isEmbedded()) {
+    return (
+      <ErrorBoundary>
+        <EmbeddedArena />
+      </ErrorBoundary>
+    );
+  }
   return (
     <ErrorBoundary>
       <HashRouter>
