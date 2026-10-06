@@ -23,7 +23,7 @@ import { connection } from './solana';
  * If the stand-in has not been deployed for this build (`configured: false`),
  * the app keeps a *simulated* balance instead and says so on every screen.
  */
-interface SkrConfig {
+export interface SkrConfig {
   configured: boolean;
   label: string;
   mint?: string;
@@ -56,38 +56,51 @@ export async function skrBalance(owner: string): Promise<number> {
 
 /** Instructions that mint `amount` stand-in SKR to `owner` from the public faucet. */
 export function earnIxs(owner: PublicKey, amount: number): TransactionInstruction[] {
-  if (!SKR_LIVE || !SKR_MINT) return [];
-  const ata = getAssociatedTokenAddressSync(SKR_MINT, owner);
-  const raw = BigInt(Math.round(amount * UNIT));
+  return SKR_LIVE ? makeEarnIxs(cfg, owner, amount) : [];
+}
+
+/** Instructions that pay `amount` SKR from `owner` to the game treasury. */
+export function payIxs(owner: PublicKey, amount: number): TransactionInstruction[] {
+  return SKR_LIVE ? makePayIxs(cfg, owner, amount) : [];
+}
+
+// ── pure builders, parameterised by config so scripts/verify-local.ts can
+// exercise the exact same instructions against a local validator ──────────
+
+export function makeEarnIxs(c: SkrConfig, owner: PublicKey, amount: number): TransactionInstruction[] {
+  const mint = new PublicKey(c.mint!);
+  const unit = 10 ** (c.decimals ?? 6);
+  const ata = getAssociatedTokenAddressSync(mint, owner);
+  const raw = BigInt(Math.round(amount * unit));
   const data = Buffer.alloc(9);
   data.writeUInt8(1, 0); // MintTokens
   // u64 little-endian, written by hand: the RN `buffer` polyfill's bigint
   // writers are not dependable across Hermes versions.
   for (let i = 0; i < 8; i++) data[1 + i] = Number((raw >> BigInt(8 * i)) & 0xffn);
   return [
-    createAssociatedTokenAccountIdempotentInstruction(owner, ata, owner, SKR_MINT),
+    createAssociatedTokenAccountIdempotentInstruction(owner, ata, owner, mint),
     new TransactionInstruction({
-      programId: new PublicKey(cfg.faucetProgram!),
+      programId: new PublicKey(c.faucetProgram!),
       keys: [
-        { pubkey: new PublicKey(cfg.faucetPda!), isSigner: false, isWritable: false },
-        { pubkey: SKR_MINT, isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(c.faucetPda!), isSigner: false, isWritable: false },
+        { pubkey: mint, isSigner: false, isWritable: true },
         { pubkey: ata, isSigner: false, isWritable: true },
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        { pubkey: new PublicKey(cfg.faucet!), isSigner: false, isWritable: false },
+        { pubkey: new PublicKey(c.faucet!), isSigner: false, isWritable: false },
       ],
       data,
     }),
   ];
 }
 
-/** Instructions that pay `amount` SKR from `owner` to the game treasury. */
-export function payIxs(owner: PublicKey, amount: number): TransactionInstruction[] {
-  if (!SKR_LIVE || !SKR_MINT) return [];
-  const from = getAssociatedTokenAddressSync(SKR_MINT, owner);
-  const treasury = new PublicKey(cfg.treasury!);
-  const to = getAssociatedTokenAddressSync(SKR_MINT, treasury, true);
+export function makePayIxs(c: SkrConfig, owner: PublicKey, amount: number): TransactionInstruction[] {
+  const mint = new PublicKey(c.mint!);
+  const decimals = c.decimals ?? 6;
+  const from = getAssociatedTokenAddressSync(mint, owner);
+  const treasury = new PublicKey(c.treasury!);
+  const to = getAssociatedTokenAddressSync(mint, treasury, true);
   return [
-    createAssociatedTokenAccountIdempotentInstruction(owner, to, treasury, SKR_MINT),
-    createTransferCheckedInstruction(from, SKR_MINT, to, owner, BigInt(Math.round(amount * UNIT)), SKR_DECIMALS),
+    createAssociatedTokenAccountIdempotentInstruction(owner, to, treasury, mint),
+    createTransferCheckedInstruction(from, mint, to, owner, BigInt(Math.round(amount * 10 ** decimals)), decimals),
   ];
 }

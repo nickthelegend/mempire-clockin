@@ -20,6 +20,16 @@ are in `clockin/screens/`.
 | Fighters / Shop screens | Render correctly. SKR shows as **SIMULATED** because the stand-in mint is not deployed. |
 | Release APK | **Built and signed with Gradle**; signature checked with `apksigner`, details below. **It has NOT been run on an Android device or emulator.** The user ordered no emulator use (it exhausted the Mac's RAM), and no device was attached. MWA on Android is therefore **untested**. |
 
+**On-chain code path, verified on a local validator** (`cd mobile && npm run verify:local`,
+which runs the real `spl-token-faucet` program dumped from devnet, on ports
+4110–4140, and spends nothing). The run printed 9/9 PASS:
+the setup script creates a 6-decimal stand-in mint whose mint authority is the
+faucet PDA; two Clock-In transactions (memo + faucet mint, the same builders
+the app uses) land and pay 5 + 10 SKR; the streak `[[20261007,2],[20261006,1]]`
+is rebuilt from the memos in signature history; a Shop `transferChecked` moves
+15 SKR to the treasury; and an oversized faucet request is refused. This run
+caught a real bug (wrong InitFaucet account order) before it reached devnet.
+
 Also verified: the shared battle sim is deterministic (`npx tsx app/scripts/sim-test.ts`), and both `mobile/` and `app/` typecheck cleanly (`tsc`).
 
 ## APK

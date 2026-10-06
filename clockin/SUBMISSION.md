@@ -71,6 +71,12 @@ sent. The app handles this case on screen: the Clock-In is kept on the device
 and labelled "Not on-chain: no devnet SOL for the network fee". HANDOFF.md
 lists the two funding steps that turn on the on-chain path.
 
+What *has* been executed on-chain is the same code against a local validator
+that runs the real devnet `spl-token-faucet` program (`npm run verify:local`,
+9/9 checks). In that run, Clock-In memos land and mint the stand-in SKR, the
+streak is rebuilt from chain, a Shop payment reaches the treasury, and the
+faucet cap holds.
+
 ## SKR integration
 
 SKR is the currency of consistency. You **earn** it by clocking in (5 to 30

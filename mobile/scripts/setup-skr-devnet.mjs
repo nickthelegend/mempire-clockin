@@ -35,7 +35,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const OUT = join(HERE, '..', 'src', 'data', 'skr-devnet.json');
+const OUT = process.env.OUT ?? join(HERE, '..', 'src', 'data', 'skr-devnet.json');
 const RPC = process.env.RPC ?? 'https://api.devnet.solana.com';
 const KEYPAIR = (process.env.KEYPAIR ?? '~/.config/solana/mempire-clockin/deployer.json')
   .replace(/^~/, homedir());
@@ -51,6 +51,7 @@ if (existing?.configured && !process.env.FORCE) {
   process.exit(0);
 }
 if (/mainnet/i.test(RPC)) throw new Error('devnet only');
+const LOCAL = /127\.0\.0\.1|localhost/.test(RPC);
 
 const payer = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(KEYPAIR, 'utf8'))));
 const conn = new Connection(RPC, 'confirmed');
@@ -91,9 +92,11 @@ const tx2 = new Transaction().add(
   createSetAuthorityInstruction(mint.publicKey, payer.publicKey, AuthorityType.MintTokens, faucetPda),
   new TransactionInstruction({
     programId: FAUCET_PROGRAM,
+    // InitFaucet accounts: [mint (authority already = PDA), faucet (w), rent]
+    // — order verified against the live program by scripts/verify-local.sh.
     keys: [
-      { pubkey: faucet.publicKey, isSigner: false, isWritable: true },
       { pubkey: mint.publicKey, isSigner: false, isWritable: false },
+      { pubkey: faucet.publicKey, isSigner: false, isWritable: true },
       { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
     ],
     data,
@@ -106,7 +109,7 @@ const cfg = {
   configured: true,
   label: 'SKR (devnet stand-in)',
   note: 'Not real SKR. Real SKR is SKRbvo6Gf7GondiT3BbTfuRDPqLWei4j2Qy2NPGZhW3 on mainnet; this devnet mint has the same decimals and token program.',
-  cluster: 'devnet',
+  cluster: LOCAL ? 'localnet' : 'devnet',
   mint: mint.publicKey.toBase58(),
   decimals: DECIMALS,
   faucetProgram: FAUCET_PROGRAM.toBase58(),
