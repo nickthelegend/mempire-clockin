@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import roster from '../../../mobile/src/data/roster.json';
-import { CARD_ART, UI_ART } from '../../../mobile/src/data/art';
+import { UNIT_ART, UNIT_FALLBACK } from '../../../mobile/src/arena/unitArt';
 
 /**
  * Native twin of unitArt.ts. The card art is chroma-keyed at build time
- * (mobile/scripts/key-art.py) and bundled, so a unit's picture is already a
+ * (mobile/scripts/key-art.py) and bundled as PNG (scripts/unit-png.py — expo-gl
+ * decodes with stb_image, which has no WebP), so a unit's picture is already a
  * cut-out: no runtime keyer, no coin registry, no network.
  */
 const tickerByMint = new Map((roster as { mint: string; ticker: string }[]).map((r) => [r.mint, r.ticker]));
@@ -26,7 +27,7 @@ export function textureFor(
 ): THREE.Texture {
   let t = cache.get(url);
   if (!t) {
-    const src = CARD_ART[url] ?? UI_ART.avatar_guest;
+    const src = UNIT_ART[url] ?? UNIT_FALLBACK;
     t = loader.load(src as unknown as string);
     t.colorSpace = THREE.SRGBColorSpace;
     t.anisotropy = 4;

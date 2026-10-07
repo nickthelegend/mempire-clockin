@@ -1,10 +1,11 @@
-import { Canvas, useFrame } from '@react-three/fiber/native';
+import { Canvas, useFrame, useThree } from '@react-three/fiber/native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert, Animated, AppState, Image, Modal, PanResponder, Pressable, StyleSheet, Text, View,
   type GestureResponderEvent, type LayoutChangeEvent,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Device from 'expo-device';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as THREE from 'three';
 import {
@@ -48,6 +49,52 @@ function FpsProbe() {
   return null;
 }
 
+function toLambert(m: THREE.Material): THREE.Material {
+  const sm = m as THREE.MeshStandardMaterial;
+  if (!sm.isMeshStandardMaterial) return m;
+  const l = new THREE.MeshLambertMaterial({
+    color: sm.color, map: sm.map, alphaMap: sm.alphaMap, transparent: sm.transparent, opacity: sm.opacity,
+    side: sm.side, vertexColors: sm.vertexColors, alphaTest: sm.alphaTest, depthWrite: sm.depthWrite,
+    emissive: sm.emissive, emissiveIntensity: sm.emissiveIntensity, emissiveMap: sm.emissiveMap,
+  });
+  sm.dispose();
+  return l;
+}
+
+/**
+ * Takes over rendering (priority 1) so each frame waits for the GL thread to
+ * finish the previous one: expo-gl queues GL calls for its own thread, and on
+ * slow GL an unthrottled loop queues frames faster than they draw (memory
+ * climbs, input lags seconds behind). `getError()` is a synchronous call, so
+ * it is the backpressure. On a phone's GPU it costs well under a millisecond.
+ * Also applies simulator-lite, and reports when the first frame — with every
+ * shader compiled — is on screen, so the match clock starts only then.
+ */
+function RenderControl({ onReady }: { onReady: () => void }) {
+  const { gl } = useThree();
+  const state = useRef({ lite: false, ready: false });
+  useEffect(() => {
+    if (!LITE) return;
+    gl.toneMapping = THREE.NoToneMapping;
+    gl.shadowMap.enabled = false;
+  }, [gl]);
+  useFrame(({ gl: renderer, scene, camera }) => {
+    if (LITE && !state.current.lite) {
+      state.current.lite = true;
+      scene.fog = null;
+      scene.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (!mesh.material) return;
+        mesh.material = Array.isArray(mesh.material) ? mesh.material.map(toLambert) : toLambert(mesh.material);
+      });
+    }
+    renderer.render(scene, camera);
+    (renderer.getContext() as WebGL2RenderingContext).getError();
+    if (!state.current.ready) { state.current.ready = true; onReady(); }
+  }, 1);
+  return null;
+}
+
 /** Releases the GPU textures and geometry this scene allocated when the match ends. */
 function DisposeOnUnmount() {
   const scene = useRef<THREE.Scene | null>(null);
@@ -62,6 +109,27 @@ function DisposeOnUnmount() {
   }, []);
   return null;
 }
+
+/**
+ * Render budget.
+ *
+ * expo-gl draws at the screen's full native resolution (3x on an iPhone, ~2.6x
+ * on a Seeker). The arena renders at half that and is scaled up by the
+ * compositor — still above 1x on any phone, and a quarter of the fragments.
+ * On a simulator (software GL) shadows and MSAA are dropped as well; real
+ * devices keep the sun's shadow map, which is the scene's main depth cue.
+ */
+const RENDER_SCALE = 0.5;
+const ON_DEVICE = Device.isDevice;
+/**
+ * Simulator-lite. The iOS Simulator implements OpenGL ES in software (Apple's
+ * LLVM pipeline, one CPU core), so the full-quality scene compiles for tens of
+ * seconds and then draws at ~1 fps there. On a simulator the arena swaps the
+ * physically-based materials for Lambert, drops fog and tone mapping, and
+ * keeps everything else — same geometry, same textures, same match.
+ */
+const LITE = !ON_DEVICE;
+const GL = { ...SCENE_GL, antialias: ON_DEVICE && SCENE_GL.antialias };
 
 const fmtClock = (ticks: number) => {
   const s = Math.max(0, Math.ceil(ticks / 20));
@@ -110,6 +178,8 @@ export function NativeArena() {
   const [selected, setSelected] = useState<number | null>(null);
   const [paused, setPausedUi] = useState(false);
   const [ended, setEnded] = useState(false);
+  const [sceneReady, setSceneReady] = useState(false);
+  const onSceneReady = useCallback(() => setSceneReady(true), []);
   useNativeMatch((s) => s.version);
   const sim = useNativeMatch((s) => s.sim);
   const playerDeck = useNativeMatch((s) => s.playerDeck);
@@ -117,9 +187,12 @@ export function NativeArena() {
   const deployed = useNativeMatch((s) => s.deployed);
   const shake = useRef(new Animated.Value(0)).current;
 
-  // Start the match when the arena opens; tear it down when it closes.
+  useEffect(() => { if (!match) setSceneReady(false); }, [match]);
+
+  // Start the match once the arena's first frame is on screen (shaders
+  // compiled); tear it down when it closes.
   useEffect(() => {
-    if (!match) return undefined;
+    if (!match || !sceneReady) return undefined;
     setEnded(false);
     setViewSeat(0);
     startNativeArena({
@@ -139,7 +212,7 @@ export function NativeArena() {
       },
     });
     return () => teardown();
-  }, [match, closeBattle]);
+  }, [match, sceneReady, closeBattle]);
 
   // A crown is the biggest moment in a match: feel it.
   useEffect(() => {
@@ -244,16 +317,19 @@ export function NativeArena() {
             if (deckIndex !== undefined && deploy(deckIndex, e.nativeEvent.pageX, e.nativeEvent.pageY)) setSelected(null);
           }}
         >
+          <View style={st.lowres}>
           <Canvas
             camera={SCENE_CAMERA}
-            gl={SCENE_GL}
-            shadows={{ type: THREE.PCFShadowMap }}
+            gl={GL}
+            shadows={ON_DEVICE ? { type: THREE.PCFShadowMap } : false}
             style={{ flex: 1 }}
           >
             <SceneContents perspective={0} placing={drag !== null || selected !== null} marker={marker} />
+            <RenderControl onReady={onSceneReady} />
             <FpsProbe />
             <DisposeOnUnmount />
           </Canvas>
+          </View>
         </Animated.View>
 
         <Hud onQuit={quit} />
@@ -307,6 +383,12 @@ export function NativeArena() {
         ) : null}
 
         {paused && !ended ? <View pointerEvents="none" style={st.pausedVeil} /> : null}
+        {!sceneReady ? (
+          <View pointerEvents="none" style={st.preparing}>
+            <Text style={st.prepTitle}>vs {match.rival}</Text>
+            <Text style={st.prepSub}>Preparing the arena…</Text>
+          </View>
+        ) : null}
         {lastFps ? <Text pointerEvents="none" style={[st.fps, { top: insets.top + 54 }]}>{lastFps} fps</Text> : null}
       </View>
     </Modal>
@@ -315,7 +397,12 @@ export function NativeArena() {
 
 const st = StyleSheet.create({
   fill: { flex: 1, backgroundColor: '#cfe9ff' },
-  scene: { flex: 1 },
+  scene: { flex: 1, overflow: 'hidden' },
+  lowres: {
+    position: 'absolute', left: 0, top: 0,
+    width: `${RENDER_SCALE * 100}%`, height: `${RENDER_SCALE * 100}%`,
+    transformOrigin: 'top left', transform: [{ scale: 1 / RENDER_SCALE }],
+  },
   top: {
     position: 'absolute', left: 0, right: 0, top: 0, flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between', paddingHorizontal: 12, paddingBottom: 6, backgroundColor: 'rgba(9,22,48,0.35)',
@@ -348,6 +435,9 @@ const st = StyleSheet.create({
   nextArt: { width: 38, height: 50, opacity: 0.8 },
   help: { color: C.dimOnWood, fontFamily: F.ui, fontSize: 12, textAlign: 'center', marginTop: 6 },
   ghost: { position: 'absolute', opacity: 0.9 },
+  preparing: { ...StyleSheet.absoluteFill, backgroundColor: C.blueDeep, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  prepTitle: { color: C.gold, fontFamily: F.display, fontSize: 28 },
+  prepSub: { color: C.dim, fontFamily: F.ui, fontSize: 14 },
   pausedVeil: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(6,16,38,0.45)' },
   fps: { position: 'absolute', right: 12, color: 'rgba(255,255,255,0.7)', fontFamily: F.uiBold, fontSize: 10 },
 });

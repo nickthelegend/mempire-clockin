@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import {
-  Animated, AppState, BackHandler, Image, Pressable, StyleSheet, View,
+  Animated, AppState, BackHandler, Image, Linking, Pressable, StyleSheet, View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +19,7 @@ import { findSgtMint, mainnetSkr } from './src/chain/seeker';
 import { SKR_LIVE } from './src/chain/skr';
 import { readClockIns, short } from './src/chain/solana';
 import { COPIES_TO_LEVEL, MAX_LEVEL } from './src/game/rules';
+import { prepareMatch } from './src/game/actions';
 import { ensureChannel, haptic } from './src/notify';
 import { C } from './src/theme';
 import { Body, Chip } from './src/ui/kit';
@@ -154,6 +155,20 @@ function Game() {
       if (ui.tab !== 'home') { ui.setTab('home'); return true; }
       return false;
     });
+    return () => sub.remove();
+  }, []);
+  // Deep link straight into a battle: mempire://battle?rival=0..3&rush=1
+  // (home-screen shortcuts, notifications, and scripted demo capture).
+  useEffect(() => {
+    const open = (url: string | null) => {
+      const m = url && /^mempire:\/\/battle(?:\?(.*))?$/.exec(url);
+      if (!m) return;
+      const q = new URLSearchParams(m[1] ?? '');
+      const rival = Math.max(0, Math.min(3, Number(q.get('rival') ?? 1) || 0));
+      if (!useUi.getState().battle) useUi.getState().openBattle(prepareMatch(rival, q.get('rush') === '1'));
+    };
+    void Linking.getInitialURL().then(open);
+    const sub = Linking.addEventListener('url', (e) => open(e.url));
     return () => sub.remove();
   }, []);
   return (

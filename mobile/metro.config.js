@@ -24,9 +24,17 @@ const ANCHOR = path.join(__dirname, 'index.ts');
 config.watchFolders = [...(config.watchFolders || []), APP_SRC];
 config.resolver.nodeModulesPaths = [path.resolve(__dirname, 'node_modules')];
 
+// One three.js. R3F native `require()`s three (CJS build) while ES `import`s
+// resolve through the package exports to the ESM build — two copies, and the
+// R3F native TextureLoader polyfill only patches one of them (the other then
+// reaches for document.createElementNS and crashes). Pin every import to the
+// CJS build R3F uses.
+const THREE_CJS = path.resolve(__dirname, 'node_modules/three/build/three.cjs');
+
 const upstream = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   const resolve = upstream || context.resolveRequest;
+  if (moduleName === 'three') return { type: 'sourceFile', filePath: THREE_CJS };
   const bare = !moduleName.startsWith('.') && !path.isAbsolute(moduleName);
   if (bare && context.originModulePath.startsWith(APP_SRC)) {
     return resolve({ ...context, originModulePath: ANCHOR }, moduleName, platform);
