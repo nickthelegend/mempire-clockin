@@ -33,9 +33,25 @@ export function newCanvas(name: string, w: number, h = w): [HTMLCanvasElement, C
 
 const loader = new THREE.TextureLoader();
 
+/**
+ * A texture that fails to load does not throw: the scene would just render
+ * blank surfaces at full frame rate, which no fps watchdog can see. Failures
+ * are reported here instead, and the native arena falls back on them.
+ */
+type Listener = (what: string) => void;
+const listeners = new Set<Listener>();
+export function onTextureError(fn: Listener): () => void {
+  listeners.add(fn);
+  return () => { listeners.delete(fn); };
+}
+export function reportTextureError(what: string, e: unknown): void {
+  const msg = `${what}: ${e instanceof Error ? e.message : String(e)}`;
+  listeners.forEach((fn) => fn(msg));
+}
+
 export function toTexture(c: HTMLCanvasElement): THREE.Texture {
   const name = (c as unknown as Inert).__baked;
   const asset = BAKED[name];
   if (asset === undefined) throw new Error(`no baked texture "${name}" — run mobile/scripts/bake-textures.ts`);
-  return loader.load(asset as unknown as string);
+  return loader.load(asset as unknown as string, undefined, undefined, (e) => reportTextureError(`texture ${name}`, e));
 }

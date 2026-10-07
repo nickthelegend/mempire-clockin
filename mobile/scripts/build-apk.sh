@@ -12,7 +12,7 @@ export LANG=en_US.UTF-8
 cd "$HERE"
 sh scripts/build-www.sh
 # plugins are idempotent; use --clean after native dependency changes
-CI=1 npx expo prebuild --platform android
+CI=1 npx expo prebuild --platform android --clean
 # One native build at a time across all agents on this machine (see
 # clockin/ROUND2.md): take the shared lock, always release it.
 LOCK="/Volumes/Extreme SSD/Projects/clockin/.gradle.lock"

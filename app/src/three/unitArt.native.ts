@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import roster from '../../../mobile/src/data/roster.json';
 import { UNIT_ART, UNIT_FALLBACK } from '../../../mobile/src/arena/unitArt';
+import { reportTextureError } from './canvasTex.native';
 
 /**
  * Native twin of unitArt.ts. The card art is chroma-keyed at build time
@@ -28,7 +29,7 @@ export function textureFor(
   let t = cache.get(url);
   if (!t) {
     const src = UNIT_ART[url] ?? UNIT_FALLBACK;
-    t = loader.load(src as unknown as string);
+    t = loader.load(src as unknown as string, undefined, undefined, (e) => reportTextureError(`unit ${url}`, e));
     t.colorSpace = THREE.SRGBColorSpace;
     t.anisotropy = 4;
     cache.set(url, t);

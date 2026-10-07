@@ -16,6 +16,7 @@ import { FP, fp } from '../../../app/src/sim/fixed';
 import { HAND_SIZE } from '../../../app/src/sim/types';
 import { CARD_ART } from '../data/art';
 import { pageToNdc } from './screen';
+import { onTextureError } from '../../../app/src/three/canvasTex.native';
 import { finishMatch } from '../game/actions';
 import { haptic } from '../notify';
 import { useUi } from '../state/ui';
@@ -223,6 +224,12 @@ export function NativeArena() {
     useUi.getState().openBattle({ ...match, renderer: 'web', fellBack: true });
   }, [match]);
   useEffect(() => { fellBack.current = false; }, [match]);
+
+  // Watchdog 0: a texture failed to load (renders blank, not slow).
+  useEffect(() => {
+    if (!match || !autoMode) return undefined;
+    return onTextureError((why) => fallBack(why));
+  }, [match, autoMode, fallBack]);
 
   // Watchdog 1: the GL context never produced a frame.
   useEffect(() => {
