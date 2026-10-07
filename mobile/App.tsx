@@ -22,7 +22,7 @@ import { reduceMotion, useCountUp, EASE_OUT } from './src/motion';
 import { streakState } from './src/game/rules';
 import { findSgtMint, mainnetSkr } from './src/chain/seeker';
 import { SKR_LIVE } from './src/chain/skr';
-import { readClockIns, short } from './src/chain/solana';
+import { CLUSTER_LABEL, readClockIns, short } from './src/chain/solana';
 import { COPIES_TO_LEVEL, MAX_LEVEL } from './src/game/rules';
 import { prepareMatch } from './src/game/actions';
 import { ensureChannel, ensureStreakReminder, haptic } from './src/notify';
@@ -89,7 +89,7 @@ function Header() {
       </Pressable>
       <View style={{ flexDirection: 'row', gap: 6 }}>
         <Chip label="TROPHY" value={String(shownTrophies)} color={C.gold} />
-        <Chip label="SOL" value={sol === null ? '…' : sol.toFixed(2)} color={C.bluePale} onPress={() => setWalletOpen(true)} tag="devnet" />
+        <Chip label="SOL" value={sol === null ? '…' : sol.toFixed(2)} color={C.bluePale} onPress={() => setWalletOpen(true)} tag={CLUSTER_LABEL} />
         <Chip
           label="SKR"
           value={String(shownSkr)}

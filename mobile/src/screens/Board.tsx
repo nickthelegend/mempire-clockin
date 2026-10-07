@@ -71,7 +71,7 @@ export function BoardSheet() {
           <Panel>
             <Display size={20}>Season War · {SEASON_WAR.title}</Display>
             <Body size={12} color={C.dimOnWood} style={{ marginTop: 4 }}>
-              Pick a coin. Every Clock-In you sign carries your pledge in its devnet memo, and battles won with that coin in your deck add points.
+              Pick a coin. Every Clock-In you sign carries your pledge in its on-chain memo, and battles won with that coin in your deck add points.
             </Body>
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
               {SEASON_WAR.sides.map((s) => {

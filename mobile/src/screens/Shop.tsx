@@ -21,7 +21,7 @@ export function SkinPreview({ skin, kind, size = 64 }: { skin: SkinDef; kind: 'a
     return (
       <LinearGradient colors={skin.colors} style={{ width: size * 0.78, height: size, borderRadius: 10, padding: 4 }}>
         <View style={{ flex: 1, borderRadius: 7, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center' }}>
-          <Body size={10} color="#fff" bold>$SOL</Body>
+          {size >= 56 ? <Body size={10} color="#fff" bold>$SOL</Body> : null}
         </View>
       </LinearGradient>
     );
@@ -72,7 +72,7 @@ function Cosmetics() {
         <Body size={12} color="#fff" bold numberOfLines={1}>{s.name}</Body>
         {owned ? (
           <Btn
-            label={worn ? 'EQUIPPED' : 'EQUIP'}
+            label={worn ? 'WORN' : 'EQUIP'}
             size="sm"
             tone={worn ? 'ghost' : 'green'}
             disabled={worn}
