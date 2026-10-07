@@ -36,15 +36,53 @@ Also verified: the shared battle sim is deterministic (`npx tsx app/scripts/sim-
 ## APK
 
 - `/Volumes/Extreme SSD/Projects/clockin/apks/mempire-clockin.apk`
-- sha256 `4edc4afaee50d55f1930cb06f819046b60f45bf7d1f79a95d4896ed30fd540ee`
-- 59,396,786 bytes (56.6 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 1
-- Built from commit `f6afc7e` (all features above, including the chain-ledger streak restore).
+- sha256 `0f1183fa14fcb9f26f357ef25e76d25db1465f24906ea7332bbf7f91209fa0e3`
+- 59,397,902 bytes (56.6 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 2 (1.0.1)
+- Built from commit `dc4e6f7` (round-2 Android hardening included).
 - Signed with a **new dedicated release key**. The keystore and its password
   are **outside the repo** at
   `/Volumes/Extreme SSD/Projects/clockin/keys/mempire-release.keystore` and
   `mempire-release.env`. **Back both up.** Every future update, including the
   dApp Store, must be signed with this key.
 - `apksigner` certificate: CN=Mempire, O=Mempire, C=IN; cert SHA-256 510a32d604173681a92bd6cb9c9b3809c4042c7d59a3fbbaf02316769fc3d943
+
+## Android audit (round 2, Oct 7)
+
+The APK has still never run on an Android device or emulator: the emulator is
+banned on this machine, and no phone was attached. Everything below comes from
+inspecting the built APK (`aapt2 dump badging` / `xmltree`, `unzip`, `strings`
+on the dex and the Hermes bundle, `apksigner`) and the source. The main flow
+was re-verified afterwards on the iPhone 17 simulator.
+
+| # | Check | Result |
+|---|---|---|
+| 1 | Package / version | `fun.mempire.app`, **versionCode 2 / 1.0.1** (was 1 / 1.0.0). minSdk 24, targetSdk 36, compileSdk 36. |
+| 1 | Permissions | INTERNET, POST_NOTIFICATIONS, VIBRATE, WAKE_LOCK and RECEIVE_BOOT_COMPLETED (rescheduling local notifications) remain. **Fixed:** `SYSTEM_ALERT_WINDOW`, READ/WRITE_EXTERNAL_STORAGE and USE_BIOMETRIC/USE_FINGERPRINT were pulled in by libraries and are now blocked (`android.blockedPermissions`). Launcher-badge and FCM permissions from expo-notifications remain; they are harmless. |
+| 1 | Cleartext | `usesCleartextTraffic=false`. All traffic is HTTPS to devnet and mainnet RPC. |
+| 1 | `<queries>` | The merged manifest has `<intent>` VIEW/BROWSABLE `solana-wallet` (from the MWA library), so MWA can see wallets on Android 11+. |
+| 1 | Deep links | **Fixed:** removed the `https://play.mempire.fun` `autoVerify` intent filter. The app no longer opens those links, and the host serves no assetlinks.json, so verification would fail. The `mempire://` scheme stays. |
+| 2 | MWA native module | `com/solanamobile/mobilewalletadapter` classes are present in the dex. The Hermes bundle contains the **react-native** build of the protocol (`index.native.js`, via the package `exports` "react-native" condition), not the browser build that causes the "secure context" error. |
+| 2 | MWA usage | `authorize({ chain: 'solana:devnet', identity: { name: 'Mempire', uri: 'https://mempire.fun', icon: 'favicon.ico' } })`. The icon resolves (200, image/x-icon). The `auth_token` is cached in SecureStore. **Fixed:** a stale or revoked token is now dropped and authorize retried once, so later sign-ins no longer all fail. With no wallet installed, the message says to install Phantom or Solflare (or use Seed Vault) and points to the labelled dev wallet. mempire.fun serves no `/.well-known/assetlinks.json`, so a wallet may show the dApp as unverified. |
+| 3 | JS bundle | `assets/index.android.bundle` is Hermes bytecode v98, the release build, with no Metro dependency. The devnet RPC `api.devnet.solana.com` is present. The only `localhost`/`127.0.0.1` strings are library constants (web3.js cluster parsing). The app's RPC is fixed to devnet and throws on mainnet. There are no 10.0.2.2 or 192.168.* strings. The bundled arena's `localhost:8787` and `:8899` references are behind a `hostname === localhost` check that a file:// page never passes. |
+| 4 | Polyfills | `index.ts` imports `src/polyfills.ts` first (get-random-values, then the `Buffer` global), before App or web3.js. This is a separate module because imports are hoisted; the original inline version crashed iOS with "Buffer doesn't exist". Hermes provides TextEncoder. |
+| 5 | Back button | **Fixed:** from any tab, back returns to Home, and only Home exits. Sheets, the coach and the arena are RN Modals, so back reaches their `onRequestClose`. In the arena that is a "Leave the battle?" confirm. I removed a duplicate BackHandler that would have shown the confirm twice. |
+| 5 | Notifications | The `mempire-v1` channel (HIGH, custom `mempire_chime` sound, which is present at `res/raw`) is created at startup. The Android 13+ runtime permission is requested after the first Clock-In. Schedules pass `channelId`. |
+| 5 | Arena WebView on Android | Loads `file:///android_asset/www/index.html` (10 MB, present in the APK) with `allowFileAccess`, `allowFileAccessFromFileURLs`, `allowUniversalAccessFromFileURLs` and `originWhitelist=['*']`. It is one classic IIFE script (no ES modules), and every asset path is relative. **Fixed:** react-native-webview's before-content-loaded injection can race a file:// page's script on Android. Had it lost, the page would have booted the whole web game instead of the arena. The match spec now also travels in the URL hash (`#/m/<json>`), the page reports `ready` itself, and the opaque cover drops after 8 s regardless. |
+| 5 | Edge-to-edge (Android 15+) | `edgeToEdgeEnabled=true`. Header and tab bar use safe-area insets. **Fixed:** the arena is now inset natively (status bar on top, plus navigation bar on Android), because an Android WebView gets no `env(safe-area-*)`. The same fix exposed a real iOS bug: the arena's quit button and match timer sat under the status bar, where the button could not be tapped. |
+| 5 | Keyboard / fonts / Linking | No text inputs. Fonts are bundled (`res/raw` / assets via expo-font). `Linking.openURL` is only used for explorer https links, which are covered by the `<queries>` https entry. |
+| 6 | Signing | `apksigner`: CN=Mempire, cert SHA-256 `510a32d6…3d943`. This is the **same key** as the first upload; no new key was generated. |
+| 7 | ABIs / size | arm64-v8a + x86_64, 56.6 MiB. |
+
+Re-verified on the iPhone 17 simulator after these changes, with a Release build under the shared build lock:
+- A battle opened through the new hash path.
+- A card was dragged into play.
+- A standard match played to the end and showed the native DEFEAT sheet (-15 trophies).
+- The relocated quit button opened the confirm; Leave produced a native loss result.
+
+Uploaded to the `clockin-v1` release with `--clobber`. A re-download hashes to `0f1183fa14fcb9f26f357ef25e76d25db1465f24906ea7332bbf7f91209fa0e3`.
+
+Still unverified on Android, by necessity: real MWA approval with a wallet,
+WebGL performance in the Android WebView, notification delivery, and haptics.
 
 ## What the user must do
 

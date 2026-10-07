@@ -7,7 +7,7 @@ plays your deck before you do.
 
 - **Repo:** https://github.com/nickthelegend/mempire-clockin
 - **APK:** `mempire-clockin.apk` (release, signed with a dedicated release key).
-  sha256 `4edc4afaee50d55f1930cb06f819046b60f45bf7d1f79a95d4896ed30fd540ee`, 59,396,786 bytes (56.6 MiB). See *Install* below for how to download it.
+  sha256 `0f1183fa14fcb9f26f357ef25e76d25db1465f24906ea7332bbf7f91209fa0e3`, 59,397,902 bytes (56.6 MiB). See *Install* below for how to download it.
 - **Network:** Solana **devnet** only. No real funds move.
 - **Team:** Nivesh Gajengi (@nickthelegend).
 
@@ -123,8 +123,9 @@ is no LLM and no server.
 
 ## Install
 
-1. Download `mempire-clockin.apk` (direct link: a GitHub Release asset,
-   published by the team) and install it. Android may ask you to allow
+1. Download `mempire-clockin.apk` from
+   https://github.com/nickthelegend/mempire-clockin/releases/download/clockin-v1/mempire-clockin.apk
+   and install it. Android may ask you to allow
    installs from this source.
 2. Open it, then tap **Connect Wallet** (a Mobile Wallet Adapter wallet is
    needed) or **Use dev wallet**.
