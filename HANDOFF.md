@@ -1,6 +1,6 @@
 # HANDOFF — Mempire for Seeker (Solana Mobile CLOCK IN)
 
-Status as of 2026-10-08, 02:05 IST (1.4.0). This file records only what was run and seen.
+Status as of 2026-10-08, 03:05 IST (1.4.1). This file records only what was run and seen.
 
 ## What was verified, and how
 
@@ -36,9 +36,10 @@ Also verified: the shared battle sim is deterministic (`npx tsx app/scripts/sim-
 ## APK
 
 - `/Volumes/Extreme SSD/Projects/clockin/apks/mempire-clockin.apk`
-- sha256 `f089f3ab35898af66e700e5cd5f75d21bec5064f909d0aa5675d044b60c50534`
-- 70,848,629 bytes (67.6 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 9 (1.4.0)
-- Built from `main` at `c3d1a0b` (the Solana Mobile tech pack: SIWS, `.skr`, session key, provably fair chests, Blinks) on top of 1.3.1. `aapt2`: versionCode 9 / 1.4.0, no `RECORD_AUDIO`, same certificate. Bundle is devnet-only. Re-downloaded from the release; sha256 matches.
+- sha256 `a9a8b261f7c75e1c689f9b0868038ee4278305bae36ebd79263175b4630d81aa`
+- 70,850,169 bytes (67.6 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 10 (1.4.1)
+- 1.4.1 (`94282c3`): the Connect hero after sign-out and the hidden-fighter audit (see *Season Pass & skins*). Same checks: same certificate, no `RECORD_AUDIO`, devnet-only bundle, re-downloaded hash matches.
+- 1.4.0 was built from `main` at `c3d1a0b` (the Solana Mobile tech pack: SIWS, `.skr`, session key, provably fair chests, Blinks) on top of 1.3.1. `aapt2`: versionCode 9 / 1.4.0, no `RECORD_AUDIO`, same certificate. Bundle is devnet-only. Re-downloaded from the release; sha256 matches.
 - Smoke test on the iPhone 17 simulator (devnet bundle): dev-wallet sign-in shows `SIWS ✓`; a chest opened with a live devnet slot proof (slot 508573164) and **Recompute → MATCHES ✓**; the Approve-once session card renders; Season Pass shows tiers and preview mode.
 - Signed with a **new dedicated release key**. The keystore and its password
   are **outside the repo** at
