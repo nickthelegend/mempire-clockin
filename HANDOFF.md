@@ -46,6 +46,143 @@ Also verified: the shared battle sim is deterministic (`npx tsx app/scripts/sim-
   dApp Store, must be signed with this key.
 - `apksigner` certificate: CN=Mempire, O=Mempire, C=IN; cert SHA-256 510a32d604173681a92bd6cb9c9b3809c4042c7d59a3fbbaf02316769fc3d943
 
+## Season Pass & skins (1.3.0, Oct 7–8, branch `season-pass`, merged)
+
+Free to play, never pay-to-win: every reward is a chest, a chest slot, a Streak
+Shield or a cosmetic. Both the pass and the skins are **Token-2022 tokens sold
+for SKR by a new Anchor program**. The app reads ownership from chain and
+never stores or fakes it.
+
+**Program `mempire_pass`** (`chain/pass/`, Anchor 0.32.1, its own workspace).
+Program id `3aykd5NLqwjALGiaPykRiGJhv1ehJsjxqVsjQ5qGtr7G`. The program keypair
+is in `chain/pass/target/deploy/` (gitignored), with a copy outside the repo at
+`clockin/keys/mempire_pass-program-keypair.json`.
+
+| Instruction | What it does |
+|---|---|
+| `init_config` (admin) | Records the SKR mint and creates the treasury vault (an SKR token account PDA owned by the config PDA). |
+| `init_season(season_id, price_skr, ends_at, uri)` (admin) | Creates the pass mint at a PDA with the **NonTransferable**, **MetadataPointer** (pointing to itself) and **TokenMetadata** extensions: name "Mempire Season N Pass", symbol MPASS, uri, and `additional_metadata` `season`, `tier=premium` and `ends_at`. The mint authority and metadata update authority are the `mint_auth` PDA. Decimals 0. |
+| `buy_pass(season_id)` | **One instruction**: `transfer_checked` of `price_skr` SKR from the buyer to the treasury vault, then the PDA mints 1 soulbound pass to the buyer's Token-2022 ATA. A receipt PDA per (season, buyer) makes a second purchase fail. Refused after `ends_at`, and refused with too little SKR. |
+| `init_skin(skin_id, price_skr, name, symbol, uri, skin_type, season)` (admin) | A **transferable** Token-2022 mint with MetadataPointer + TokenMetadata (`skin_type`, `skin_id`, `season`). |
+| `buy_skin(skin_id)` | SKR to the treasury and 1 skin token to the buyer, in one instruction. One per player (receipt PDA). |
+
+The metadata JSON is in `chain/pass/metadata/`, served raw from GitHub, so
+there is no new hosted service.
+
+- **`anchor test` on a local validator** (`cd chain/pass && npm run test:local`,
+  ports 4170–4199): **10 passing**. The tests cover config and the treasury
+  PDA; the extensions and metadata on the pass mint; a pass purchase (1 token,
+  SKR moved); a double buy rejected; insufficient SKR rejected; a soulbound
+  transfer refused by Token-2022; an ended season refused; a non-admin season
+  refused; a skin bought once, with the second buy rejected and the skin still
+  transferable; and an exact treasury balance.
+- **Devnet:** **not deployed**, because devnet SOL is still 0. Once the admin
+  wallet holds about 3.5 devnet SOL, one command deploys it:
+  `PASS_ADMIN=~/.config/solana/id.json bash chain/pass/scripts/deploy-devnet.sh`.
+  The script runs the deploy and then `scripts/setup.ts` (config, Season 1,
+  3 arena skins and 4 frames; idempotent). No app change or rebuild is needed:
+  the app detects the program and leaves preview mode.
+
+**App (mobile/)**
+
+- **Season Pass:** opened from the Home card, the Shop button or
+  `mempire://pass`.
+  - 25 tiers on a free track and a premium track (`mobile/src/game/season.ts`).
+  - XP: Clock-In 60, quest 25, all quests 40, win 40, draw 20, loss 15.
+    100 XP per tier.
+  - Rewards: chests (through the inbox, so none is ever lost), +1 chest slot
+    (tiers 10 and 20, at most 6 slots), Streak Shields, 3 frames and 5 emotes.
+  - Premium = `getTokenAccountsByOwner(wallet, Token-2022)` shows a balance of
+    the season's pass mint.
+  - Buy: one transaction signed by MWA on Android or by the dev wallet on iOS,
+    with a tx link.
+- **Skins:** in the SKR Shop, with previews.
+  - 3 arena skins: Neon Night, Golden Hour and Frozen Ledger.
+  - 4 card frames: Gold Leaf, Cyber Grid, Frost Rim and Magma.
+  - Owned and equipped status comes from the same chain read. You equip them in
+    **Deck → Wardrobe** (arena skin, card frame, emote).
+  - The native arena renders the equipped skin. Texture variants are baked by
+    `mobile/scripts/bake-textures.ts` from the same generators (30 PNGs,
+    `name__skin.png`), and each skin also sets the fog and lights
+    (`app/src/three/skin.ts`). The web compat arena keeps the default look, and
+    the Wardrobe says so.
+- **Preview / offline states:** if the program or config is missing on the
+  cluster the app talks to, the screens say "On-chain pass available once
+  deployed: preview mode". If the RPC is unreachable they say "chain
+  unreachable". In both cases nothing shows as owned and nothing can be bought.
+  The free track works either way. The SIMULATED-SKR label is unchanged.
+- **Season War + leaderboard:** a Home banner (BONK vs POPCAT) and
+  `mempire://board`.
+  - Picking a side adds `:war=1:side=BONK` to every signed Clock-In memo, so a
+    global tally can be rebuilt from chain.
+  - The app shows your own points and **says plainly that the global count is
+    not computed yet**.
+  - "Your board by coin" scores your battles per fighter, on this device.
+- **Share card:** on the result screen. The card has the outcome, crowns, four
+  of your fighters, your emote and frame, and the challenge deep link.
+  - It is captured with react-native-view-shot.
+  - iOS shares the image and link through the share sheet. Android shares the
+    image through expo-sharing and copies the link for the caption.
+- **Unlicensed marks hidden** (`HIDE_UNLICENSED_MARKS` in
+  `mobile/src/game/rules.ts`).
+  - Every tokenised-stock fighter is removed from the roster, chests, rivals,
+    starters and shop: AAPL, TSLA, NVDA, MSFT, GOOGL, AMZN, META, NFLX, AMD,
+    INTC, COIN, HOOD, MSTR, SPY, QQQ, DIS, JPM, V, PLTR and SBUX (20 of 64).
+  - The crypto and meme tickers stay (44).
+  - The Blue Chips and Whale Court rivals now use crypto majors. The starter
+    pool swaps NVDA/MSTR for DOT/APT, keeping the same archetypes (Tank,
+    Support).
+  - Old saves with hidden cards drop them on load (the existing roster filter).
+
+**Verified on the iPhone 17 simulator** against a local validator with the
+program deployed (`bash chain/pass/scripts/validator.sh`, then
+`npx tsx scripts/setup.ts --fund <dev wallet>`; the JS was bundled with
+`EXPO_PUBLIC_RPC_URL=http://127.0.0.1:4170`). Screenshots are in
+`clockin/screens/season-pass/`:
+
+1. Pass screen live: 400 SKR on-chain, price 150 (01).
+2. BUY PASS → "PASS HELD · ON-CHAIN" with a tx link (02).
+   `spl-token display` confirms the pass mint has Non-transferable +
+   MetadataPointer + TokenMetadata (name, symbol, uri, season, tier, ends_at),
+   supply 1, and the wallet's SKR went 400 → 250.
+3. Premium tier 1 claimed (03). **Test setup, disclosed:** the save's pass XP
+   was set to 260 by editing the simulator's AsyncStorage, because one session
+   cannot earn 2 tiers of XP. Premium gating itself came from the chain read.
+4. Shop skins live (04). Bought Neon Night → "minted to your wallet and
+   equipped", SKR 250 → 190 (05). `spl-token display` shows the transferable
+   skin mint with MetadataPointer + TokenMetadata (skin_type=arena).
+5. A native 3D arena match renders **Neon Night** (06).
+6. Result share card (07). SHARE CARD opened the iOS share sheet with the
+   captured PNG (08).
+7. Wardrobe shows Neon Night owned from chain and equipped (09).
+8. Season War: BONK picked (10).
+9. The same app on the default devnet bundle shows **preview mode**: premium
+   locked, buy hidden, free track claimable (11).
+
+Not verified:
+
+- Android and MWA signing of `buy_pass` / `buy_skin`. There is no device, and
+  the emulator is banned.
+- The Android share path (expo-sharing plus clipboard).
+- Anything on devnet, because nothing is deployed there.
+- On the simulator, a native match fell back to the web arena after a few
+  seconds of software-GL fps (the existing watchdog), so the result says "Web
+  arena (switched from native)".
+
+Tests: `cd app && npx vitest run` gives **30/30**. These include the parity
+tests and `tests/season-pass.test.ts`:
+
+- tiers and XP;
+- no reward touches stats;
+- premium gating;
+- season roll-over;
+- the 5th slot;
+- hidden marks in the roster, starters and rivals;
+- skin recolour bounds;
+- the per-coin board, war points, and memo compatibility with the ledger regex.
+
+Both `tsc` checks are clean.
+
 ## Bug-hunt fixes (1.2.2, Oct 7)
 
 A read-only review (`clockin/review/MEMPIRE-BUGS.md`, outside the repo) found

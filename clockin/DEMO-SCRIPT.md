@@ -15,9 +15,14 @@ has also been run on the iOS simulator with the dev wallet (see HANDOFF.md).
 | 5 | 0:40–0:58 | Pick a rival, choose **Rush · 0:30**, tap **BATTLE**. The native 3D arena loads; drag two cards onto the board. | "Battles are real-time in a native 3D arena. Rush is thirty seconds, which is a whole match on the way to work." |
 | 6 | 0:58–1:05 | The native Victory or Defeat sheet: crowns, trophies, +3 SKR, a chest added. | "The result comes back to the app: trophies, SKR and a chest when you win." |
 | 7 | 1:05–1:20 | Open the **AI Coach** and tap **Scout my deck**. The progress bar runs, then the report shows the win rate and matchup bars. Tap **Find a better card** and the suggested swap appears. | "The AI coach plays your deck against every rival, using the real battle engine on the phone. Then it finds the one swap from your collection that wins more, and shows how many matches back it up." |
+| 7b | (optional, +15 s) | Home → **Season Pass**: tiers, free and premium tracks, **BUY PASS · 150 SKR** → "PASS HELD · ON-CHAIN" → claim a premium tier. Then Shop → **Skins** → buy Neon Night → a battle in the neon arena. | "The Season Pass is a soulbound Token-2022 token bought with SKR in one instruction. Skins are tokens too, and they're cosmetic only. Never power." |
 | 8 | 1:20–1:30 | **Shop**: the SKR balance labelled as the devnet stand-in, Streak Shield, Seeker Chest, and the Seeker-perks panel. | "SKR is earned by showing up and spent on keeping your streak alive with Streak Shields. Seeker Genesis holders earn double. Mempire: clock in, every day." |
 
 Before recording:
+- For shot 7b the `mempire_pass` program must be deployed
+  (`chain/pass/scripts/deploy-devnet.sh`, once funded). Without it the screen
+  honestly shows "preview mode". It has been recorded on the simulator against
+  a local validator; see `clockin/screens/season-pass/`.
 - Fund the wallet with a little devnet SOL, so shot 3 shows a real proof link.
   Without SOL the card honestly says "saved on device".
 - Run `node scripts/setup-skr-devnet.mjs` and rebuild, so the SKR is the

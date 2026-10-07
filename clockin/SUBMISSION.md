@@ -89,6 +89,24 @@ SKR earned from streaks buys **Streak Shields**, so the habit protects itself.
   player. The streak can be rebuilt from the wallet's signature history
   (`readClockIns` in `mobile/src/chain/solana.ts`).
 - **SKR stand-in payouts** use the same transaction (see SKR below).
+- **Season Pass and skins on Token-2022** (new program `mempire_pass`,
+  `3aykd5NLqwjALGiaPykRiGJhv1ehJsjxqVsjQ5qGtr7G`, `chain/pass/`):
+  - The pass is a **soulbound** Token-2022 mint with the NonTransferable,
+    MetadataPointer and TokenMetadata extensions. Its name, symbol, uri,
+    season, tier and end time are all stored on the mint.
+  - Skins are **transferable** Token-2022 mints with on-chain metadata
+    (`skin_type`).
+  - `buy_pass` / `buy_skin` move SKR to a treasury vault PDA and mint 1 token
+    in **one instruction**. A receipt PDA blocks a second purchase.
+  - The app reads ownership with `getTokenAccountsByOwner` on Token-2022.
+  - `anchor test` passes 10/10 on a local validator, and the full buy → premium
+    → claim → skin → equip → native arena flow ran on the iOS simulator against
+    it.
+  - **Not deployed on devnet yet** (no devnet SOL). The APK shows "preview
+    mode" until the one-command deploy runs.
+- **Season War pledge on chain.** Picking BONK or POPCAT adds
+  `:war=1:side=…` to each signed Clock-In memo, so the war can be tallied from
+  chain by anyone.
 - **Existing Mempire programs on devnet:**
   - `BnLDCAREDpBGenqZr8BTyQu7BCoVewF9XEtMPFBqFxeP` (cards, match escrow, settlement)
   - `3G4GidvjQd3yQK4bqZfem8Kkmcboygze42RcjrXg5g6N` (MagicBlock rollup match log, VRF chests)
@@ -120,7 +138,18 @@ you showing up:
 - **Seeker Chest, 40 SKR.** A Magic chest that opens instantly.
 - **Rush Unlock, 8 SKR.** Finishes the chest that is currently unlocking.
 
+- **Season Pass, 150 SKR** (a price hypothesis). It unlocks the premium track of
+  25 tiers: chests, chest slots, Streak Shields, frames and emotes. The free
+  track is open to everyone.
+- **Skins: 60 SKR per arena skin, 25 SKR per card frame.** Neon Night, Golden
+  Hour and Frozen Ledger recolour the native 3D arena. Four frames dress your
+  cards.
+
 There is no staking, and you can never pay for power.
+
+The mobile build hides every tokenised-stock fighter (Apple, NVIDIA, Tesla,
+Disney and others, 20 in all) because Mempire has no licence for those marks.
+They come back only as licensed partners. The 44 crypto and meme fighters stay.
 
 **Seeker Genesis Token** holders earn double SKR. The check is read-only
 against mainnet: a non-zero Token-2022 account whose mint's metadata pointer
