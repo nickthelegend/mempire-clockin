@@ -6,6 +6,8 @@ import { BY_TICKER } from '../game/rules';
 import { haptic } from '../notify';
 import { useGame } from '../state/game';
 import { useUi } from '../state/ui';
+import { useDisplayName } from '../state/identity';
+import { useWallet } from '../wallet/wallet';
 import { C, R } from '../theme';
 import { Body, Btn, Display, Panel, Tag, Well } from '../ui/kit';
 
@@ -51,6 +53,9 @@ export function BoardSheet() {
   const setWarSide = useGame((s) => s.setWarSide);
   const say = useUi((s) => s.say);
   const rows = assetBoard(history);
+  const who = useDisplayName(useWallet((s) => s.address));
+  const trophies = useGame((s) => s.trophies);
+  const wins = useGame((s) => s.wins);
   const counted = history.filter((h) => h.deck?.length).length;
 
   const pick = (s: WarSide) => {
@@ -67,6 +72,18 @@ export function BoardSheet() {
             <Display size={28}>Leaderboard</Display>
             <Btn label="✕" tone="ghost" size="sm" onPress={() => setBoard(false)} />
           </View>
+
+          <Well style={[st.row, { paddingVertical: 10 }]}>
+            <Body size={14} bold color={C.gold} style={{ width: 26 }}>You</Body>
+            <View style={{ flex: 1 }}>
+              <Body size={15} bold color={who.skr ? C.teal : '#fff'}>{who.label}</Body>
+              <Body size={11} color={C.dim}>
+                {who.skr ? '.skr name, resolved from mainnet' : 'no .skr name found · showing your address'}{side ? ` · fights for $${side}` : ''}
+              </Body>
+            </View>
+            <Body size={12} color={C.dim}>{wins}W</Body>
+            <Display size={18} color={C.gold} style={{ width: 52, textAlign: 'right' }}>{trophies}</Display>
+          </Well>
 
           <Panel>
             <Display size={20}>Season War · {SEASON_WAR.title}</Display>

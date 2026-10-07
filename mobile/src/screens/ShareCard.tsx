@@ -10,6 +10,8 @@ import { useFrameColors } from '../game/cosmetics';
 import { EMOTES } from '../game/season';
 import { useGame } from '../state/game';
 import { useUi, type MatchResult } from '../state/ui';
+import { useDisplayName } from '../state/identity';
+import { useWallet } from '../wallet/wallet';
 import { C, R } from '../theme';
 import { Body, Btn, Display } from '../ui/kit';
 
@@ -27,6 +29,7 @@ export function ShareCardButton({ r }: { r: MatchResult }) {
   const frame = useFrameColors();
   const say = useUi((s) => s.say);
   const [busy, setBusy] = useState(false);
+  const who = useDisplayName(useWallet((s) => s.address));
   const title = r.draw ? 'DRAW' : r.won ? 'VICTORY' : 'DEFEAT';
   const message = challengeMessage(r.rivalIndex, r.rush, { won: r.won, crowns: r.crowns });
 
@@ -57,7 +60,10 @@ export function ShareCardButton({ r }: { r: MatchResult }) {
           <LinearGradient colors={['#14418f', '#0d2a5c']} style={st.card}>
             <View style={st.top}>
               <Image source={UI_ART.logo} style={{ width: 96, height: 30 }} resizeMode="contain" />
-              <Body size={11} color={C.dim} bold>{r.rush ? 'RUSH' : 'STANDARD'}</Body>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Body size={12} color={who.skr ? C.teal : '#fff'} bold>{who.label}</Body>
+                <Body size={10} color={C.dim} bold>{r.rush ? 'RUSH' : 'STANDARD'}</Body>
+              </View>
             </View>
             <View style={st.mid}>
               <View>

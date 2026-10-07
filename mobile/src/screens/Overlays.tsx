@@ -1,6 +1,6 @@
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { CHESTS } from '../game/rules';
 import { WIN_SKR } from '../game/actions';
 import { sfx, useSound } from '../sound';
@@ -10,6 +10,7 @@ import { airdrop, explorerAddr, explorerTx, short } from '../chain/solana';
 import { SKR_LABEL, SKR_LIVE } from '../chain/skr';
 import { useGame } from '../state/game';
 import { useUi } from '../state/ui';
+import { lookupSkrOwner, useDisplayName, useIdentity } from '../state/identity';
 import { recheckProof, signInLabel, useWallet, walletLabel } from '../wallet/wallet';
 import { cancelChestReminders, haptic } from '../notify';
 import { C, F, TIER_COLORS } from '../theme';
@@ -173,11 +174,13 @@ export function WalletSheet() {
           <Body color={C.dimOnWood}>{walletLabel(kind)}</Body>
           <Pressable onPress={() => { void Clipboard.setStringAsync(address); haptic.tap(); say('Address copied'); }}>
             <Well style={{ marginVertical: 10 }}>
+              <SkrLine address={address} kind={kind} />
               <Text selectable style={{ fontFamily: F.ui, color: '#fff', fontSize: 13 }}>{address}</Text>
               <Body size={11} color={C.dim}>tap to copy</Body>
             </Well>
           </Pressable>
           <SignInCard />
+          <FindSeeker />
           <View style={st.row}><Body color={C.dimOnWood}>Devnet SOL</Body><Display size={18}>{sol === null ? '…' : sol.toFixed(4)}</Display></View>
           <View style={st.row}><Body color={C.dimOnWood}>{SKR_LABEL}</Body><Display size={18} color={C.skr}>{SKR_LIVE ? (skr ?? 0) : useGame.getState().skrSim}</Display></View>
           <View style={{ gap: 8, marginTop: 10 }}>
@@ -202,6 +205,74 @@ export function WalletSheet() {
         </ScrollView>
       </View>
     </Modal>
+  );
+}
+
+/** The player's .skr name (mainnet, read-only), or why there is none. */
+function SkrLine({ address, kind }: { address: string; kind: string | null }) {
+  const who = useDisplayName(address);
+  const known = useIdentity((s) => s.names[address] !== undefined);
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+      {who.skr ? <Display size={20} color={C.teal}>{who.skr}</Display> : null}
+      <Body size={11} color={C.dim} style={{ flex: 1 }}>
+        {who.skr ? 'your .skr name · AllDomains, mainnet'
+          : !known ? 'looking up your .skr name on mainnet…'
+          : kind === 'dev' ? 'no .skr: a dev wallet is not a Seeker wallet'
+          : 'no .skr name for this wallet · the address is shown instead'}
+      </Body>
+    </View>
+  );
+}
+
+/** Find a Seeker: alice.skr → address, and back (both mainnet reads). */
+function FindSeeker() {
+  const [q, setQ] = useState('');
+  const [res, setRes] = useState<{ owner: string; name: string | null; asked: string } | 'none' | null>(null);
+  const [busy, setBusy] = useState(false);
+  const go = async () => {
+    const v = q.trim();
+    if (!v) return;
+    setBusy(true); setRes(null);
+    try {
+      if (/\.skr$/i.test(v) || !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(v)) {
+        const owner = await lookupSkrOwner(v);
+        if (!owner) { setRes('none'); return; }
+        // round trip: the owner's own primary .skr, resolved the reverse way
+        setRes({ owner, name: await useIdentity.getState().resolve(owner), asked: v.toLowerCase().replace(/\.skr$/, '') + '.skr' });
+      } else {
+        const name = await useIdentity.getState().resolve(v);
+        setRes(name ? { owner: v, name, asked: name } : 'none');
+      }
+    } catch { setRes('none'); } finally { setBusy(false); }
+  };
+  return (
+    <Well style={{ marginBottom: 10, gap: 6 }}>
+      <Body size={12} bold color="#fff">Find a Seeker</Body>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <TextInput
+          value={q}
+          onChangeText={setQ}
+          placeholder="alice.skr or an address"
+          placeholderTextColor={C.dim}
+          autoCapitalize="none"
+          autoCorrect={false}
+          onSubmitEditing={() => void go()}
+          returnKeyType="search"
+          clearButtonMode="while-editing"
+          selectTextOnFocus
+          style={st.input}
+          accessibilityLabel="Seeker name or address"
+        />
+        <Btn label="LOOK UP" size="sm" tone="blue" busy={busy} style={{ width: 104 }} onPress={() => void go()} />
+      </View>
+      {res === 'none' ? <Body size={11} color={C.dim}>No live .skr name found.</Body> : res ? (
+        <Body size={11} color={C.dim}>
+          <Text style={{ color: C.teal, fontWeight: '700' }}>{res.asked}</Text> → {short(res.owner, 6)}
+          {res.name === res.asked ? ' · reverse lookup agrees' : res.name ? ` · their primary is ${res.name}` : ` · reverse lookup unavailable right now (${useIdentity.getState().lastError ?? 'no name'})`}
+        </Body>
+      ) : <Body size={11} color={C.dim}>Read-only lookups on Solana mainnet (AllDomains). Cached on this phone.</Body>}
+    </Well>
   );
 }
 
@@ -344,6 +415,7 @@ const st = StyleSheet.create({
   centerScroll: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 16, paddingTop: 60, paddingBottom: 40 },
   drops: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12, marginTop: 20 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 3 },
+  input: { flex: 1, minHeight: 40, borderRadius: 10, paddingHorizontal: 10, color: '#fff', backgroundColor: 'rgba(0,0,0,0.35)', fontSize: 14 },
   mono: { fontFamily: 'Courier', fontSize: 10, color: '#cfe0ff', backgroundColor: 'rgba(0,0,0,0.35)', padding: 8, borderRadius: 8 },
   sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 12, paddingBottom: 30 },
   toast: {

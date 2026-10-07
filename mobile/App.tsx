@@ -13,6 +13,7 @@ import {
 } from '@expo-google-fonts/hanken-grotesk';
 import { UI_ART } from './src/data/art';
 import { useWallet } from './src/wallet/wallet';
+import { useDisplayName } from './src/state/identity';
 import { useGame } from './src/state/game';
 import { ftueDone, loadRendererPref, useUi, type Tab } from './src/state/ui';
 import { useNet } from './src/state/net';
@@ -72,8 +73,10 @@ function Header() {
   const skrSim = useGame((s) => s.skrSim);
   const trophies = useGame((s) => s.trophies);
   const sgt = useUi((s) => s.sgt);
+  const siws = useWallet((s) => s.signIn);
   const setWalletOpen = useUi((s) => s.setWalletOpen);
   const setTab = useUi((s) => s.setTab);
+  const who = useDisplayName(address);
   const shownTrophies = useCountUp(trophies);
   const shownSkr = useCountUp(SKR_LIVE ? Math.floor(skr ?? 0) : skrSim);
   return (
@@ -81,9 +84,9 @@ function Header() {
       <Pressable style={({ pressed }) => [st.who, pressed && { opacity: 0.75 }]} onPress={() => { haptic.tap(); setWalletOpen(true); }} accessibilityRole="button" accessibilityLabel="Wallet and settings">
         <Image source={UI_ART.avatar_guest} style={st.avatar} />
         <View>
-          <Body size={13} color="#fff" bold>{address ? short(address, 4) : '-'}</Body>
+          <Body size={13} color={who.skr ? C.teal : '#fff'} bold numberOfLines={1} style={{ maxWidth: 130 }}>{who.label}</Body>
           <Body size={10} color={sgt ? C.teal : kind === 'dev' ? C.goldHi : C.dim} bold>
-            {sgt ? 'SEEKER VERIFIED' : kind === 'dev' ? 'DEV WALLET' : 'MWA WALLET'}
+            {sgt ? 'SEEKER VERIFIED' : kind === 'dev' ? 'DEV WALLET' : 'MWA WALLET'}{siws ? ' · SIWS ✓' : ''}
           </Body>
         </View>
       </Pressable>

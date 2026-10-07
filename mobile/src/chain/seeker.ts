@@ -15,7 +15,7 @@ import { SKR_MAINNET_MINT } from './skr';
  * the SGT group. Client-side is fine for a cosmetic-scale perk; anything of
  * real value would need a signed-in, server-side check.
  */
-const MAINNET = new Connection(process.env.EXPO_PUBLIC_MAINNET_READ_RPC || 'https://api.mainnet-beta.solana.com', 'confirmed');
+export const MAINNET = new Connection(process.env.EXPO_PUBLIC_MAINNET_READ_RPC || 'https://api.mainnet-beta.solana.com', 'confirmed');
 const TOKEN_2022 = new PublicKey('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb');
 const SGT_GROUP = 'GT22s89nU4iWFkNXj1Bw6uYhJJWDRPpShHt4Bk8f99Te';
 
