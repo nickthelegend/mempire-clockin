@@ -1,8 +1,11 @@
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Linking, Modal, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { CHESTS } from '../game/rules';
-import { WIN_SKR } from '../game/actions';
+import { WIN_SKR, challengeMessage } from '../game/actions';
+import { sfx, useSound } from '../sound';
+import { EASE_IN_OUT, reduceMotion } from '../motion';
+import { markFtue } from '../state/ui';
 import { airdrop, explorerAddr, explorerTx, short } from '../chain/solana';
 import { SKR_LABEL, SKR_LIVE } from '../chain/skr';
 import { useGame } from '../state/game';
@@ -26,19 +29,23 @@ export function RevealSheet() {
     setOpened(false); setShown(0);
     shake.setValue(0);
     Animated.sequence([
-      Animated.timing(shake, { toValue: 1, duration: 520, easing: Easing.linear, useNativeDriver: true }),
-    ]).start(() => { setOpened(true); haptic.heavy(); });
+      // Anticipation, then the burst: the shake builds for ~0.7 s so the
+      // pop lands as a release, with sound and the heaviest haptic we have.
+      Animated.timing(shake, { toValue: 1, duration: reduceMotion() ? 120 : 720, easing: EASE_IN_OUT, useNativeDriver: true }),
+    ]).start(() => { setOpened(true); haptic.heavy(); sfx('chest'); });
     return undefined;
   }, [reveal, shake]);
 
   useEffect(() => {
     if (!opened || !reveal || shown >= reveal.drops.length) return undefined;
-    const t = setTimeout(() => { setShown((n) => n + 1); haptic.light(); }, 260);
+    const t = setTimeout(() => { setShown((n) => n + 1); haptic.light(); sfx('click'); }, shown === 0 ? 180 : 320);
     return () => clearTimeout(t);
   }, [opened, shown, reveal]);
 
   if (!reveal) return null;
-  const rot = shake.interpolate({ inputRange: [0, 0.2, 0.4, 0.6, 0.8, 1], outputRange: ['0deg', '-8deg', '8deg', '-6deg', '6deg', '0deg'] });
+  const rot = reduceMotion()
+    ? shake.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '0deg'] })
+    : shake.interpolate({ inputRange: [0, 0.2, 0.4, 0.6, 0.8, 1], outputRange: ['0deg', '-6deg', '7deg', '-8deg', '9deg', '0deg'] });
   const [glowA] = TIER_COLORS[reveal.tier];
   return (
     <Modal visible transparent animationType="fade" onRequestClose={() => show(null)}>
@@ -98,7 +105,7 @@ export function ResultSheet() {
             </View>
           ) : null}
           {r.skrSig ? (
-            <Pressable onPress={() => void Linking.openURL(explorerTx(r.skrSig!))}><Tag text={`minted ${short(r.skrSig)} ↗`} /></Pressable>
+            <Pressable onPress={() => void Linking.openURL(explorerTx(r.skrSig!))} hitSlop={14} accessibilityRole="link" accessibilityLabel="Open the SKR mint on Solana Explorer"><Tag text={`minted ${short(r.skrSig)} ↗`} /></Pressable>
           ) : r.won && SKR_LIVE ? <Body size={11} color={C.dimOnWood}>SKR is owed until your wallet can pay the devnet fee — claim it in the Shop.</Body> : null}
           {r.chest ? (
             <View style={[st.row, { marginTop: 8 }]}>
@@ -109,11 +116,39 @@ export function ResultSheet() {
               <Tag text="ADDED" color={C.gold} />
             </View>
           ) : r.won ? <Body size={12} color={C.goldHi}>Chest slots full — open one to make room.</Body> : null}
+          {r.welcomeChest ? (
+            <View style={[st.row, { marginTop: 8 }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <ChestArt tier={r.welcomeChest} size={44} />
+                <View>
+                  <Body color="#fff" bold>Welcome chest</Body>
+                  <Body size={11} color={C.dimOnWood}>For finishing your first battle</Body>
+                </View>
+              </View>
+              <Tag text="ADDED" color={C.gold} />
+            </View>
+          ) : r.tutorial ? <Body size={12} color={C.goldHi}>Chest slots full. Your welcome chest is waiting for a free slot.</Body> : null}
+          <Body size={11} color={C.dimOnWood} style={{ marginTop: 6 }}>
+            {r.plays} card{r.plays === 1 ? '' : 's'} deployed · counts toward today's quest
+          </Body>
         </Panel>
+        {r.tutorial ? (
+          <Body size={13} color="#fff" style={{ width: '88%', textAlign: 'center', marginTop: 14 }}>
+            {r.won ? 'First win! ' : ''}Start your welcome chest on Home, then clock in for today's reward.
+          </Body>
+        ) : null}
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 18, width: '88%' }}>
           <Btn label="HOME" tone="ghost" style={{ flex: 1 }} onPress={() => { show(null); setTab('home'); }} />
           <Btn label="DECK" tone="blue" style={{ flex: 1 }} onPress={() => { show(null); setTab('deck'); }} />
         </View>
+        <Btn
+          label="CHALLENGE A FRIEND"
+          sub="send this rival as a link"
+          tone="gold"
+          size="sm"
+          style={{ width: '88%', marginTop: 10 }}
+          onPress={() => { void Share.share({ message: challengeMessage(r.rivalIndex, r.rush, { won: r.won, crowns: r.crowns }) }).catch(() => {}); }}
+        />
       </View>
     </Modal>
   );
@@ -134,7 +169,7 @@ export function WalletSheet() {
       <View style={st.sheet}>
         <Panel>
           <View style={st.row}>
-            <Display size={22}>Wallet</Display>
+            <Display size={22}>Wallet & settings</Display>
             <Tag text={kind === 'dev' ? 'DEVNET ONLY' : sgt ? 'SEEKER VERIFIED' : 'MWA'} color={kind === 'dev' ? C.goldHi : C.teal} />
           </View>
           <Body color={C.dimOnWood}>{walletLabel(kind)}</Body>
@@ -159,12 +194,41 @@ export function WalletSheet() {
               }}
             />
             <Btn label="VIEW ON EXPLORER" tone="ghost" size="sm" onPress={() => void Linking.openURL(explorerAddr(address))} />
+            <SoundSetting />
             <RendererSetting />
+            <Btn label="REPLAY THE INTRO" tone="ghost" size="sm" onPress={() => { markFtue(false); setOpen(false); useUi.getState().setIntro(true); }} />
             <Btn label="SIGN OUT" tone="ghost" size="sm" onPress={() => { setOpen(false); unload(); void disconnect(); }} />
           </View>
         </Panel>
       </View>
     </Modal>
+  );
+}
+
+function SoundSetting() {
+  const muted = useSound((s) => s.muted);
+  const setMuted = useSound((s) => s.setMuted);
+  return (
+    <View style={{ gap: 6, marginTop: 4 }}>
+      <Body size={12} color={C.dimOnWood} bold>SOUND & MUSIC</Body>
+      <View style={{ flexDirection: 'row', gap: 6 }}>
+        {[{ on: true, label: 'On' }, { on: false, label: 'Off' }].map((o) => {
+          const sel = muted === !o.on;
+          return (
+            <Pressable
+              key={o.label}
+              onPress={() => { haptic.tap(); setMuted(!o.on); if (o.on) sfx('click'); }}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: sel }}
+              accessibilityLabel={`Sound ${o.label}`}
+              style={{ flex: 1, minHeight: 44, justifyContent: 'center', borderRadius: 10, alignItems: 'center', backgroundColor: sel ? C.gold : 'rgba(0,0,0,0.3)' }}
+            >
+              <Body size={12} bold color={sel ? C.ink : '#fff'}>{o.label}</Body>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
   );
 }
 
@@ -185,7 +249,7 @@ function RendererSetting() {
             onPress={() => { haptic.tap(); setPref(o.id); }}
             accessibilityRole="radio"
             accessibilityState={{ selected: pref === o.id }}
-            style={{ flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center', backgroundColor: pref === o.id ? C.gold : 'rgba(0,0,0,0.3)' }}
+            style={{ flex: 1, minHeight: 44, justifyContent: 'center', paddingVertical: 8, borderRadius: 10, alignItems: 'center', backgroundColor: pref === o.id ? C.gold : 'rgba(0,0,0,0.3)' }}
           >
             <Body size={12} bold color={pref === o.id ? C.ink : '#fff'}>{o.label}</Body>
           </Pressable>

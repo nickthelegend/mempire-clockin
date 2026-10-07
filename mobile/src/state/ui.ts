@@ -9,6 +9,7 @@ export type Renderer = 'native' | 'web';
 
 export interface PendingMatch {
   rival: string;
+  rivalIndex: number;
   tier: number;
   rush: boolean;
   /** Fixed per match, so a fallback to the web arena replays the same match. */
@@ -17,6 +18,8 @@ export interface PendingMatch {
   renderer: Renderer;
   /** True when this match was moved here after the native arena failed. */
   fellBack?: boolean;
+  /** The guided first battle: coach marks on, welcome chest at the end. */
+  tutorial?: boolean;
   player: { mint: string; ticker: string; level: number }[];
   bot: { mint: string; ticker: string; level: number }[];
 }
@@ -32,6 +35,13 @@ export interface MatchResult {
   fellBack?: boolean;
   skr: number;
   skrSig?: string;
+  /** Cards this player deployed (counts toward the daily quest). */
+  plays: number;
+  tutorial?: boolean;
+  /** The welcome chest the guided first battle pays. */
+  welcomeChest?: ChestTier | null;
+  rivalIndex: number;
+  rush: boolean;
 }
 
 export interface Reveal {
@@ -53,6 +63,9 @@ interface UiState {
   showResult: (r: MatchResult | null) => void;
   reveal: Reveal | null;
   showReveal: (r: Reveal | null) => void;
+  /** First-run intro open. */
+  introOpen: boolean;
+  setIntro: (v: boolean) => void;
   coachOpen: boolean;
   setCoach: (v: boolean) => void;
   walletOpen: boolean;
@@ -86,6 +99,8 @@ export const useUi = create<UiState>((set) => ({
   showResult: (result) => set({ result }),
   reveal: null,
   showReveal: (reveal) => set({ reveal }),
+  introOpen: false,
+  setIntro: (introOpen) => set({ introOpen }),
   coachOpen: false,
   setCoach: (coachOpen) => set({ coachOpen }),
   walletOpen: false,
@@ -105,4 +120,13 @@ const RENDERER_KEY = 'mempire.renderer.v1';
 export async function loadRendererPref(): Promise<void> {
   const v = await AsyncStorage.getItem(RENDERER_KEY).catch(() => null);
   if (v === 'auto' || v === 'native' || v === 'web') useUi.setState({ rendererPref: v });
+}
+
+const FTUE_KEY = 'mempire.ftue.v1';
+/** Has this device finished (or skipped) the first-run intro? */
+export async function ftueDone(): Promise<boolean> {
+  return (await AsyncStorage.getItem(FTUE_KEY).catch(() => null)) === 'done';
+}
+export function markFtue(done: boolean): void {
+  void (done ? AsyncStorage.setItem(FTUE_KEY, 'done') : AsyncStorage.removeItem(FTUE_KEY)).catch(() => {});
 }

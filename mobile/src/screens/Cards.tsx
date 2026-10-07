@@ -101,7 +101,9 @@ export function CardsScreen() {
           <Pressable
             key={k.id}
             onPress={() => { haptic.tap(); setKind(k.id); }}
-            style={[st.filter, kind === k.id && st.filterOn]}
+            style={({ pressed }) => [st.filter, kind === k.id && st.filterOn, pressed && { transform: [{ scale: 0.96 }] }]}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: kind === k.id }}
           >
             <Body size={13} bold color={kind === k.id ? C.ink : '#fff'}>{k.label}</Body>
           </Pressable>
@@ -124,6 +126,6 @@ const st = StyleSheet.create({
   stats: { flexDirection: 'row', gap: 6, marginVertical: 12 },
   stat: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 10, padding: 6, alignItems: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  filter: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.3)' },
+  filter: { paddingHorizontal: 14, paddingVertical: 7, minHeight: 44, justifyContent: 'center', borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.3)' },
   filterOn: { backgroundColor: C.gold },
 });

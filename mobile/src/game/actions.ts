@@ -2,12 +2,13 @@ import { PublicKey } from '@solana/web3.js';
 import { clockInMemo, explorerTx } from '../chain/solana';
 import { SKR_LIVE, earnIxs, payIxs } from '../chain/skr';
 import { askPermission, chestReminder, haptic, streakReminder } from '../notify';
-import { useGame, avgDeckLevel } from '../state/game';
+import { sfx } from '../sound';
+import { useGame, avgDeckLevel, type Chest } from '../state/game';
 import * as Device from 'expo-device';
-import { useUi, type PendingMatch, type Renderer } from '../state/ui';
+import { markFtue, useUi, type PendingMatch, type Renderer } from '../state/ui';
 import { useWallet } from '../wallet/wallet';
 import {
-  BY_TICKER, CHESTS, RIVALS, SHOP, dayKey, rivalDeck, type ShopItemId,
+  BY_TICKER, CHESTS, RIVALS, SHOP, dayKey, rivalDeck, type QuestId, type ShopItemId,
 } from './rules';
 
 /**
@@ -76,6 +77,7 @@ export async function doClockIn(seeker: boolean): Promise<ClockInResult | null> 
   }
 
   const done = game.commitClockIn(seeker, { sig, offlineReason });
+  if (done) useGame.getState().progressQuest('clockin');
   if (sig && done) {
     const ledger = useUi.getState().chainLedger ?? [];
     useUi.getState().setChainLedger([{ day, streak: done.outcome.streak.count, sig }, ...ledger]);
@@ -84,6 +86,7 @@ export async function doClockIn(seeker: boolean): Promise<ClockInResult | null> 
   // SKR minted in the same transaction when it went through; otherwise owed.
   if (!sig || !SKR_LIVE) useGame.getState().addSkrSim(done.reward.skr);
   haptic.success();
+  sfx('reward');
   // Asked here, not at launch: the first Clock-In is when a reminder means something.
   void askPermission().then((ok) => { if (ok) void streakReminder(done.outcome.streak.count); });
   return {
@@ -164,13 +167,15 @@ export function resolveRenderer(): Renderer {
   return Device.isDevice ? 'native' : 'web';
 }
 
-export function prepareMatch(rivalIndex: number, rush = false): PendingMatch {
+export function prepareMatch(rivalIndex: number, rush = false, tutorial = false): PendingMatch {
   const g = useGame.getState();
   const rival = RIVALS[rivalIndex] ?? RIVALS[0];
   const avg = avgDeckLevel(g);
   return {
     rival: rival.name,
+    rivalIndex: Math.max(0, RIVALS.indexOf(rival)),
     rush,
+    tutorial,
     seed: (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0,
     renderer: resolveRenderer(),
     tier: Math.min(3, Math.max(0, rivalIndex)),
@@ -182,21 +187,56 @@ export function prepareMatch(rivalIndex: number, rush = false): PendingMatch {
 export const WIN_SKR = 3;
 
 /** The arena reported back: record it, pay the chest and SKR, show the result. */
-export async function finishMatch(m: PendingMatch, r: { won: boolean; draw: boolean; crowns: [number, number] }): Promise<void> {
-  const { record, chest } = useGame.getState().recordBattle({
+export async function finishMatch(
+  m: PendingMatch,
+  r: { won: boolean; draw: boolean; crowns: [number, number]; plays?: number },
+): Promise<void> {
+  const g = useGame.getState();
+  const { record, chest } = g.recordBattle({
     rival: m.rival, won: r.won, draw: r.draw, crowns: r.crowns, renderer: m.renderer, fellBack: !!m.fellBack,
   });
-  if (r.won) haptic.success(); else haptic.warn();
+  g.progressQuest('deploy', r.plays ?? 0);
+  if (r.won) g.progressQuest('win');
+  // The guided first battle pays a Golden welcome chest, win or lose.
+  let welcome: Chest | null = null;
+  if (m.tutorial) {
+    welcome = g.addChest('golden', 'welcome');
+    markFtue(true);
+  }
+  if (r.won) { haptic.success(); sfx('victory'); } else { haptic.warn(); sfx('defeat'); }
   useUi.getState().showResult({
     rival: m.rival, won: r.won, draw: r.draw, crowns: r.crowns,
     trophyDelta: record.trophyDelta, chest: chest?.tier ?? null, skr: r.won ? WIN_SKR : 0,
-    renderer: m.renderer, fellBack: m.fellBack,
+    renderer: m.renderer, fellBack: m.fellBack, plays: r.plays ?? 0,
+    tutorial: m.tutorial, welcomeChest: welcome?.tier ?? null, rivalIndex: m.rivalIndex, rush: m.rush,
   });
   if (r.won) {
     const out = await payOutSkr(WIN_SKR);
     const cur = useUi.getState().result;
     if (cur && out.sig) useUi.getState().showResult({ ...cur, skrSig: out.sig });
   }
+}
+
+/** Claim a finished daily quest; the SKR goes on-chain when the wallet can pay the fee. */
+export async function claimQuest(id: QuestId): Promise<{ skr: number; sig?: string; bonus: Chest | null }> {
+  const skr = useGame.getState().claimQuest(id);
+  if (!skr) return { skr: 0, bonus: null };
+  haptic.success();
+  sfx('coin');
+  const out = await payOutSkr(skr);
+  const bonus = useGame.getState().claimQuestBonus();
+  if (bonus) sfx('reward');
+  return { skr, sig: out.sig, bonus };
+}
+
+/** A shareable challenge: deep link into the app, web fallback for everyone else. */
+export function challengeMessage(rivalIndex: number, rush: boolean, outcome?: { won: boolean; crowns: [number, number] }): string {
+  const rival = RIVALS[rivalIndex] ?? RIVALS[0];
+  const link = `mempire://battle?rival=${rivalIndex}${rush ? '&rush=1' : ''}`;
+  const brag = outcome
+    ? `I just ${outcome.won ? 'beat' : 'took on'} ${rival.name.replace(' (AI)', '')} ${outcome.crowns[0]}-${outcome.crowns[1]} in Mempire.`
+    : `Mempire: every coin is a fighter.`;
+  return `${brag} Can you do better?\n\nIn the app: ${link}\nNo app yet? Play in your browser: https://play.mempire.fun`;
 }
 
 export { explorerTx };

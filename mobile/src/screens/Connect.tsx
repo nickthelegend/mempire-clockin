@@ -61,7 +61,15 @@ export function ConnectScreen() {
             try { await connectDev(); } finally { setBusy(null); }
           }}
         />
-        {err ? <Body size={12} color={C.red} style={{ textAlign: 'center' }}>{err}</Body> : null}
+        {err ? (
+          <Well style={{ gap: 6 }}>
+            <Body size={13} bold color="#fff">Couldn't reach a wallet</Body>
+            <Body size={12}>{err}</Body>
+            <Body size={12}>
+              You can play right now with the dev wallet above and connect a real wallet later from Wallet & settings.
+            </Body>
+          </Well>
+        ) : null}
       </Rise>
       <Rise delay={240}>
         <Well style={{ gap: 6, marginTop: 6 }}>

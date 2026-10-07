@@ -139,6 +139,8 @@ interface MatchStore {
   perspective: 0 | 1;
   /** Set by the native app: replaces the "practice" HUD label for its matches. */
   nativeLabel?: string | null;
+  /** Cards this player queued this match (the native app's daily quest counts them). */
+  plays?: number;
   startQueue: (opts?: MatchOpts) => string | null; // error string or null
   cancelQueue: () => void;
   playCard: (deckIndex: number, xFp: number, yFp: number) => void;
@@ -885,6 +887,7 @@ export const useMatch = create<MatchStore>((set, get) => ({
     const list = pending.get(ev.tick) ?? [];
     list.push(ev);
     pending.set(ev.tick, list);
+    set((st) => ({ plays: (st.plays ?? 0) + 1 }));
     // The opponent applies the identical event at the identical tick — that,
     // and nothing else, is what keeps the two sims one game.
     if (mode === 'human') pvpSendInput(ev);
@@ -1664,6 +1667,7 @@ export function startNativeMatch(
     result: null,
     opponentName: opts.opponent,
     nativeLabel: 'no stake · chest on a win',
+    plays: 0,
   });
   warmMatchArt([...player, ...bot].map((c) => c.coinId));
   warmBattleChunk();
