@@ -9,7 +9,11 @@ import { askPermission, cancel, chestNotificationId, chestReminder, ensureStreak
 import { sfx } from '../sound';
 import { useGame, avgDeckLevel, type Grant } from '../state/game';
 import * as Device from 'expo-device';
-import { markFtue, useUi, type PendingMatch, type Renderer } from '../state/ui';
+import { markFtue, useUi, type MatchResult, type PendingMatch, type Renderer } from '../state/ui';
+import { MAX_PAYLOAD_CHARS, decodeDuel, encodeDuel, fromB64url, ghostInputs, toB64url, type DuelPayload } from './duel';
+import { challengeIxs, resultIxs } from '../chain/duels';
+import type { InputEvent } from '../../../app/src/sim/types';
+import { short as shortAddr } from '../chain/solana';
 import { useWallet } from '../wallet/wallet';
 import {
   BY_TICKER, CHESTS, RIVALS, SHOP, dayKey, rivalDeck, type ChestTier, type Drop, type QuestId, type ShopItemId,
@@ -351,8 +355,13 @@ export const WIN_SKR = 3;
 /** The arena reported back: record it, pay the chest and SKR, show the result. */
 export async function finishMatch(
   m: PendingMatch,
-  r: { won: boolean; draw: boolean; crowns: [number, number]; plays?: number },
+  r: {
+    won: boolean; draw: boolean; crowns: [number, number]; plays?: number;
+    /** From the native arena: what a duel needs (the web arena has no recording). */
+    native?: { finalHash: number; forfeited: boolean; recording: InputEvent[] };
+  },
 ): Promise<void> {
+  if (m.duel) { finishDuel(m, r); return; }
   const g = useGame.getState();
   const { record, chest } = g.recordBattle({
     rival: m.rival, won: r.won, draw: r.draw, crowns: r.crowns, renderer: m.renderer, fellBack: !!m.fellBack,
@@ -373,12 +382,79 @@ export async function finishMatch(
     renderer: m.renderer, fellBack: m.fellBack, plays: r.plays ?? 0,
     tutorial: m.tutorial, welcomeChest: welcome?.tier ?? null, welcomeQueued: !!welcome?.queued,
     rivalIndex: m.rivalIndex, rush: m.rush,
+    ghost: r.native && !r.native.forfeited && !m.tutorial ? ghostOf(m, r.native.recording) : undefined,
   });
   if (r.won) {
     const out = await payOutSkr(WIN_SKR);
     const cur = useUi.getState().result;
     if (cur && out.sig) useUi.getState().showResult({ ...cur, skrSig: out.sig });
   }
+}
+
+// ── Ghost Duels ─────────────────────────────────────────────────────────────
+
+const duelPayloadOf = (m: PendingMatch, evs: InputEvent[]) => ({
+  seed: m.seed >>> 0, rush: m.rush,
+  deck: m.player.map((p) => ({ ticker: p.ticker, level: p.level })),
+  inputs: evs.map(({ tick, deckIndex, x, y }) => ({ tick, deckIndex, x, y })),
+});
+
+/** This match as a shareable ghost, if it fits one memo. */
+function ghostOf(m: PendingMatch, evs: InputEvent[]): string | undefined {
+  if (!evs.length) return undefined;
+  try {
+    const b64 = toB64url(encodeDuel(duelPayloadOf(m, evs)));
+    return b64.length <= MAX_PAYLOAD_CHARS ? b64 : undefined;
+  } catch { return undefined; }
+}
+
+function finishDuel(m: PendingMatch, r: Parameters<typeof finishMatch>[1]): void {
+  const d = m.duel!;
+  useGame.getState().progressQuest('deploy', r.plays ?? 0);
+  if (r.won) { haptic.success(); sfx('victory'); } else { haptic.warn(); sfx('defeat'); }
+  const mine = r.native ? toB64url(encodeDuel(duelPayloadOf(m, r.native.recording))) : '';
+  useUi.getState().showResult({
+    rival: m.rival, won: r.won, draw: r.draw, crowns: r.crowns, trophyDelta: 0, chest: null, skr: 0,
+    renderer: m.renderer, plays: r.plays ?? 0, rivalIndex: m.rivalIndex, rush: m.rush,
+    duel: r.native && !r.native.forfeited ? {
+      challengeSig: d.challengeSig, challenger: d.challenger,
+      winner: r.won ? 'o' : r.draw ? 'd' : 'c', stateHash: r.native.finalHash >>> 0, mine, theirs: d.payload,
+    } : undefined,
+  });
+}
+
+/** Set up a duel against a challenge's ghost: the player fights seat 1, natively. */
+export function prepareDuel(c: { sig: string | null; challenger: string; payload: DuelPayload; payloadB64: string }): PendingMatch {
+  const g = useGame.getState();
+  const p = c.payload;
+  return {
+    rival: `${shortAddr(c.challenger)}'s ghost`,
+    rivalIndex: 1,
+    rush: p.rush,
+    seed: p.seed >>> 0,
+    renderer: 'native', // the replay lives in the native sim loop
+    tier: 1,
+    player: g.deck.map((t) => ({ ticker: t, mint: BY_TICKER.get(t)!.mint, level: g.cards[t]?.level ?? 1 })),
+    bot: p.deck.map((cd) => ({ ticker: cd.ticker, mint: BY_TICKER.get(cd.ticker)!.mint, level: cd.level })),
+    duel: { challengeSig: c.sig, challenger: c.challenger, payload: c.payloadB64, ghost: ghostInputs(p, 0) },
+  };
+}
+
+/** Post a challenge on chain (one approval). Returns the challenge signature. */
+export async function postChallenge(ghost: string): Promise<string> {
+  const { address, send } = useWallet.getState();
+  if (!address) throw new Error('Connect a wallet first');
+  const bytes = fromB64url(ghost);
+  const p = decodeDuel(bytes);
+  return send(challengeIxs(new PublicKey(address), bytes, p.seed));
+}
+
+/** Post a duel result on chain: winner, state hash, and the player's own deploys for re-simulation. */
+export async function postDuelResult(d: NonNullable<MatchResult['duel']>): Promise<string> {
+  const { address, send } = useWallet.getState();
+  if (!address) throw new Error('Connect a wallet first');
+  if (!d.challengeSig) throw new Error('This ghost came from a link with no on-chain challenge, so there is nothing to answer on chain.');
+  return send(resultIxs(new PublicKey(address), d.challengeSig, d.winner, d.stateHash, fromB64url(d.mine)));
 }
 
 /** Claim a finished daily quest; the SKR goes on-chain when the wallet can pay the fee. */

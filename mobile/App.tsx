@@ -35,6 +35,8 @@ import { HomeScreen } from './src/screens/Home';
 import { CardsScreen } from './src/screens/Cards';
 import { DeckScreen } from './src/screens/Deck';
 import { ShopScreen } from './src/screens/Shop';
+import { DuelsScreen } from './src/screens/Duels';
+import { useDuels } from './src/state/duels';
 import { CoachSheet } from './src/screens/Coach';
 import { SeasonPassSheet } from './src/screens/SeasonPass';
 import { BoardSheet } from './src/screens/Board';
@@ -62,6 +64,7 @@ const TABS: { id: Tab; label: string; icon: keyof typeof UI_ART }[] = [
   { id: 'home', label: 'Home', icon: 'tab_arena' },
   { id: 'cards', label: 'Cards', icon: 'tab_cards' },
   { id: 'deck', label: 'Deck', icon: 'tab_deck' },
+  { id: 'duels', label: 'Duels', icon: 'clan_badge' },
   { id: 'shop', label: 'Shop', icon: 'tab_swap' },
 ];
 
@@ -160,7 +163,7 @@ function Screens() {
         transform: [{ translateX: v.interpolate({ inputRange: [0, 1], outputRange: [reduceMotion() ? 0 : 24 * dir, 0] }) }],
       }}
     >
-      {tab === 'home' ? <HomeScreen /> : tab === 'cards' ? <CardsScreen /> : tab === 'deck' ? <DeckScreen /> : <ShopScreen />}
+      {tab === 'home' ? <HomeScreen /> : tab === 'cards' ? <CardsScreen /> : tab === 'deck' ? <DeckScreen /> : tab === 'duels' ? <DuelsScreen /> : <ShopScreen />}
     </Animated.View>
   );
 }
@@ -213,6 +216,14 @@ function Game() {
   // (home-screen shortcuts, notifications, and scripted demo capture).
   useEffect(() => {
     const open = (url: string | null) => {
+      // Ghost duel: mempire://duel?c=<challenge signature>&d=<ghost payload>
+      const duel = url && /^mempire:\/\/duel\?(.*)$/.exec(url);
+      if (duel) {
+        const q = new URLSearchParams(duel[1]);
+        useUi.getState().setTab('duels');
+        void useDuels.getState().openLink(q.get('c'), q.get('d'));
+        return;
+      }
       if (url === 'mempire://pass') { useUi.getState().setPass(true); return; }
       if (url === 'mempire://board') { useUi.getState().setBoard(true); return; }
       const hit = url && /^mempire:\/\/battle(?:\?(.*))?$/.exec(url);

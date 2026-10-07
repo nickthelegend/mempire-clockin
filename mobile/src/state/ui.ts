@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import type { Drop, ChestTier } from '../game/rules';
 
-export type Tab = 'home' | 'cards' | 'deck' | 'shop';
+export type Tab = 'home' | 'cards' | 'deck' | 'duels' | 'shop';
 
 export type RendererPref = 'auto' | 'native' | 'web';
 export type Renderer = 'native' | 'web';
@@ -24,6 +24,8 @@ export interface PendingMatch {
   tutorial?: boolean;
   player: { mint: string; ticker: string; level: number }[];
   bot: { mint: string; ticker: string; level: number }[];
+  /** A ghost duel: `bot` is the challenger's deck, `ghost` their replayed deploys. */
+  duel?: { challengeSig: string | null; challenger: string; payload: string; ghost: import('../../../app/src/sim/types').InputEvent[] };
 }
 
 export interface MatchResult {
@@ -47,6 +49,14 @@ export interface MatchResult {
   welcomeQueued?: boolean;
   rivalIndex: number;
   rush: boolean;
+  /** This match as a shareable ghost (native arena only): base64url duel payload. */
+  ghost?: string;
+  /** A finished ghost duel, ready to post. */
+  duel?: {
+    challengeSig: string | null; challenger: string; winner: 'c' | 'o' | 'd'; stateHash: number;
+    /** base64url payloads: the challenger's ghost and this player's deploys */
+    theirs: string; mine: string; posted?: string;
+  };
 }
 
 export interface Reveal {

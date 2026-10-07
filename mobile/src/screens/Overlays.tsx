@@ -1,17 +1,20 @@
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Animated, Linking, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { CHESTS, rollChest } from '../game/rules';
-import { WIN_SKR } from '../game/actions';
+import { WIN_SKR, postChallenge, postDuelResult } from '../game/actions';
+import { duelMessage } from '../game/blink';
+import { decodeDuel, fromB64url, verifyResult } from '../game/duel';
+import { useDuels } from '../state/duels';
 import { sfx, useSound } from '../sound';
 import { EASE_IN_OUT, reduceMotion } from '../motion';
 import { markFtue } from '../state/ui';
-import { airdrop, connection, explorerAddr, explorerBlock, explorerTx, short } from '../chain/solana';
+import { CLUSTER_LABEL, airdrop, connection, explorerAddr, explorerBlock, explorerTx, short } from '../chain/solana';
 import { FAIR_LABEL, FORMULA, seededRand, verifyProof } from '../chain/fair';
 import { Buffer } from 'buffer';
 import { SKR_LABEL, SKR_LIVE } from '../chain/skr';
 import { useGame } from '../state/game';
-import { useUi, type Reveal } from '../state/ui';
+import { useUi, type MatchResult, type Reveal } from '../state/ui';
 import { lookupSkrOwner, useDisplayName, useIdentity } from '../state/identity';
 import { recheckProof, signInLabel, useWallet, walletLabel } from '../wallet/wallet';
 import { cancelChestReminders, haptic } from '../notify';
@@ -142,6 +145,95 @@ function FairPanel({ reveal }: { reveal: Reveal }) {
   );
 }
 
+/** After a native-arena match: send it as a ghost duel (one approval), then share Blink + link. */
+function DuelAFriend({ ghost, rush }: { ghost: string; rush: boolean }) {
+  const say = useUi((s) => s.say);
+  const [busy, setBusy] = useState(false);
+  const [sig, setSig] = useState<string | null>(null);
+  const share = (s: string | null) => void Share.share({ message: duelMessage(s, ghost, rush) }).catch(() => {});
+  return (
+    <View style={{ width: '88%', marginTop: 10, gap: 6 }}>
+      <Btn
+        label={sig ? 'SHARE DUEL AGAIN' : 'DUEL A FRIEND'}
+        sub={sig ? `challenge ${short(sig)} on ${CLUSTER_LABEL}` : 'send this match as a ghost · async PvP'}
+        tone="blue"
+        size="sm"
+        busy={busy}
+        onPress={async () => {
+          if (sig) { share(sig); return; }
+          setBusy(true);
+          try {
+            const s = await postChallenge(ghost);
+            setSig(s);
+            haptic.success();
+            say('Ghost duel posted on chain', 'ok');
+            share(s);
+          } catch (e) {
+            const m = e instanceof Error ? e.message : String(e);
+            Alert.alert('Not posted on chain', `${m}\n\nYou can still send the ghost as a link. It replays the same, but the result cannot be answered on chain.`, [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Share link', onPress: () => share(null) },
+            ]);
+          } finally { setBusy(false); }
+        }}
+      />
+    </View>
+  );
+}
+
+/** A finished ghost duel: post the result, then show the replay check. */
+function DuelResult({ r }: { r: MatchResult }) {
+  const d = r.duel!;
+  const show = useUi((s) => s.showResult);
+  const say = useUi((s) => s.say);
+  const [busy, setBusy] = useState(false);
+  const [check, setCheck] = useState<null | { ok: boolean; hash: number }>(null);
+  useEffect(() => {
+    // Re-simulate locally from the two payloads: the same thing anyone can do from chain.
+    const t = setTimeout(() => {
+      try {
+        const v = verifyResult(decodeDuel(fromB64url(d.theirs)), decodeDuel(fromB64url(d.mine)), d);
+        setCheck({ ok: v.ok, hash: v.replay.stateHash });
+      } catch { setCheck({ ok: false, hash: 0 }); }
+    }, 50);
+    return () => clearTimeout(t);
+  }, [d]);
+  return (
+    <Panel style={{ width: '88%', marginTop: 12, gap: 6 }}>
+      <Display size={20}>Ghost duel</Display>
+      <Body size={12} color={C.dimOnWood}>
+        {d.winner === 'o' ? 'You beat the ghost.' : d.winner === 'c' ? 'The ghost won.' : 'A draw.'} Final state hash {d.stateHash.toString(16).padStart(8, '0')}.
+      </Body>
+      {check ? (
+        <Tag text={check.ok ? '✓ RESULT MATCHES REPLAY' : `✗ REPLAY GAVE ${check.hash.toString(16)}`} color={check.ok ? C.teal : C.red} />
+      ) : <Body size={11} color={C.dimOnWood}>Re-simulating both sides…</Body>}
+      {d.posted ? (
+        <Pressable onPress={() => void Linking.openURL(explorerTx(d.posted!))} hitSlop={10} accessibilityRole="link">
+          <Tag text={`result ${short(d.posted)} on ${CLUSTER_LABEL} ↗`} color={C.teal} />
+        </Pressable>
+      ) : d.challengeSig ? (
+        <Btn
+          label="POST RESULT"
+          sub="winner + state hash + your deploys, one memo"
+          tone="gold"
+          size="sm"
+          busy={busy}
+          onPress={async () => {
+            setBusy(true);
+            try {
+              const sig = await postDuelResult(d);
+              haptic.success();
+              say('Duel result posted on chain', 'ok');
+              show({ ...r, duel: { ...d, posted: sig } });
+              void useDuels.getState().refresh();
+            } catch (e) { say(e instanceof Error ? e.message : String(e), 'err'); } finally { setBusy(false); }
+          }}
+        />
+      ) : <Body size={11} color={C.dimOnWood}>This ghost came from a link, not a challenge on chain, so there is nothing to answer on chain.</Body>}
+    </Panel>
+  );
+}
+
 export function ResultSheet() {
   const r = useUi((s) => s.result);
   const show = useUi((s) => s.showResult);
@@ -167,7 +259,7 @@ export function ResultSheet() {
         <Panel style={{ width: '88%', marginTop: 18 }}>
           <View style={st.row}><Body color={C.dimOnWood}>Crowns</Body><Display size={20}>{r.crowns[0]} – {r.crowns[1]}</Display></View>
           <View style={st.row}><Body color={C.dimOnWood}>Trophies</Body><Display size={20} color={r.trophyDelta > 0 ? C.teal : r.trophyDelta < 0 ? C.red : "#fff"}>{r.trophyDelta > 0 ? '+' : ''}{r.trophyDelta}</Display></View>
-          {r.won ? (
+          {r.won && !r.duel ? (
             <View style={st.row}>
               <Body color={C.dimOnWood}>{SKR_LABEL}</Body>
               <Display size={20} color={C.skr}>+{WIN_SKR}</Display>
@@ -175,7 +267,7 @@ export function ResultSheet() {
           ) : null}
           {r.skrSig ? (
             <Pressable onPress={() => void Linking.openURL(explorerTx(r.skrSig!))} hitSlop={14} accessibilityRole="link" accessibilityLabel="Open the SKR mint on Solana Explorer"><Tag text={`minted ${short(r.skrSig)} ↗`} /></Pressable>
-          ) : r.won && SKR_LIVE ? <Body size={11} color={C.dimOnWood}>SKR is owed until your wallet can pay the devnet fee — claim it in the Shop.</Body> : null}
+          ) : r.won && !r.duel && SKR_LIVE ? <Body size={11} color={C.dimOnWood}>SKR is owed until your wallet can pay the devnet fee — claim it in the Shop.</Body> : null}
           {r.chest ? (
             <View style={[st.row, { marginTop: 8 }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -213,7 +305,8 @@ export function ResultSheet() {
           <Btn label="HOME" tone="ghost" style={{ flex: 1 }} onPress={() => { show(null); setTab('home'); }} />
           <Btn label="DECK" tone="blue" style={{ flex: 1 }} onPress={() => { show(null); setTab('deck'); }} />
         </View>
-        <ShareCardButton r={r} />
+        {r.duel ? <DuelResult r={r} /> : <ShareCardButton r={r} />}
+        {r.ghost ? <DuelAFriend ghost={r.ghost} rush={r.rush} /> : null}
       </ScrollView>
     </Modal>
   );

@@ -18,7 +18,7 @@ import { bindArenaStore } from '../../../app/src/three/arenaStore';
  */
 const TICK_MS = 50;
 
-export interface NativeResult { won: boolean; draw: boolean; crowns: [number, number]; ticks: number; finalHash: number; plays: number }
+export interface NativeResult { won: boolean; draw: boolean; crowns: [number, number]; ticks: number; finalHash: number; plays: number; forfeited: boolean }
 
 interface NativeMatchState {
   sim: SimState | null;
@@ -58,6 +58,12 @@ let startedAt = 0;
 let pausedAt = 0;
 let difficulty: BotDifficulty = 'normal';
 let onEnd: ((r: NativeResult) => void) | null = null;
+/** No bot in a duel: seat 0 is the ghost, replaying its recorded deploys. */
+let botSeat: 0 | 1 | null = 1;
+/** Every deploy the player queued this match, exactly as the sim received it. */
+let recorded: InputEvent[] = [];
+let forfeited = false;
+export const recording = (): InputEvent[] => recorded.slice();
 
 export const toMatchCard = (c: { mint: string; ticker: string; level: number }): MatchCard => ({
   coinId: c.mint,
@@ -86,6 +92,7 @@ function finish(sim: SimState): void {
     ticks: sim.tick,
     finalHash: hashState(sim) >>> 0,
     plays: useNativeMatch.getState().plays,
+    forfeited,
   };
   useNativeMatch.setState({ result });
   onEnd?.(result);
@@ -94,7 +101,7 @@ function finish(sim: SimState): void {
 function stepOne(sim: SimState): void {
   const towersBefore = sim.towers.map((t) => t.hp > 0);
   const unitsBefore = sim.units.length;
-  const bot = decideBot(sim, 1, difficulty);
+  const bot = botSeat === null ? null : decideBot(sim, botSeat, difficulty);
   if (bot) {
     const list = pending.get(bot.tick) ?? [];
     list.push(bot);
@@ -140,14 +147,29 @@ function stop(): void {
 export function startNativeArena(opts: {
   player: MatchCard[]; bot: MatchCard[]; tier: number; rush: boolean; seed: number;
   onEnd: (r: NativeResult) => void;
+  /** Ghost duel: the opponent's recorded deploys play seat 0, the player seat 1. */
+  ghost?: InputEvent[];
 }): void {
   stop();
   pending = new Map();
+  recorded = [];
+  forfeited = false;
   difficulty = opts.tier <= 0 ? 'easy' : opts.tier === 1 ? 'normal' : 'hard';
   onEnd = opts.onEnd;
-  const sim = createMatch(opts.seed >>> 0, [opts.player, opts.bot], FORMATS[opts.rush ? 'rush' : 'standard']);
+  const duel = !!opts.ghost;
+  botSeat = duel ? null : 1;
+  const perspective: 0 | 1 = duel ? 1 : 0;
+  // Seat 0 must be the ghost: its hand cycle comes from the seed's first
+  // shuffle, the one it was recorded with.
+  const decks: [MatchCard[], MatchCard[]] = duel ? [opts.bot, opts.player] : [opts.player, opts.bot];
+  for (const ev of opts.ghost ?? []) {
+    const list = pending.get(ev.tick) ?? [];
+    list.push({ ...ev, player: 0 });
+    pending.set(ev.tick, list);
+  }
+  const sim = createMatch(opts.seed >>> 0, decks, FORMATS[opts.rush ? 'rush' : 'standard']);
   useNativeMatch.setState({
-    sim, perspective: 0, playerDeck: opts.player, botDeck: opts.bot,
+    sim, perspective, playerDeck: opts.player, botDeck: opts.bot,
     version: 0, crowns: [0, 0], towerFell: null, deployed: 0, result: null, paused: false, plays: 0,
   });
   startedAt = Date.now();
@@ -162,6 +184,7 @@ export function playCard(deckIndex: number, xFp: number, yFp: number): boolean {
   const list = pending.get(ev.tick) ?? [];
   list.push(ev);
   pending.set(ev.tick, list);
+  recorded.push(ev);
   useNativeMatch.setState((st) => ({ plays: st.plays + 1 }));
   return true;
 }
@@ -178,6 +201,7 @@ export function setPaused(p: boolean): void {
 export function forfeit(): void {
   const { sim, perspective } = useNativeMatch.getState();
   if (!sim || sim.phase === 'ended') return;
+  forfeited = true;
   sim.phase = 'ended';
   sim.winner = (1 - perspective) as 0 | 1;
   finish(sim);

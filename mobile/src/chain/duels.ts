@@ -97,17 +97,17 @@ export async function readDuelBoard(conn: Connection, limit = 40, before?: strin
   };
 }
 
-export interface Challenge { sig: string; challenger: string; time: number; payload: DuelPayload | null; error?: string }
+export interface Challenge { sig: string; challenger: string; time: number; payload: DuelPayload | null; payloadB64: string | null; error?: string }
 
 /** A challenge by signature, with its payload checked against the commitment. */
 export async function loadChallenge(conn: Connection, sig: string, linkPayload?: string): Promise<Challenge> {
   const t = await fetchDuelTx(conn, sig);
   if (!t || t.memo.kind !== 'challenge') throw new Error('No duel challenge with that signature on this cluster');
   const b64 = t.memo.data ?? linkPayload;
-  if (!b64) return { sig, challenger: t.signer, time: t.time, payload: null, error: 'payload missing' };
+  if (!b64) return { sig, challenger: t.signer, time: t.time, payload: null, payloadB64: null, error: 'payload missing' };
   try {
-    return { sig, challenger: t.signer, time: t.time, payload: openChallenge(t.memo, b64) };
+    return { sig, challenger: t.signer, time: t.time, payload: openChallenge(t.memo, b64), payloadB64: b64 };
   } catch (e) {
-    return { sig, challenger: t.signer, time: t.time, payload: null, error: (e as Error).message };
+    return { sig, challenger: t.signer, time: t.time, payload: null, payloadB64: null, error: (e as Error).message };
   }
 }

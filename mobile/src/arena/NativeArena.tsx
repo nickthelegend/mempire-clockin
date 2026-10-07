@@ -25,7 +25,7 @@ import { sfx, startMusic, stopMusic, useSound } from '../sound';
 import { CoachMarks } from '../screens/CoachMarks';
 import { C, F } from '../theme';
 import {
-  forfeit, playCard, setPaused, startNativeArena, teardown, toMatchCard, useNativeMatch,
+  forfeit, playCard, recording, setPaused, startNativeArena, teardown, toMatchCard, useNativeMatch,
 } from './match';
 
 /**
@@ -265,10 +265,17 @@ export function NativeArena() {
     if (!match || fellBack.current || useNativeMatch.getState().result) return;
     fellBack.current = true;
     teardown();
+    if (match.duel) {
+      // A ghost duel replays inputs into the native sim loop; the web arena
+      // cannot host it. Nothing was recorded, so the duel stays open.
+      closeBattle();
+      useUi.getState().say('This duel needs the native 3D arena, which could not start here.', 'err');
+      return;
+    }
     useUi.getState().say('Switched to the compatibility arena', 'info');
     console.warn(`[arena] native renderer fell back: ${why}`); // eslint-disable-line no-console
     useUi.getState().openBattle({ ...match, renderer: 'web', fellBack: true });
-  }, [match]);
+  }, [match, closeBattle]);
   useEffect(() => { fellBack.current = false; }, [match]);
 
   // Watchdog 0: a texture failed to load (renders blank, not slow).
@@ -291,26 +298,27 @@ export function NativeArena() {
   const watch = useRef({ seconds: 0, slow: 0 });
   useEffect(() => { watch.current = { seconds: 0, slow: 0 }; }, [match, sceneReady]);
   const onSecond = useCallback((fps: number) => {
-    if (!sceneReady || !autoMode) return;
+    if (!sceneReady || !autoMode || match?.duel) return; // a slow duel is still a duel
     const w = watch.current;
     w.seconds += 1;
     if (w.seconds > WATCH_WINDOW_S) return;
     w.slow = fps < MIN_FPS ? w.slow + 1 : 0;
     if (w.slow >= SLOW_STREAK_S) fallBack(`${fps} fps for ${SLOW_STREAK_S}s`);
-  }, [sceneReady, autoMode, fallBack]);
+  }, [sceneReady, autoMode, fallBack, match]);
 
   // Start the match once the arena's first frame is on screen (shaders
   // compiled); tear it down when it closes.
   useEffect(() => {
     if (!match || !sceneReady) return undefined;
     setEnded(false);
-    setViewSeat(0);
+    setViewSeat(match.duel ? 1 : 0);
     startNativeArena({
       player: match.player.map(toMatchCard),
       bot: match.bot.map(toMatchCard),
       tier: match.tier,
       rush: match.rush,
       seed: match.seed,
+      ghost: match.duel?.ghost,
       onEnd: (r) => {
         setEnded(true);
         stopMusic();
@@ -318,7 +326,7 @@ export function NativeArena() {
         // A beat on the arena for the last tower to fall, then the native result.
         setTimeout(() => {
           closeBattle();
-          void finishMatch(match, { won: r.won, draw: r.draw, crowns: r.crowns, plays: r.plays });
+          void finishMatch(match, { won: r.won, draw: r.draw, crowns: r.crowns, plays: r.plays, native: { finalHash: r.finalHash, forfeited: r.forfeited, recording: recording() } });
           teardown();
         }, 1600);
       },
@@ -379,7 +387,8 @@ export function NativeArena() {
     return hit ? { ...hit, legal: isLegalDrop(hit.x, hit.z) } : null;
   }, []);
 
-  const me = sim?.players[0];
+  const perspective = useNativeMatch((s) => s.perspective);
+  const me = sim?.players[perspective];
   const elixir = me ? me.elixirFP / FP : 0;
   const hand = me ? me.cycle.slice(0, HAND_SIZE) : [];
   const next = me ? me.cycle[HAND_SIZE] : undefined;
@@ -391,7 +400,7 @@ export function NativeArena() {
     if (!at) { haptic.warn(); return false; }
     const s = useNativeMatch.getState().sim;
     const cost = ARCHETYPES[useNativeMatch.getState().playerDeck[deckIndex].archetype as keyof typeof ARCHETYPES].elixir;
-    if (!s || s.players[0].elixirFP < cost * FP) { haptic.warn(); return false; }
+    if (!s || s.players[useNativeMatch.getState().perspective].elixirFP < cost * FP) { haptic.warn(); return false; }
     if (playCard(deckIndex, fp(at.x), fp(at.z))) { haptic.light(); return true; }
     return false;
   }, [hitAt]);
@@ -468,7 +477,7 @@ export function NativeArena() {
             shadows={ON_DEVICE ? { type: THREE.PCFShadowMap } : false}
             style={{ flex: 1 }}
           >
-            <SceneContents perspective={0} placing={drag !== null || selected !== null} marker={marker} />
+            <SceneContents perspective={match.duel ? 1 : 0} placing={drag !== null || selected !== null} marker={marker} />
             <RenderControl onReady={onSceneReady} />
             <FpsProbe onSecond={onSecond} />
             <DisposeOnUnmount />

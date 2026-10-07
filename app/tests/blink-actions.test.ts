@@ -18,6 +18,7 @@ import { actionUrl, blinkUrl } from '../../mobile/src/game/blink';
 
 const player = Keypair.fromSeed(new Uint8Array(32).fill(8)).publicKey;
 const BH = '8TMRQiLZ2Cxc4rTYc5VdSTBv8KYSVeSfFWk7SbZUw6Ae';
+const SIG2 = '3WKSmiJZ1BQeySv7FUaDkuNBJQHYDFZatbDjxjWwah6Mt7T3x1PehQPz9Zz3UWghEtrurYWjnZCFo38R1E2KN4rt';
 
 function fakeRes() {
   const out: { code?: number; body?: unknown; headers: Record<string, string> } = { headers: {} };
@@ -98,5 +99,35 @@ describe('Season Pass Action', () => {
     const flat = (ix: { programId: { toBase58(): string }; keys: { pubkey: { toBase58(): string }; isSigner: boolean; isWritable: boolean }[]; data: Uint8Array }) =>
       ({ program: ix.programId.toBase58(), keys: ix.keys.map((k) => [k.pubkey.toBase58(), k.isSigner, k.isWritable]), data: Buffer.from(ix.data).toString('hex') });
     expect(flat(a)).toEqual(flat(b));
+  });
+});
+
+describe('Ghost Duel Action', () => {
+  it('uses the app\'s duel reference and payload format', async () => {
+    const { DUEL_REF: actionRef, summarize, acceptTx, readChallenge } = await import('../../actions/lib/duel');
+    const { DUEL_REF: appRef, challengeIxs } = await import('../../mobile/src/chain/duels');
+    const { encodeDuel, toB64url } = await import('../../mobile/src/game/duel');
+    expect(actionRef.toBase58()).toBe(appRef.toBase58());
+    const deck = ['DOGE', 'SHIB', 'BONK', 'WIF', 'PEPE', 'POPCAT', 'MEW', 'BRETT'].map((ticker) => ({ ticker, level: 4 }));
+    const bytes = encodeDuel({ seed: 4242, rush: true, deck, inputs: [{ tick: 3, deckIndex: 1, x: 4000, y: 3000 }, { tick: 300, deckIndex: 5, x: 14000, y: 9000 }] });
+    expect(summarize(toB64url(bytes))).toEqual({ seed: 4242, rush: true, deck, deploys: 2 });
+
+    // readChallenge over a fake RPC that returns the app's own challenge transaction
+    const ixs = challengeIxs(player as never, bytes, 4242);
+    const { TransactionMessage: TM } = await import('@solana/web3.js');
+    const msg = new TM({ payerKey: player, recentBlockhash: BH, instructions: ixs as never }).compileToV0Message();
+    const conn = { getTransaction: async () => ({ slot: 1, blockTime: 1, meta: { err: null }, transaction: { message: msg } }) };
+    const info = await readChallenge(conn as never, SIG2);
+    expect(info.challenger).toBe(player.toBase58());
+    expect(info.summary.deploys).toBe(2);
+    expect(info.payload).toBe(toB64url(bytes));
+
+    const tx = VersionedTransaction.deserialize(Buffer.from(acceptTx(player, SIG2, BH), 'base64'));
+    const keys = tx.message.staticAccountKeys.map((k) => k.toBase58());
+    expect(tx.message.header.numRequiredSignatures).toBe(1);
+    const ri = keys.indexOf(appRef.toBase58());
+    expect(ri).toBeGreaterThan(0);
+    expect(tx.message.isAccountWritable(ri)).toBe(false);
+    expect(tx.message.compiledInstructions.map((ix) => Buffer.from(ix.data).toString()).join('|')).toContain(`mempire:duel-accept:v1:${SIG2}`);
   });
 });

@@ -2,6 +2,7 @@
   "rules": [
     { "pathPattern": "/challenge", "apiPath": "/api/actions/challenge" },
     { "pathPattern": "/season-pass", "apiPath": "/api/actions/season-pass" },
+    { "pathPattern": "/duel", "apiPath": "/api/actions/duel" },
     { "pathPattern": "/api/actions/**", "apiPath": "/api/actions/**" }
   ]
 }
