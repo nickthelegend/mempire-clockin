@@ -110,6 +110,7 @@ export function ArenaHost() {
   const spec = JSON.stringify({
     player: match.player, bot: match.bot, tier: match.tier, opponent: match.rival, rush: match.rush, seed: match.seed,
     muted: useSound.getState().muted,
+    skin: match.skin ?? 'default',
   });
   const inject = `window.__MEMPIRE_MATCH__ = ${spec};\n${BRIDGE}`;
   const uri = `${GAME_URL}#/m/${encodeURIComponent(spec)}`;

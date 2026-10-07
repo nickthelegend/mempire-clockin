@@ -2,12 +2,14 @@ import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { PALETTE } from '../lib/palette';
+import { look } from './skin';
 import { FP } from '../sim/fixed';
 import type { Tower } from '../sim/types';
 import { useArena as useMatch } from './arenaStore';
 
-const STONE = '#c9cbd2';
-const STONE_DARK = '#9fa2ac';
+/** Tower stone, from the arena skin (default: the original grey). */
+const stoneOf = () => look().stone;
+const stoneDarkOf = () => look().stoneDark;
 const TRIM_OWN = '#2f6fd0';
 const TRIM_ENEMY = '#d0392f';
 
@@ -94,6 +96,9 @@ export function TowerMesh({ index }: { index: number }) {
   if (!spec) return null;
   const { isKing, x, z, own } = spec;
   const trim = own ? TRIM_OWN : TRIM_ENEMY;
+  const STONE = stoneOf();
+  const STONE_DARK = stoneDarkOf();
+  const glow = look().towerGlow;
   const baseW = isKing ? 3.0 : 2.3;
   const h1 = isKing ? 1.1 : 0.9;   // lower block
   const h2 = isKing ? 0.9 : 0.7;   // upper block
@@ -135,7 +140,7 @@ export function TowerMesh({ index }: { index: number }) {
       {/* coloured band identifying the side */}
       <mesh position={[0, h1 + 0.06, 0]}>
         <boxGeometry args={[baseW * 0.82, 0.16, baseW * 0.82]} />
-        <meshStandardMaterial color={trim} roughness={0.6} />
+        <meshStandardMaterial color={trim} roughness={0.6} emissive={trim} emissiveIntensity={glow} />
       </mesh>
 
       {/* king wears a crown; princess towers get a cannon */}

@@ -18,7 +18,7 @@ import { baked, setCanvasFactory } from '../../app/src/three/canvasTex';
 import * as tex from '../../app/src/three/textures';
 import { softDot, sparkDot } from '../../app/src/three/vfx';
 import { makeAlphaMask } from '../../app/src/three/unitMask';
-import { ARENA_SKIN_IDS, SKINNED_TEXTURES, recolor } from '../../app/src/three/skin';
+import { ARENA_SKIN_IDS, SKINNED_TEXTURES, paintSkin } from '../../app/src/three/skin';
 
 const OUT = join(__dirname, '..', 'assets', 'baked');
 
@@ -52,15 +52,10 @@ for (const skin of ARENA_SKIN_IDS) {
   for (const name of SKINNED_TEXTURES) {
     const src = baked.get(name) as unknown as ReturnType<typeof createCanvas> | undefined;
     if (!src) continue;
-    const ctx = src.getContext('2d');
-    const img = ctx.getImageData(0, 0, src.width, src.height);
-    const d = img.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const [r, g, b] = recolor(skin, d[i], d[i + 1], d[i + 2]);
-      d[i] = r; d[i + 1] = g; d[i + 2] = b;
-    }
     const out = createCanvas(src.width, src.height);
-    out.getContext('2d').putImageData(img, 0, 0);
+    const octx = out.getContext('2d');
+    octx.drawImage(src, 0, 0);
+    paintSkin(name, octx as unknown as CanvasRenderingContext2D, src.width, src.height, skin);
     const v = `${name}__${skin}`;
     writeFileSync(join(OUT, `${v}.png`), out.toBuffer('image/png'));
     variants.push(v);

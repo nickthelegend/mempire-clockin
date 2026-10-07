@@ -7,7 +7,7 @@ import { ARENA_W, RIVER_BOT, RIVER_TOP } from '../sim/engine';
 import { useArena as useMatch } from './arenaStore';
 import { Arena } from './Arena';
 import { World } from './World';
-import { SKIN_LOOK, arenaSkin } from './skin';
+import { look as skinLook } from './skin';
 import { TowerMesh } from './Towers';
 import { UnitsBillboard } from './UnitsBillboard';
 import { vfx } from './vfx';
@@ -45,7 +45,7 @@ export function setViewSeat(seat: 0 | 1): void { viewSeat = seat; }
  * Raked rather than overhead: from nearly straight down, every shadow falls
  * underneath the thing casting it and is hidden by it from this camera.
  */
-function Sun({ color = '#fff6e0', intensity = 2.6 }: { color?: string; intensity?: number }) {
+function Sun({ color = '#fff6e0', intensity = 2.6, position = [22, 19, 4] }: { color?: string; intensity?: number; position?: [number, number, number] }) {
   const ref = useRef<THREE.DirectionalLight>(null);
 
   useEffect(() => {
@@ -78,7 +78,7 @@ function Sun({ color = '#fff6e0', intensity = 2.6 }: { color?: string; intensity
   return (
     <directionalLight
       ref={ref}
-      position={[22, 19, 4]}
+      position={position}
       intensity={intensity}
       color={color}
       castShadow
@@ -447,7 +447,7 @@ export function SceneContents({ perspective, placing, marker }: {
   marker: { x: number; z: number; legal: boolean } | null;
 }) {
   // The arena skin's lighting (default = the original daylight values).
-  const look = SKIN_LOOK[arenaSkin()];
+  const look = skinLook();
   return (
     <>
     <CameraRig seat={perspective} />
@@ -457,7 +457,7 @@ export function SceneContents({ perspective, placing, marker }: {
         enough out that nothing on the board is ever touched by it. */}
     <fog attach="fog" args={[look.fog, 46, 124]} />
     <ambientLight intensity={look.ambientI} color={look.ambient} />
-    <Sun color={look.sun} intensity={look.sunI} />
+    <Sun color={look.sun} intensity={look.sunI} position={look.sunPos} />
     <directionalLight position={[-10, 14, 30]} intensity={look.fillI} color={look.fill} />
     {/* The arena draws its own canvas textures, so it never suspends.
         Units load separately — the field must never wait on meshes. */}

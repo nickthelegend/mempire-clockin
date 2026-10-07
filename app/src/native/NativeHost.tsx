@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { rebaseBotClock, useMatch, startNativeMatch } from '../state/match';
+import { setArenaSkin } from '../three/skin';
 import type { MatchCard } from '../sim/types';
 import { archetypeForMint } from '../sim/archetypes';
 import { traitForMint } from '../sim/traits';
@@ -30,6 +31,8 @@ export interface NativeMatchSpec {
   seed?: number;
   /** The app's sound setting; the arena follows it. */
   muted?: boolean;
+  /** Equipped arena skin (already checked against the chain by the app). */
+  skin?: string;
 }
 
 declare global {
@@ -88,6 +91,7 @@ export function NativeHost() {
     const spec = BOOT_SPEC;
     if (!spec) { post({ channel: 'exit', reason: 'no match' }); return; }
     if (typeof spec.muted === 'boolean') setMuted(spec.muted);
+    setArenaSkin(spec.skin);
     // The page has booted and owns the screen: the shell can drop its cover.
     post({ channel: 'ready' });
     const err = startNativeMatch(toCards(spec.player), toCards(spec.bot), {

@@ -1,6 +1,7 @@
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
+import { look } from './skin';
 import { FP } from '../sim/fixed';
 import { ARENA_H, ARENA_W } from '../sim/engine';
 import { masonryTexture, sandTexture, skyTexture } from './textures';
@@ -32,7 +33,8 @@ const TIERS = 5;
 const STEP_OUT = 2.4;
 const STEP_UP = 1.35;
 
-const GOLD = '#ffc422';
+/** Trim colour: gold, or the arena skin's (read when the scene mounts). */
+const trimColour = () => look().trim;
 
 /** The four slabs that make one rectangular ring, as [cx, cz, sizeX, sizeZ]. */
 function ringSlabs(ix: number, iz: number, ox: number, oz: number) {
@@ -177,7 +179,7 @@ export function World() {
       {/* The gold band along the barrier's top — the same rule the board's
           frame wears, carried up into the room around it. */}
       <Boxes boxes={goldBoxes}>
-        <meshStandardMaterial color={GOLD} roughness={0.35} metalness={0.6} emissive="#3d2900" />
+        <meshStandardMaterial color={trimColour()} roughness={0.35} metalness={0.6} emissive={look().trimEmissive} emissiveIntensity={look().trimGlow} />
       </Boxes>
 
       {/* ── the tiers ──────────────────────────────────────────────────
@@ -226,9 +228,12 @@ function Crowd({ tiers }: { tiers: Tier[] }) {
     };
     // The bowl takes sides: blue behind the blue king, red behind the red one,
     // and a third neutral so it does not read as two flat blocks of colour.
-    const BLUE = ['#3f6fc9', '#5b8ae0', '#2b4f96'].map((c) => new THREE.Color(c));
-    const RED = ['#c9433f', '#e06b5b', '#96302b'].map((c) => new THREE.Color(c));
-    const NEUTRAL = ['#c9c2b4', '#8d8477', '#e0d8c6', '#6d6152'].map((c) => new THREE.Color(c));
+    // The arena skin can re-dress the crowd (a dark night crowd with phone
+    // lights, a sunset crowd, a snowy one).
+    const pal = look().crowd;
+    const BLUE = pal.blue.map((c) => new THREE.Color(c));
+    const RED = pal.red.map((c) => new THREE.Color(c));
+    const NEUTRAL = pal.neutral.map((c) => new THREE.Color(c));
 
     for (const tier of tiers) {
       const y = GROUND_Y + tier.top;
@@ -413,7 +418,7 @@ function Torches({ at }: { at: [number, number][] }) {
       </instancedMesh>
       <instancedMesh ref={flames} args={[undefined, undefined, at.length]}>
         <coneGeometry args={[0.26, 0.72, 6]} />
-        <meshBasicMaterial color="#ffb02e" toneMapped={false} />
+        <meshBasicMaterial color={look().torch} toneMapped={false} />
       </instancedMesh>
     </group>
   );

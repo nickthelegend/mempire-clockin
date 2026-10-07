@@ -5,6 +5,7 @@ import { FP } from '../sim/fixed';
 import { ARENA_H, ARENA_W, BRIDGE_X, RIVER_BOT, RIVER_TOP } from '../sim/engine';
 import { causticTexture, grassTexture, stoneTexture, waterTexture, woodTexture } from './textures';
 import { Boxes, Spheres, type Box } from './Boxes';
+import { look } from './skin';
 
 const W = ARENA_W / FP; // 18
 const H = ARENA_H / FP; // 32
@@ -12,7 +13,7 @@ const RT = RIVER_TOP / FP;
 const RB = RIVER_BOT / FP;
 
 const FRAME = 1.3; // wood border thickness
-const GOLD = '#ffc422';
+
 const INK = '#10203f';
 
 /**
@@ -37,6 +38,8 @@ const INK = '#10203f';
  * every match start.
  */
 export function Arena({ placing }: { placing: boolean }) {
+  const sk = look();
+  const GOLD = sk.trim;
   const grass = useMemo(grassTexture, []);
   const water = useMemo(waterTexture, []);
   const caustic = useMemo(causticTexture, []);
@@ -133,7 +136,7 @@ export function Arena({ placing }: { placing: boolean }) {
           as a gold wall, while the two ends — seen from above — read as a
           hairline. Flush is the same line on all four. */}
       <Boxes boxes={goldRuleBoxes}>
-        <meshStandardMaterial color={GOLD} roughness={0.32} metalness={0.65} emissive="#4a3200" />
+        <meshStandardMaterial color={GOLD} roughness={0.32} metalness={0.65} emissive={sk.trimEmissive} emissiveIntensity={sk.trimGlow} />
       </Boxes>
 
       {/* Corner caps, so the gold rule terminates in something rather than
@@ -141,7 +144,7 @@ export function Arena({ placing }: { placing: boolean }) {
       {[[-0.22, -0.22], [W + 0.22, -0.22], [-0.22, H + 0.22], [W + 0.22, H + 0.22]].map(([x, z], i) => (
         <mesh key={`cap${i}`} position={[x, 0.42, z]} castShadow>
           <cylinderGeometry args={[0.4, 0.46, 0.5, 8]} />
-          <meshStandardMaterial color={GOLD} roughness={0.28} metalness={0.7} emissive="#4a3200" />
+          <meshStandardMaterial color={GOLD} roughness={0.28} metalness={0.7} emissive={sk.trimEmissive} emissiveIntensity={sk.trimGlow} />
         </mesh>
       ))}
 
@@ -151,7 +154,15 @@ export function Arena({ placing }: { placing: boolean }) {
           is read from the towers and the unit rings instead. */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[W / 2, 0, H / 2]} receiveShadow>
         <planeGeometry args={[W, H]} />
-        <meshStandardMaterial map={grass} roughness={0.92} />
+        {/* A skin with field glow (Neon Night) lights its own grid: the
+            texture doubles as the emissive map, so only the bright lines glow. */}
+        <meshStandardMaterial
+          map={grass}
+          roughness={0.92}
+          emissiveMap={sk.fieldGlow ? grass : null}
+          emissive={sk.fieldGlow ? '#ffffff' : '#000000'}
+          emissiveIntensity={sk.fieldGlow}
+        />
       </mesh>
 
       {/* Worn tracks from each bridge to each tower. Faint on purpose — this
@@ -175,7 +186,7 @@ export function Arena({ placing }: { placing: boolean }) {
       {/* The bed, below the surface, so the channel has a bottom to see. */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[W / 2, -0.06, midZ]}>
         <planeGeometry args={[W, RB - RT]} />
-        <meshStandardMaterial color="#0d4a6b" roughness={1} />
+        <meshStandardMaterial color={sk.riverBed} roughness={1} />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[W / 2, 0.02, midZ]}>
         <planeGeometry args={[W, RB - RT]} />
@@ -288,6 +299,7 @@ export function Arena({ placing }: { placing: boolean }) {
  * everywhere else in this product, and a decorative flag is not that.
  */
 function Banner({ x, z, colour }: { x: number; z: number; colour: string }) {
+  const GOLD = look().trim;
   return (
     <group position={[x, 0, z]}>
       <mesh position={[0, 1.1, 0]} castShadow>

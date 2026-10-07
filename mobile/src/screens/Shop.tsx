@@ -15,7 +15,18 @@ import { ARENA_SKINS, FRAME_SKINS, ownsSkin, usePassChain, type SkinDef } from '
 import { CLUSTER_LABEL } from '../chain/solana';
 import { buySkin } from '../game/actions';
 
-/** A small picture of what a skin does: the arena's grass/water/stone, or a card frame. */
+/**
+ * Thumbnails of each arena skin, cropped from real renders of the native 3D
+ * arena on the simulator (clockin/screens/season-pass/12-skins-compare.png).
+ */
+const ARENA_THUMBS: Record<string, number> = {
+  default: require('../../assets/skins/arena-default.png'),
+  neon: require('../../assets/skins/arena-neon.png'),
+  golden: require('../../assets/skins/arena-golden.png'),
+  frozen: require('../../assets/skins/arena-frozen.png'),
+};
+
+/** A small picture of what a skin does: a render of the skinned arena, or a card frame. */
 export function SkinPreview({ skin, kind, size = 64 }: { skin: SkinDef; kind: 'arena' | 'frame'; size?: number }) {
   if (kind === 'frame') {
     return (
@@ -24,6 +35,16 @@ export function SkinPreview({ skin, kind, size = 64 }: { skin: SkinDef; kind: 'a
           {size >= 56 ? <Body size={10} color="#fff" bold>$SOL</Body> : null}
         </View>
       </LinearGradient>
+    );
+  }
+  const thumb = ARENA_THUMBS[skin.key];
+  if (thumb) {
+    return (
+      <Image
+        source={thumb}
+        accessibilityLabel={`${skin.name} arena preview`}
+        style={{ width: size, height: size, borderRadius: 12, borderWidth: 2, borderColor: 'rgba(0,0,0,0.5)' }}
+      />
     );
   }
   const [a, b] = skin.colors;
@@ -68,7 +89,7 @@ function Cosmetics() {
     const worn = kind === 'arena' ? equipped.arena === s.key : equipped.frame === s.key;
     return (
       <View key={s.id} style={st.skin}>
-        <SkinPreview skin={s} kind={kind} size={58} />
+        <SkinPreview skin={s} kind={kind} size={kind === 'arena' ? 84 : 58} />
         <Body size={12} color="#fff" bold numberOfLines={1}>{s.name}</Body>
         {owned ? (
           <Btn
@@ -106,7 +127,7 @@ function Cosmetics() {
           ? `Each skin is a Token-2022 token with its name and type stored on the mint, sold for SKR in one transaction on ${CLUSTER_LABEL}. Tradable. Cosmetic only.`
           : `On-chain skins available once deployed: preview mode. The mempire_pass program is not on ${CLUSTER_LABEL} yet, so nothing is sold and nothing shows as owned.`}
       </Body>
-      <Body size={12} color="#fff" bold style={{ marginTop: 10 }}>Arena skins · native 3D arena</Body>
+      <Body size={12} color="#fff" bold style={{ marginTop: 10 }}>Arena skins · field, river, towers, crowd and light</Body>
       <View style={st.skinRow}>{ARENA_SKINS.map((s) => item(s, 'arena'))}</View>
       <Body size={12} color="#fff" bold style={{ marginTop: 10 }}>Card frames</Body>
       <View style={st.skinRow}>{FRAME_SKINS.map((s) => item(s, 'frame'))}</View>

@@ -42,7 +42,7 @@ function Wardrobe() {
         <Display size={18}>Wardrobe</Display>
         <Tag text={pc.status === 'live' ? 'OWNERSHIP FROM CHAIN' : pc.status === 'preview' ? 'PREVIEW MODE' : 'CHECKING CHAIN'} color={pc.status === 'live' ? C.teal : C.dim} />
       </View>
-      <Body size={11} color={C.dim}>Arena skin (native 3D arena; the web compat arena shows the default)</Body>
+      <Body size={11} color={C.dim}>Arena skin (both the native 3D and the web compat arena)</Body>
       <View style={st.opts}>
         {opt('a-default', 'Classic', equipped.arena === 'default', true, () => equip({ arena: 'default' }))}
         {ARENA_SKINS.map((s) => opt(`a-${s.key}`, s.name, equipped.arena === s.key, ownsSkin(pc, s.id), () => equip({ arena: s.key }), <SkinPreview skin={s} kind="arena" size={40} />))}

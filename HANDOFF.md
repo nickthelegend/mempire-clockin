@@ -101,11 +101,23 @@ there is no new hosted service.
   - 4 card frames: Gold Leaf, Cyber Grid, Frost Rim and Magma.
   - Owned and equipped status comes from the same chain read. You equip them in
     **Deck → Wardrobe** (arena skin, card frame, emote).
-  - The native arena renders the equipped skin. Texture variants are baked by
-    `mobile/scripts/bake-textures.ts` from the same generators (30 PNGs,
-    `name__skin.png`), and each skin also sets the fog and lights
-    (`app/src/three/skin.ts`). The web compat arena keeps the default look, and
-    the Wardrobe says so.
+  - **Both arenas render the equipped skin (1.3.1).** Each skin re-themes the
+    field and river textures, tower stone and trims, the crowd palette, the sky,
+    fog, lights and sun angle (`app/src/three/skin.ts`, `look()` +
+    `paintSkin()`).
+    - Neon Night: a night palette, a magenta/cyan grid that glows (the grass
+      texture is also its emissive map), glowing tower bands, and a dark crowd
+      with phone-light specks.
+    - Golden Hour: a sunset sky, an amber field, a low sun for long shadows,
+      and amber trims.
+    - Frozen Ledger: an ice field with frost, a frozen river with cracks, and
+      snowy towers and crowd.
+    - The native arena uses baked variants (`bake-textures.ts` →
+      `name__skin.png`, 30 PNGs). The web arena repaints its live canvases with
+      the same `paintSkin`, and the app passes `skin` in the match spec.
+    - Verified on the iPhone 17 simulator: native 12-skins-compare.png
+      (default + 3); web 13 (Golden Hour) and 14 (Neon Night).
+    - The Shop shows thumbnails cropped from those real renders (15).
 - **Preview / offline states:** if the program or config is missing on the
   cluster the app talks to, the screens say "On-chain pass available once
   deployed: preview mode". If the RPC is unreachable they say "chain

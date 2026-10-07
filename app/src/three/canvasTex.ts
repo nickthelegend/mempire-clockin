@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SKINNED_TEXTURES, arenaSkin, paintSkin } from './skin';
 
 /**
  * The one place the scene turns 2D drawing into a texture.
@@ -40,5 +41,20 @@ export function newCanvas(name: string, w: number, h = w): [HTMLCanvasElement, C
 
 /** The texture for a canvas made by `newCanvas`. */
 export function toTexture(c: HTMLCanvasElement): THREE.Texture {
+  // An equipped arena skin repaints a copy (the original stays the default
+  // look, which is also what the bake script reads).
+  const skin = arenaSkin();
+  const name = names.get(c);
+  if (skin !== 'default' && name && SKINNED_TEXTURES.includes(name) && typeof document !== 'undefined') {
+    const copy = document.createElement('canvas');
+    copy.width = c.width;
+    copy.height = c.height;
+    const ctx = copy.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(c, 0, 0);
+      paintSkin(name, ctx, c.width, c.height, skin);
+      return new THREE.CanvasTexture(copy);
+    }
+  }
   return new THREE.CanvasTexture(c);
 }
