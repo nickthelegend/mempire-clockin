@@ -1120,7 +1120,7 @@ function tickHuman(): void {
 }
 
 function beginBotFlow(
-  practice: boolean, tierIdx: number, player: MatchCard[], bot: MatchCard[],
+  practice: boolean, tierIdx: number, player: MatchCard[], bot: MatchCard[], fixedSeed?: number,
 ): void {
   const tier = TIERS[tierIdx];
   // practice skips the search theatre — the point is to get to the arena
@@ -1140,8 +1140,8 @@ function beginBotFlow(
         }
         play('coin');
       }
-      const seed = (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
-      const sim = createMatch(seed, [player, bot], FORMATS[useMatch.getState().rush ? 'rush' : 'standard']);
+      const seed = fixedSeed ?? ((Date.now() ^ (Math.random() * 0xffffffff)) >>> 0);
+      const sim = createMatch(seed >>> 0, [player, bot], FORMATS[useMatch.getState().rush ? 'rush' : 'standard']);
       pending = new Map();
       hashes = [];
       useMatch.setState({ status: 'battle', sim, version: 0, crowns: [0, 0], shock: null });
@@ -1641,7 +1641,7 @@ function settle(): void {
 export function startNativeMatch(
   player: MatchCard[],
   bot: MatchCard[],
-  opts: { tier: number; opponent: string; rush?: boolean },
+  opts: { tier: number; opponent: string; rush?: boolean; seed?: number },
 ): string | null {
   if (player.length !== 8 || bot.length !== 8) return 'a match needs two decks of eight';
   const current = useMatch.getState().status;
@@ -1667,6 +1667,6 @@ export function startNativeMatch(
   });
   warmMatchArt([...player, ...bot].map((c) => c.coinId));
   warmBattleChunk();
-  beginBotFlow(true, Math.max(0, Math.min(TIERS.length - 1, opts.tier)), player, bot);
+  beginBotFlow(true, Math.max(0, Math.min(TIERS.length - 1, opts.tier)), player, bot, opts.seed);
   return null;
 }

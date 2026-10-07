@@ -29,6 +29,9 @@ export interface BattleRecord {
   draw: boolean;
   crowns: [number, number];
   trophyDelta: number;
+  /** Which arena rendered it ('native' 3D or 'web' compat), and whether it fell back. */
+  renderer?: 'native' | 'web';
+  fellBack?: boolean;
 }
 
 export interface ClockInRecord {

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { newCanvas, toTexture } from './canvasTex';
 
 /**
  * Arena textures drawn on a canvas rather than generated as images.
@@ -12,17 +13,12 @@ import * as THREE from 'three';
  * is also the only way a screenshot of the arena is reproducible.
  */
 
-function canvas(size: number, height = size): [HTMLCanvasElement, CanvasRenderingContext2D] {
-  const c = document.createElement('canvas');
-  c.width = size;
-  c.height = height;
-  const ctx = c.getContext('2d');
-  if (!ctx) throw new Error('2d context unavailable');
-  return [c, ctx];
+function canvas(name: string, size: number, height = size): [HTMLCanvasElement, CanvasRenderingContext2D] {
+  return newCanvas(name, size, height);
 }
 
 function finish(c: HTMLCanvasElement, repeat: [number, number]): THREE.Texture {
-  const t = new THREE.CanvasTexture(c);
+  const t = toTexture(c);
   t.wrapS = THREE.RepeatWrapping;
   t.wrapT = THREE.RepeatWrapping;
   t.repeat.set(repeat[0], repeat[1]);
@@ -51,7 +47,7 @@ function rng(seed: number) {
  */
 export function grassTexture(): THREE.Texture {
   const S = 512;
-  const [c, ctx] = canvas(S);
+  const [c, ctx] = canvas('grass', S);
   const half = S / 2;
   const rnd = rng(1337);
 
@@ -120,7 +116,7 @@ export function grassTexture(): THREE.Texture {
 /** Horizontal wood planks with dark seams and grain. */
 export function woodTexture(repeat: [number, number] = [4, 1]): THREE.Texture {
   const S = 256;
-  const [c, ctx] = canvas(S);
+  const [c, ctx] = canvas('wood', S);
   ctx.fillStyle = '#a9743a';
   ctx.fillRect(0, 0, S, S);
 
@@ -162,7 +158,7 @@ export function woodTexture(repeat: [number, number] = [4, 1]): THREE.Texture {
  */
 export function waterTexture(): THREE.Texture {
   const S = 256;
-  const [c, ctx] = canvas(S);
+  const [c, ctx] = canvas('water', S);
 
   // Deep at the banks, lit mid-channel. The values are darker than they look
   // on the canvas on purpose: the arena runs ambient at 2.1 and a sun at 2.3,
@@ -205,7 +201,7 @@ export function waterTexture(): THREE.Texture {
  */
 export function causticTexture(): THREE.Texture {
   const S = 256;
-  const [c, ctx] = canvas(S);
+  const [c, ctx] = canvas('caustic', S);
   ctx.clearRect(0, 0, S, S);
 
   const rnd = rng(4242);
@@ -221,7 +217,7 @@ export function causticTexture(): THREE.Texture {
     ctx.stroke();
   }
 
-  const t = new THREE.CanvasTexture(c);
+  const t = toTexture(c);
   t.wrapS = THREE.RepeatWrapping;
   t.wrapT = THREE.RepeatWrapping;
   t.repeat.set(3, 1);
@@ -238,7 +234,7 @@ export function causticTexture(): THREE.Texture {
  */
 export function stoneTexture(repeat: [number, number] = [8, 1]): THREE.Texture {
   const S = 256;
-  const [c, ctx] = canvas(S);
+  const [c, ctx] = canvas('stone', S);
   const rnd = rng(515);
 
   // Much darker than cut stone looks in daylight, on purpose. Ambient 2.1
@@ -292,7 +288,7 @@ export function stoneTexture(repeat: [number, number] = [8, 1]): THREE.Texture {
  */
 export function meadowTexture(): THREE.Texture {
   const S = 512;
-  const [c, ctx] = canvas(S);
+  const [c, ctx] = canvas('meadow', S);
   const rnd = rng(8081);
 
   ctx.fillStyle = '#3d7a2c';
@@ -332,7 +328,7 @@ export const HORIZON = '#cfe9ff';
 
 export function skyTexture(): THREE.Texture {
   const S = 256;
-  const [c, ctx] = canvas(4, S);
+  const [c, ctx] = canvas('sky', 4, S);
   const g = ctx.createLinearGradient(0, 0, 0, S);
   g.addColorStop(0, '#1d63b8');    // zenith
   g.addColorStop(0.42, '#3f8fd8');
@@ -341,7 +337,7 @@ export function skyTexture(): THREE.Texture {
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, 4, S);
 
-  const t = new THREE.CanvasTexture(c);
+  const t = toTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   // Clamped, not repeated: a wrapped gradient puts a hard seam at the zenith.
   t.wrapS = THREE.ClampToEdgeWrapping;
@@ -352,7 +348,7 @@ export function skyTexture(): THREE.Texture {
 /** A soft round cloud, drawn once and billboarded. */
 export function cloudTexture(): THREE.Texture {
   const S = 256;
-  const [c, ctx] = canvas(S, S / 2);
+  const [c, ctx] = canvas('cloud', S, S / 2);
   const rnd = rng(606);
 
   // Overlapping soft discs. A cloud is a silhouette, not a shape with edges.
@@ -370,7 +366,7 @@ export function cloudTexture(): THREE.Texture {
     ctx.fill();
   }
 
-  const t = new THREE.CanvasTexture(c);
+  const t = toTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
@@ -383,7 +379,7 @@ export function cloudTexture(): THREE.Texture {
  */
 export function sandTexture(): THREE.Texture {
   const S = 512;
-  const [c, ctx] = canvas(S);
+  const [c, ctx] = canvas('sand', S);
   const rnd = rng(3131);
 
   // Darker than sand looks in daylight. It sits directly against the board's
@@ -417,7 +413,7 @@ export function sandTexture(): THREE.Texture {
  */
 export function masonryTexture(repeat: [number, number] = [6, 2]): THREE.Texture {
   const S = 256;
-  const [c, ctx] = canvas(S);
+  const [c, ctx] = canvas('masonry', S);
   const rnd = rng(777);
 
   ctx.fillStyle = '#4a4238';

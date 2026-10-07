@@ -15,6 +15,11 @@ import type { MatchCard } from '../sim/types';
 import { CHESTS } from '../state/economy';
 import { useEscrow } from '../state/escrow';
 import { useMatch } from '../state/match';
+import { bindArenaStore } from '../three/arenaStore';
+
+// The 3D scene reads the match through a store it does not own (the native
+// app binds its own); on the web that store is the full match store.
+bindArenaStore(useMatch);
 
 function GoldBurst() {
   const parts = useMemo(() => Array.from({ length: 26 }, (_, i) => ({

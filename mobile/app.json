@@ -64,7 +64,8 @@
       "./plugins/withMempireGradle",
       "./plugins/withBundledWeb",
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      "expo-asset"
     ],
     "extra": {
       "eas": {
