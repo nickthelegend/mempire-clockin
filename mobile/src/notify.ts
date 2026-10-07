@@ -1,6 +1,8 @@
 import * as Haptics from 'expo-haptics';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { nextRollover, rolloverLabel } from './game/rules';
+import { reminderTime } from './notify.reminders';
 
 /**
  * Two reasons to buzz a phone, and only two: a chest is ready, and today's
@@ -52,27 +54,30 @@ export function cancel(id: string): void {
   void Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
 }
 
-/** Chest timers: ring when it opens. */
-export function chestReminder(chestId: string, name: string, at: number): Promise<void> {
-  return schedule(`chest:${chestId}`, `${name} is ready`, 'Tap to open it — new fighters are waiting.', new Date(at));
+/** Per-wallet id: two wallets can both have a `chest_2`. */
+export function chestNotificationId(address: string | null, chestId: string): string {
+  return `chest:${address ?? 'none'}:${chestId}`;
+}
+
+/** Chest timers: ring when it opens. Cancelled on open, Rush and sign-out. */
+export function chestReminder(notificationId: string, name: string, at: number): Promise<void> {
+  return schedule(notificationId, `${name} is ready`, 'Tap to open it — new fighters are waiting.', new Date(at));
+}
+
+/** Withdraw every pending chest reminder for one wallet (sign-out). */
+export async function cancelChestReminders(address: string | null): Promise<void> {
+  try {
+    const all = await Notifications.getAllScheduledNotificationsAsync();
+    const prefix = `chest:${address ?? 'none'}:`;
+    await Promise.all(all.filter((n) => n.identifier.startsWith(prefix))
+      .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)));
+  } catch { /* ignore */ }
 }
 
 /**
  * Tomorrow's Clock-In: an evening nudge on the next calendar day, so it lands
  * while the streak can still be saved, not after it is gone.
  */
-export function streakReminder(streak: number): Promise<void> {
-  const at = new Date();
-  at.setDate(at.getDate() + 1);
-  at.setHours(19, 0, 0, 0);
-  return schedule(
-    'streak',
-    streak > 1 ? `Your ${streak}-day streak is on the line` : 'Clock in to Mempire',
-    'One tap keeps it alive — and today\'s chest is waiting.',
-    at,
-  );
-}
-
 export const haptic = {
   tap: () => void Haptics.selectionAsync().catch(() => {}),
   light: () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}),
@@ -82,23 +87,22 @@ export const haptic = {
   error: () => void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {}),
 };
 
-/**
- * Streak-at-risk: if today's Clock-In has not happened, ring this evening
- * (19:00, or 21:30 if it is already past seven) while there is still time.
- * If it has, the next nudge is tomorrow evening. Called on launch, on
- * backgrounding, and after every Clock-In; the fixed id means it never stacks.
- */
-export function ensureStreakReminder(clockedInToday: boolean, streak: number): void {
-  if (clockedInToday) { void streakReminder(streak); return; }
+export function ensureStreakReminder(state: 'done' | 'due' | 'lapsed' | 'new', streak: number): void {
   const now = new Date();
-  const at = new Date();
-  at.setHours(19, 0, 0, 0);
-  if (at.getTime() <= now.getTime()) at.setHours(21, 30, 0, 0);
-  if (at.getTime() <= now.getTime()) { void streakReminder(streak); return; }
+  const end = nextRollover(now);
+  const resets = rolloverLabel(now);
+  if (state === 'done') {
+    const nextEnd = new Date(end.getTime() + 86_400_000);
+    const at = reminderTime(new Date(end.getTime()), nextEnd);
+    if (at) void schedule('streak', `Your ${streak}-day streak is on the line`, `Clock in before ${resets} to keep it, and today's chest is waiting.`, at);
+    return;
+  }
+  const at = reminderTime(now, end);
+  if (!at) return;
   void schedule(
     'streak',
-    streak > 0 ? `Your ${streak}-day streak ends at midnight` : 'Your daily chest is waiting',
-    'One tap to clock in and keep it alive.',
+    state === 'due' && streak > 0 ? `Your ${streak}-day streak resets at ${resets}` : 'Your daily chest is waiting',
+    'One tap to clock in.',
     at,
   );
 }
