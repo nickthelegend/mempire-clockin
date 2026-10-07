@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { PALETTE } from '../lib/palette';
 import { FP, fp } from '../sim/fixed';
 import { ARENA_W, RIVER_BOT, RIVER_TOP } from '../sim/engine';
-import { useMatch } from '../state/match';
+import { useArena as useMatch } from './arenaStore';
 import { Arena } from './Arena';
 import { World } from './World';
 import { HORIZON } from './textures';
@@ -430,6 +430,65 @@ function useKickCanvasMeasure(el: React.RefObject<HTMLDivElement | null>): void 
   }, [el]);
 }
 
+
+/**
+ * Everything inside the Canvas, shared verbatim by the web arena (below) and
+ * the native arena (mobile/src/arena/NativeArena.tsx, which mounts it in a
+ * @react-three/fiber/native Canvas). One scene, two hosts.
+ */
+export function SceneContents({ perspective, placing, marker }: {
+  perspective: 0 | 1;
+  placing: boolean;
+  marker: { x: number; z: number; legal: boolean } | null;
+}) {
+  return (
+    <>
+    <CameraRig seat={perspective} />
+    {/* Bright daylight, not a dungeon — the genre reads as a sunny field. */}
+    {/* The horizon haze, matched to the sky ramp's bottom stop so the
+        ground fades into the sky instead of ending on a line. Starts far
+        enough out that nothing on the board is ever touched by it. */}
+    <fog attach="fog" args={[HORIZON, 46, 124]} />
+    <ambientLight intensity={1.35} color="#e8f2ff" />
+    <Sun />
+    <directionalLight position={[-10, 14, 30]} intensity={0.55} color="#bfe4ff" />
+    {/* The arena draws its own canvas textures, so it never suspends.
+        Units load separately — the field must never wait on meshes. */}
+    <World />
+    <Arena placing={placing} />
+    <Suspense fallback={null}>
+      <UnitsBillboard />
+    </Suspense>
+    {[0, 1, 2, 3, 4, 5].map((i) => <TowerMesh key={i} index={i} />)}
+    <SpellMarkers />
+    <TowerFire />
+    <DropMarker at={marker} />
+    </>
+  );
+}
+
+/** Renderer settings shared by both hosts (see the comments on the web Canvas). */
+export const SCENE_GL = {
+  antialias: true,
+  powerPreference: 'high-performance' as const,
+  toneMapping: THREE.ACESFilmicToneMapping,
+  toneMappingExposure: 1.25,
+};
+export const SCENE_CAMERA = { position: [W / 2, 33, -11.5] as [number, number, number], fov: 52, near: 1, far: 140 };
+
+/**
+ * Ground hit for a point in normalised device coordinates — the native host's
+ * entry point (it has no DOM element to measure; it passes NDC directly).
+ */
+export function groundHitNdc(ndcX: number, ndcY: number): { x: number; z: number } | null {
+  if (!activeCamera) return null;
+  deployNdc.set(ndcX, ndcY);
+  deployRaycaster.setFromCamera(deployNdc, activeCamera);
+  return deployRaycaster.ray.intersectPlane(groundPlane, deployHit)
+    ? { x: deployHit.x, z: deployHit.z }
+    : null;
+}
+
 export function BattleScene({ onPlace, placing, marker, sceneRef, perspective = 0 }: {
   onPlace: (xFp: number, yFp: number) => void;
   placing: boolean;
@@ -507,26 +566,7 @@ export function BattleScene({ onPlace, placing, marker, sceneRef, perspective = 
         // single match. Asking for what we actually get is free.
         shadows={{ type: THREE.PCFShadowMap }}
       >
-        <CameraRig seat={perspective} />
-        {/* Bright daylight, not a dungeon — the genre reads as a sunny field. */}
-        {/* The horizon haze, matched to the sky ramp's bottom stop so the
-            ground fades into the sky instead of ending on a line. Starts far
-            enough out that nothing on the board is ever touched by it. */}
-        <fog attach="fog" args={[HORIZON, 46, 124]} />
-        <ambientLight intensity={1.35} color="#e8f2ff" />
-        <Sun />
-        <directionalLight position={[-10, 14, 30]} intensity={0.55} color="#bfe4ff" />
-        {/* The arena draws its own canvas textures, so it never suspends.
-            Units load separately — the field must never wait on meshes. */}
-        <World />
-        <Arena placing={placing} />
-        <Suspense fallback={null}>
-          <UnitsBillboard />
-        </Suspense>
-        {[0, 1, 2, 3, 4, 5].map((i) => <TowerMesh key={i} index={i} />)}
-        <SpellMarkers />
-        <TowerFire />
-        <DropMarker at={marker} />
+        <SceneContents perspective={perspective} placing={placing} marker={marker} />
       </Canvas>
     </div>
   );

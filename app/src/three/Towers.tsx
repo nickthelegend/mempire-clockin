@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { PALETTE } from '../lib/palette';
 import { FP } from '../sim/fixed';
 import type { Tower } from '../sim/types';
-import { useMatch } from '../state/match';
+import { useArena as useMatch } from './arenaStore';
 
 const STONE = '#c9cbd2';
 const STONE_DARK = '#9fa2ac';

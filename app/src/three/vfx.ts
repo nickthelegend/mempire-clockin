@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { newCanvas, toTexture } from './canvasTex';
 
 /**
  * Battle effects: sparks, dust, shockwave rings, and flying shots.
@@ -51,28 +52,24 @@ interface Shot {
 }
 
 /** Soft round sprite — one texture behind every spark, puff and shot. */
-function softDot(): THREE.Texture {
+export function softDot(): THREE.Texture {
   const S = 64;
-  const c = document.createElement('canvas');
-  c.width = S; c.height = S;
-  const g = c.getContext('2d')!;
+  const [c, g] = newCanvas('vfx-dot', S);
   const grd = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
   grd.addColorStop(0, 'rgba(255,255,255,1)');
   grd.addColorStop(0.45, 'rgba(255,255,255,0.85)');
   grd.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = grd;
   g.fillRect(0, 0, S, S);
-  const t = new THREE.CanvasTexture(c);
+  const t = toTexture(c);
   t.colorSpace = THREE.NoColorSpace;
   return t;
 }
 
 /** Four-point star, for impact sparks. Reads as a hit; a dot reads as smoke. */
-function sparkDot(): THREE.Texture {
+export function sparkDot(): THREE.Texture {
   const S = 64;
-  const c = document.createElement('canvas');
-  c.width = S; c.height = S;
-  const g = c.getContext('2d')!;
+  const [c, g] = newCanvas('vfx-star', S);
   g.translate(S / 2, S / 2);
   const grd = g.createRadialGradient(0, 0, 0, 0, 0, S / 2);
   grd.addColorStop(0, 'rgba(255,255,255,1)');
@@ -88,7 +85,7 @@ function sparkDot(): THREE.Texture {
   }
   g.closePath();
   g.fill();
-  const t = new THREE.CanvasTexture(c);
+  const t = toTexture(c);
   t.colorSpace = THREE.NoColorSpace;
   return t;
 }

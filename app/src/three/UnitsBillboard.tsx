@@ -1,12 +1,12 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
-import { keyedCanvas } from '../lib/chromaKey';
-import { coinByMint } from '../lib/coins';
+import { artFor, textureFor, warmArt } from './unitArt';
+import { makeAlphaMask } from './unitMask';
 import { FP } from '../sim/fixed';
 import { Archetype } from '../sim/types';
 import type { SimState, Unit } from '../sim/types';
-import { useMatch } from '../state/match';
+import { useArena as useMatch } from './arenaStore';
 import { vfx } from './vfx';
 
 /**
@@ -66,84 +66,7 @@ const IS_RANGED: Record<number, boolean> = {
   [Archetype.Ranged]: true, [Archetype.Splash]: true,
 };
 
-/**
- * A soft radial alpha mask, drawn once and shared.
- *
- * The card art is a character on a radial glow, not a cut-out — dropping it
- * straight onto a quad would put a visible rectangle on the grass. Fading the
- * outer edge removes the rectangle, and the glow that survives inside the mask
- * reads as an aura around the fighter rather than a background.
- */
-function makeAlphaMask(): THREE.Texture {
-  const S = 128;
-  const c = document.createElement('canvas');
-  c.width = S; c.height = S;
-  const g = c.getContext('2d')!;
-  // Generous and soft: a tight mask eats heads and feet off a portrait, and a
-  // hard edge reads as a sticker cut out of the grass.
-  const grd = g.createRadialGradient(S / 2, S / 2, S * 0.30, S / 2, S / 2, S * 0.70);
-  grd.addColorStop(0, '#fff');
-  grd.addColorStop(0.80, '#fff');
-  grd.addColorStop(1, '#000');
-  g.fillStyle = grd;
-  g.fillRect(0, 0, S, S);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.NoColorSpace;
-  return t;
-}
 
-/** One loader + cache for every unit texture; the same coin recurs constantly. */
-const loader = new THREE.TextureLoader();
-const rawTexCache = new Map<string, THREE.Texture>();
-const keyedTexCache = new Map<string, THREE.Texture>();
-
-/**
- * Loads a unit texture, falling back when the file is not there yet.
- *
- * Card art arrives one file at a time, so `card_<ticker>.png` is requested
- * optimistically and the round coin badge is swapped in on a 404. The texture
- * object is reused either way, so the material never has to be rebuilt and a
- * unit already on the field just changes what it is showing.
- */
-function textureFor(
-  url: string, fallback: string, onKeyed: (t: THREE.Texture) => void,
-): THREE.Texture {
-  // Chroma-keyed art becomes a true cut-out, which is the difference between a
-  // character standing on the grass and a portrait in a locket. Un-keyed art
-  // (the round coin badges) resolves null and keeps the soft radial mask.
-  //
-  // Subscribed for EVERY material, cached or not. Hanging this off the raw
-  // cache miss instead meant only the first unit of a coin ever learned that
-  // the cut-out was ready; a second copy deployed while keying was still in
-  // flight took the raw texture and kept it — a character on flat magenta,
-  // standing on the grass for the rest of the match.
-  void keyedCanvas(url).then((c) => {
-    if (!c) return;
-    // A CanvasTexture is the right carrier for a keyed cut-out; assigning a
-    // canvas onto the existing image-backed texture is not type-safe and can
-    // skip the upload, so swap the whole map instead. One per URL, shared by
-    // every material showing that coin.
-    let keyedTex = keyedTexCache.get(url);
-    if (!keyedTex) {
-      keyedTex = new THREE.CanvasTexture(c);
-      keyedTex.colorSpace = THREE.SRGBColorSpace;
-      keyedTex.anisotropy = 4;
-      keyedTexCache.set(url, keyedTex);
-    }
-    onKeyed(keyedTex);
-  });
-
-  const hit = rawTexCache.get(url);
-  if (hit) return hit;
-  const t = loader.load(url, undefined, undefined, () => {
-    if (fallback === url) return;
-    loader.load(fallback, (fb) => { t.image = fb.image; t.needsUpdate = true; });
-  });
-  t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 4;
-  rawTexCache.set(url, t);
-  return t;
-}
 
 interface LiveUnit {
   group: THREE.Group;
@@ -278,8 +201,7 @@ export function UnitsBillboard() {
     const mints = new Set<string>();
     for (const c of [...playerDeck, ...botDeck]) mints.add(c.coinId);
     for (const mint of mints) {
-      const art = coinByMint(mint)?.cardArt;
-      if (art) void keyedCanvas(art);
+      void warmArt(artFor(mint).url);
     }
     // Keyed on the decks rather than on mount: this component mounts with the
     // battle scene, which can be a frame ahead of the opponent's deck arriving
@@ -288,11 +210,9 @@ export function UnitsBillboard() {
 
   const spawn = (u: Unit, coinId: string, me: 0 | 1): LiveUnit => {
     const group = new THREE.Group();
-    const coin = coinByMint(coinId);
     // Card art when the file exists, the round coin badge until it does — so
     // the battlefield stays populated while the art set fills in.
-    const fallback = coin?.logoUrl ?? 'art/avatar_guest.webp';
-    const url = coin?.cardArt ?? fallback;
+    const { url, fallback } = artFor(coinId);
     const mine = u.owner === me;
     const tint = mine ? OWN_TINT : ENEMY_TINT;
     const hex = mine ? OWN_HEX : ENEMY_HEX;
@@ -327,7 +247,7 @@ export function UnitsBillboard() {
     // arrives a beat late is far less jarring than one that arrives as a
     // rectangle. Resolving to null (art that needs no keying) shows it too.
     sprite.visible = false;
-    void keyedCanvas(url).then(() => { sprite.visible = true; })
+    void warmArt(url).then(() => { sprite.visible = true; })
       .catch(() => { sprite.visible = true; });
     group.add(sprite);
 
