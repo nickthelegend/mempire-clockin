@@ -1,0 +1,14 @@
+{
+  "note": "Shared by the app and chain/pass/scripts. skin_id is the on-chain id (u16) of the Token-2022 skin mint.",
+  "arena": [
+    { "id": 1, "key": "neon", "name": "Neon Night", "symbol": "MSKIN", "price": 60, "colors": ["#ff4fd8", "#3ee6ff"] },
+    { "id": 2, "key": "golden", "name": "Golden Hour", "symbol": "MSKIN", "price": 60, "colors": ["#ffb060", "#ffe38a"] },
+    { "id": 3, "key": "frozen", "name": "Frozen Ledger", "symbol": "MSKIN", "price": 60, "colors": ["#cfe8ff", "#7cc4ff"] }
+  ],
+  "frames": [
+    { "id": 11, "key": "goldleaf", "name": "Gold Leaf", "symbol": "MFRAME", "price": 25, "colors": ["#ffe38a", "#c8890b"] },
+    { "id": 12, "key": "cyber", "name": "Cyber Grid", "symbol": "MFRAME", "price": 25, "colors": ["#3ee6ff", "#9945ff"] },
+    { "id": 13, "key": "frost", "name": "Frost Rim", "symbol": "MFRAME", "price": 25, "colors": ["#e6f4ff", "#59a6f5"] },
+    { "id": 14, "key": "magma", "name": "Magma", "symbol": "MFRAME", "price": 25, "colors": ["#ff7a2e", "#ff4d6d"] }
+  ]
+}

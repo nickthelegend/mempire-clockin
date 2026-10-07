@@ -1,0 +1,20 @@
+{
+  "name": "Neon Night",
+  "symbol": "MSKIN",
+  "description": "Mempire arena skin: Neon Night. Recolours the 3D arena. Cosmetic only.",
+  "image": "https://raw.githubusercontent.com/nickthelegend/mempire-clockin/main/chain/pass/metadata/img/skin-1.png",
+  "attributes": [
+    {
+      "trait_type": "skin_type",
+      "value": "arena"
+    },
+    {
+      "trait_type": "skin_id",
+      "value": "1"
+    },
+    {
+      "trait_type": "season",
+      "value": "1"
+    }
+  ]
+}

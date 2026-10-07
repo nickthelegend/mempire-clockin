@@ -1,0 +1,5 @@
+{
+  "programId": "3aykd5NLqwjALGiaPykRiGJhv1ehJsjxqVsjQ5qGtr7G",
+  "season": 1,
+  "note": "mempire_pass (chain/pass). The app checks at runtime whether the program and its config exist on the cluster it talks to; if not it shows preview mode."
+}

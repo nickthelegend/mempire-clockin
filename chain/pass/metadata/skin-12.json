@@ -1,0 +1,20 @@
+{
+  "name": "Cyber Grid",
+  "symbol": "MFRAME",
+  "description": "Mempire card frame: Cyber Grid. Cosmetic only.",
+  "image": "https://raw.githubusercontent.com/nickthelegend/mempire-clockin/main/chain/pass/metadata/img/skin-12.png",
+  "attributes": [
+    {
+      "trait_type": "skin_type",
+      "value": "frame"
+    },
+    {
+      "trait_type": "skin_id",
+      "value": "12"
+    },
+    {
+      "trait_type": "season",
+      "value": "1"
+    }
+  ]
+}

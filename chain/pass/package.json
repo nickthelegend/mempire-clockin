@@ -1,0 +1,21 @@
+{
+  "name": "mempire-pass",
+  "private": true,
+  "scripts": {
+    "test:local": "bash scripts/test-local.sh",
+    "deploy:devnet": "bash scripts/deploy-devnet.sh"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.32.1",
+    "@solana/spl-token": "^0.4.15",
+    "@solana/web3.js": "^1.98.4"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.3.0",
+    "@types/mocha": "^10.0.10",
+    "chai": "^4.3.4",
+    "mocha": "^11.8.0",
+    "tsx": "^4.23.1",
+    "typescript": "^5.7.3"
+  }
+}

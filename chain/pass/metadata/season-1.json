@@ -1,0 +1,21 @@
+{
+  "name": "Mempire Season 1 Pass",
+  "symbol": "MPASS",
+  "description": "Soulbound Season Pass for Mempire Season 1 (Clock-In Wars). Unlocks the premium track: chests, chest slots, Streak Shields, frames and emotes. Cosmetic and convenience only, never stats. Non-transferable (Token-2022 NonTransferable).",
+  "image": "https://raw.githubusercontent.com/nickthelegend/mempire-clockin/main/chain/pass/metadata/img/season-1.png",
+  "external_url": "https://github.com/nickthelegend/mempire-clockin",
+  "attributes": [
+    {
+      "trait_type": "season",
+      "value": "1"
+    },
+    {
+      "trait_type": "tier",
+      "value": "premium"
+    },
+    {
+      "trait_type": "soulbound",
+      "value": "true"
+    }
+  ]
+}

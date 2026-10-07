@@ -1,0 +1,20 @@
+{
+  "name": "Magma",
+  "symbol": "MFRAME",
+  "description": "Mempire card frame: Magma. Cosmetic only.",
+  "image": "https://raw.githubusercontent.com/nickthelegend/mempire-clockin/main/chain/pass/metadata/img/skin-14.png",
+  "attributes": [
+    {
+      "trait_type": "skin_type",
+      "value": "frame"
+    },
+    {
+      "trait_type": "skin_id",
+      "value": "14"
+    },
+    {
+      "trait_type": "season",
+      "value": "1"
+    }
+  ]
+}
