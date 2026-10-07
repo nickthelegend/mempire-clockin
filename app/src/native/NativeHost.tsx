@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMatch, startNativeMatch } from '../state/match';
+import { rebaseBotClock, useMatch, startNativeMatch } from '../state/match';
 import type { MatchCard } from '../sim/types';
 import { archetypeForMint } from '../sim/archetypes';
 import { traitForMint } from '../sim/traits';
@@ -119,6 +119,13 @@ export function NativeHost() {
  */
 export function useNativeExit(): void {
   const status = useMatch((s) => s.status);
+  // Back from the background: resume at the same tick, no catch-up burst.
+  useEffect(() => {
+    const onVis = () => { if (document.visibilityState === 'visible') rebaseBotClock(); };
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('mempire-resumed', onVis);
+    return () => { document.removeEventListener('visibilitychange', onVis); window.removeEventListener('mempire-resumed', onVis); };
+  }, []);
   const seen = useRef(false);
   const reported = useRef(false);
   useEffect(() => {

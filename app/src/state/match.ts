@@ -946,6 +946,16 @@ function tickOnce(difficulty: BotDifficulty): void {
  */
 let botStartAt = 0;
 
+/**
+ * Re-anchor a bot match's wall clock to the tick it has reached. Called by the
+ * native app's embedded arena when it comes back from the background, so the
+ * match resumes where it stood instead of fast-forwarding at 6x to "now".
+ */
+export function rebaseBotClock(): void {
+  const sim = useMatch.getState().sim;
+  if (sim && useMatch.getState().mode === 'bot') botStartAt = Date.now() - sim.tick * TICK_MS;
+}
+
 function tickBot(difficulty: BotDifficulty): void {
   const sim = useMatch.getState().sim;
   if (!sim || sim.phase === 'ended') return;

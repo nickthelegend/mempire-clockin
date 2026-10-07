@@ -220,9 +220,26 @@ export function NativeArena() {
   const [marker, setMarker] = useState<{ x: number; z: number; legal: boolean } | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
-  const [paused, setPausedUi] = useState(false);
+  /**
+   * Why the match is paused. 'background' shows a Resume overlay when the app
+   * returns; 'quit' is the leave confirm, which resumes itself on cancel.
+   */
+  const [paused, setPausedUi] = useState<null | 'background' | 'quit'>(null);
   const [ended, setEnded] = useState(false);
   const [sceneReady, setSceneReady] = useState(false);
+  /**
+   * The GL scene mounts a beat after the arena opens. The first frame compiles
+   * every shader and holds the JS thread while it does; mounting it at once
+   * meant the "Preparing" screen could not be cancelled. This window keeps
+   * Cancel (and Android back) responsive.
+   */
+  const [mountGl, setMountGl] = useState(false);
+  useEffect(() => {
+    setMountGl(false);
+    if (!match) return undefined;
+    const t = setTimeout(() => setMountGl(true), 1200);
+    return () => clearTimeout(t);
+  }, [match]);
   const onSceneReady = useCallback(() => setSceneReady(true), []);
   useNativeMatch((s) => s.version);
   const sim = useNativeMatch((s) => s.sim);
@@ -256,10 +273,13 @@ export function NativeArena() {
     return onTextureError((why) => fallBack(why));
   }, [match, autoMode, fallBack]);
 
-  // Watchdog 1: the GL context never produced a frame.
+  // Watchdog 1: the GL context never produced a frame. Applies in every mode
+  // (a forced-native scene that never draws must not strand the player);
+  // forced native just gets longer, since software GL compiles slowly.
   useEffect(() => {
-    if (!match || sceneReady || !autoMode) return undefined;
-    const t = setTimeout(() => fallBack('no frame within 25 s'), CONTEXT_TIMEOUT_MS);
+    if (!match || sceneReady) return undefined;
+    const ms = autoMode ? CONTEXT_TIMEOUT_MS : CONTEXT_TIMEOUT_MS * 2;
+    const t = setTimeout(() => fallBack(`no frame within ${ms / 1000} s`), ms);
     return () => clearTimeout(t);
   }, [match, sceneReady, autoMode, fallBack]);
 
@@ -313,24 +333,36 @@ export function NativeArena() {
   }, [towerFell, shake]);
   useEffect(() => { if (deployed) { haptic.light(); sfx('deploy'); } }, [deployed]);
 
-  // Leaving the app pauses the match rather than letting the bot win it.
+  // Leaving the app pauses the match rather than letting the bot win it; on
+  // return a Resume overlay is shown (never a silently frozen match).
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => {
-      if (s !== 'active' && useNativeMatch.getState().sim && !useNativeMatch.getState().result) {
-        setPaused(true); setPausedUi(true);
+      const st = useNativeMatch.getState();
+      if (s !== 'active' && st.sim && !st.result && !st.paused) {
+        setPaused(true); setPausedUi('background');
       }
     });
     return () => sub.remove();
   }, []);
+  const resume = useCallback(() => {
+    haptic.tap();
+    setPaused(false); setPausedUi(null);
+  }, []);
 
   const quit = useCallback(() => {
     if (ended) return;
-    setPaused(true); setPausedUi(true);
+    // Before the first frame there is no match yet: leaving just closes.
+    if (!useNativeMatch.getState().sim) {
+      teardown();
+      closeBattle();
+      return;
+    }
+    setPaused(true); setPausedUi('quit');
     Alert.alert('Leave the battle?', 'It counts as a loss. Nothing is staked.', [
-      { text: 'Keep fighting', style: 'cancel', onPress: () => { setPaused(false); setPausedUi(false); } },
-      { text: 'Leave', style: 'destructive', onPress: () => { setPaused(false); setPausedUi(false); forfeit(); } },
+      { text: 'Keep fighting', style: 'cancel', onPress: () => { setPaused(false); setPausedUi(null); } },
+      { text: 'Leave', style: 'destructive', onPress: () => { setPaused(false); setPausedUi(null); forfeit(); } },
     ]);
-  }, [ended]);
+  }, [ended, closeBattle]);
 
   const onLayout = useCallback((_e: LayoutChangeEvent) => {
     view.current?.measureInWindow((x, y, w, h) => { frame.current = { x, y, w, h }; });
@@ -424,7 +456,8 @@ export function NativeArena() {
           }}
         >
           <View style={st.lowres}>
-          <SceneBoundary onFail={(why) => (autoMode ? fallBack(why) : useUi.getState().say(`Arena error: ${why}`, 'err'))}>
+          {mountGl ? (
+          <SceneBoundary onFail={(why) => fallBack(why)}>
           <Canvas
             camera={SCENE_CAMERA}
             gl={GL}
@@ -437,6 +470,7 @@ export function NativeArena() {
             <DisposeOnUnmount />
           </Canvas>
           </SceneBoundary>
+          ) : null}
           </View>
         </Animated.View>
 
@@ -491,11 +525,29 @@ export function NativeArena() {
         ) : null}
 
         {match.tutorial && sceneReady ? <CoachMarks mode="native" deployed={plays} /> : null}
-        {paused && !ended ? <View pointerEvents="none" style={st.pausedVeil} /> : null}
+        {paused && !ended ? (
+          <View style={st.pausedVeil} pointerEvents={paused === 'background' ? 'auto' : 'none'}>
+            {paused === 'background' ? (
+              <View style={st.pauseCard} accessibilityViewIsModal>
+                <Text style={st.prepTitle} maxFontSizeMultiplier={1.3}>Paused</Text>
+                <Text style={st.prepSub} maxFontSizeMultiplier={1.3}>The match waited for you.</Text>
+                <Pressable onPress={resume} style={st.resumeBtn} accessibilityRole="button" accessibilityLabel="Resume the battle">
+                  <Text style={st.resumeText} maxFontSizeMultiplier={1.3}>RESUME</Text>
+                </Pressable>
+                <Pressable onPress={() => { setPausedUi('quit'); quit(); }} style={st.leaveBtn} accessibilityRole="button" accessibilityLabel="Leave the battle">
+                  <Text style={st.leaveText} maxFontSizeMultiplier={1.3}>Leave battle</Text>
+                </Pressable>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
         {!sceneReady ? (
-          <View pointerEvents="none" style={st.preparing}>
+          <View pointerEvents="box-none" style={st.preparing}>
             <Text style={st.prepTitle}>vs {match.rival}</Text>
             <Text style={st.prepSub}>Preparing the arena…</Text>
+            <Pressable onPress={quit} style={[st.leaveBtn, { marginTop: 18 }]} accessibilityRole="button" accessibilityLabel="Cancel and go back">
+              <Text style={st.leaveText}>Cancel</Text>
+            </Pressable>
           </View>
         ) : null}
         {SHOW_FPS && lastFps ? <Text pointerEvents="none" style={[st.fps, { top: insets.top + 96 }]}>{lastFps} fps</Text> : null}
@@ -549,6 +601,11 @@ const st = StyleSheet.create({
   preparing: { ...StyleSheet.absoluteFill, backgroundColor: C.blueDeep, alignItems: 'center', justifyContent: 'center', gap: 8 },
   prepTitle: { color: C.gold, fontFamily: F.display, fontSize: 28 },
   prepSub: { color: C.dim, fontFamily: F.ui, fontSize: 14 },
-  pausedVeil: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(6,16,38,0.45)' },
+  pausedVeil: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(6,16,38,0.55)', alignItems: 'center', justifyContent: 'center' },
+  pauseCard: { backgroundColor: C.ink, borderRadius: 18, borderWidth: 2, borderColor: C.gold, padding: 22, alignItems: 'center', gap: 8, minWidth: 260 },
+  resumeBtn: { marginTop: 10, minHeight: 48, minWidth: 200, borderRadius: 14, backgroundColor: C.btnGold, alignItems: 'center', justifyContent: 'center' },
+  resumeText: { color: C.ink, fontFamily: F.display, fontSize: 22 },
+  leaveBtn: { minHeight: 44, minWidth: 160, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.1)' },
+  leaveText: { color: '#fff', fontFamily: F.uiBold, fontSize: 14 },
   fps: { position: 'absolute', right: 12, color: 'rgba(255,255,255,0.7)', fontFamily: F.uiBold, fontSize: 10 },
 });

@@ -1,6 +1,6 @@
 import { Paths } from 'expo-file-system';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Platform, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, Modal, Platform, StyleSheet, View } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { finishMatch } from '../game/actions';
@@ -36,6 +36,15 @@ export function ArenaHost() {
   const say = useUi((s) => s.say);
   const [ready, setReady] = useState(false);
   const done = useRef(false);
+  const web = useRef<WebView>(null);
+  // Tell the page when the app returns, so a bot match re-anchors its clock
+  // instead of fast-forwarding (WKWebView does not always fire visibilitychange).
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st === 'active') web.current?.injectJavaScript('window.dispatchEvent(new Event("mempire-resumed")); true;');
+    });
+    return () => sub.remove();
+  }, []);
   const insets = useSafeAreaInsets();
 
   useEffect(() => { done.current = false; setReady(false); }, [match]);
@@ -49,6 +58,8 @@ export function ArenaHost() {
   }, [match, ready]);
 
   const leave = useCallback(() => {
+    // Nothing has started yet: just close, nothing recorded.
+    if (!ready) { done.current = true; closeBattle(); return; }
     Alert.alert('Leave the battle?', 'The match counts as a loss.', [
       { text: 'Keep fighting', style: 'cancel' },
       {
@@ -63,7 +74,7 @@ export function ArenaHost() {
         },
       },
     ]);
-  }, [match, closeBattle]);
+  }, [match, closeBattle, ready]);
 
   // Android hardware back arrives as the Modal's onRequestClose (-> leave).
 
@@ -81,7 +92,9 @@ export function ArenaHost() {
       }, 1800);
     }
     if (msg.channel === 'exit') {
-      if (match && !done.current) {
+      // Only a player leaving a running match is a loss; a load failure
+      // ('no match', a start error) records nothing.
+      if (match && !done.current && msg.reason === 'left') {
         done.current = true;
         void finishMatch(match, { won: false, draw: false, crowns: [0, 0] });
       }
@@ -109,6 +122,7 @@ export function ArenaHost() {
           never reach it (seen on the iPhone 17 simulator). */}
       <View style={[st.fill, { paddingTop: insets.top, paddingBottom: Platform.OS === 'android' ? insets.bottom : 0 }]}>
         <WebView
+          ref={web}
           source={{ uri }}
           injectedJavaScriptBeforeContentLoaded={inject}
           onMessage={onMessage}
