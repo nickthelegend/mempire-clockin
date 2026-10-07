@@ -1,8 +1,8 @@
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Linking, Modal, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Animated, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { CHESTS } from '../game/rules';
-import { WIN_SKR, challengeMessage } from '../game/actions';
+import { WIN_SKR } from '../game/actions';
 import { sfx, useSound } from '../sound';
 import { EASE_IN_OUT, reduceMotion } from '../motion';
 import { markFtue } from '../state/ui';
@@ -14,6 +14,7 @@ import { useWallet, walletLabel } from '../wallet/wallet';
 import { cancelChestReminders, haptic } from '../notify';
 import { C, F, TIER_COLORS } from '../theme';
 import { Body, Btn, CardTile, ChestArt, Display, Panel, Tag, Well } from '../ui/kit';
+import { ShareCardButton } from './ShareCard';
 
 /** Chest opening: shake, burst, then the fighters land one by one. */
 export function RevealSheet() {
@@ -87,7 +88,7 @@ export function ResultSheet() {
   const title = r.draw ? 'DRAW' : r.won ? 'VICTORY' : 'DEFEAT';
   return (
     <Modal visible transparent animationType="fade" onRequestClose={() => show(null)}>
-      <View style={st.center}>
+      <ScrollView style={st.scrim} contentContainerStyle={st.centerScroll}>
         <Animated.View style={{ transform: [{ scale: pop }] }}>
           <Display size={54} color={r.won ? C.gold : r.draw ? '#fff' : C.red}>{title}</Display>
         </Animated.View>
@@ -144,15 +145,8 @@ export function ResultSheet() {
           <Btn label="HOME" tone="ghost" style={{ flex: 1 }} onPress={() => { show(null); setTab('home'); }} />
           <Btn label="DECK" tone="blue" style={{ flex: 1 }} onPress={() => { show(null); setTab('deck'); }} />
         </View>
-        <Btn
-          label="CHALLENGE A FRIEND"
-          sub="send this rival as a link"
-          tone="gold"
-          size="sm"
-          style={{ width: '88%', marginTop: 10 }}
-          onPress={() => { void Share.share({ message: challengeMessage(r.rivalIndex, r.rush, { won: r.won, crowns: r.crowns }) }).catch(() => {}); }}
-        />
-      </View>
+        <ShareCardButton r={r} />
+      </ScrollView>
     </Modal>
   );
 }
@@ -298,6 +292,8 @@ export function Toast() {
 
 const st = StyleSheet.create({
   center: { flex: 1, backgroundColor: 'rgba(6,16,38,0.94)', alignItems: 'center', justifyContent: 'center', padding: 16 },
+  scrim: { flex: 1, backgroundColor: 'rgba(6,16,38,0.94)' },
+  centerScroll: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 16, paddingTop: 60, paddingBottom: 40 },
   drops: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12, marginTop: 20 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 3 },
   sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 12, paddingBottom: 30 },

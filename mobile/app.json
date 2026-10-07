@@ -72,7 +72,8 @@
           "recordAudioAndroid": false,
           "enableBackgroundPlayback": false
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "extra": {
       "eas": {
