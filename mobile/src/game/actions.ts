@@ -200,7 +200,7 @@ export async function finishMatch(
   // The guided first battle pays a Golden welcome chest, win or lose.
   let welcome: Chest | null = null;
   if (m.tutorial) {
-    welcome = g.addChest('golden', 'welcome');
+    welcome = g.grantWelcome();
     markFtue(true);
   }
   if (r.won) { haptic.success(); sfx('victory'); } else { haptic.warn(); sfx('defeat'); }

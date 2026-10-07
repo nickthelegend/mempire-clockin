@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Image, Linking, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { Animated, Image, Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { UI_ART } from '../data/art';
 import { CHESTS, CHEST_SLOTS, QUESTS, QUEST_BONUS, RIVALS, WEEK, dayKey, msToUtcMidnight, streakState } from '../game/rules';
@@ -8,7 +8,7 @@ import { explorerTx, short } from '../chain/solana';
 import { SKR_LABEL, SKR_LIVE } from '../chain/skr';
 import { useGame, avgDeckLevel } from '../state/game';
 import { useUi } from '../state/ui';
-import { C, R } from '../theme';
+import { C, F, R } from '../theme';
 import { Body, Btn, ChestArt, Display, Panel, PressScale, Progress, Rise, Tag, TierGlow, Well } from '../ui/kit';
 import { EASE_OUT, reduceMotion, useCountUp } from '../motion';
 import { sfx } from '../sound';
@@ -79,16 +79,16 @@ function ClockIn() {
 
   return (
     <Panel>
-      <View style={st.rowBetween}>
-        <View>
+      <View style={[st.rowBetween, { gap: 10 }]}>
+        <View style={{ flex: 1 }}>
           <Display size={26}>Daily Clock-In</Display>
           <Body size={13} color={C.dimOnWood}>
             {doneToday ? 'Clocked in. Come back tomorrow.' : state === 'lapsed' ? 'Streak lapsed — start a new one.' : 'One tap keeps your streak alive.'}
           </Body>
         </View>
         <Animated.View style={[st.streakBadge, { transform: [{ scale: pop.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.25, 1] }) }] }]}>
-          <Display size={30} color={C.gold}>{shownStreak}</Display>
-          <Body size={10} color="#fff" bold>DAY STREAK</Body>
+          <Text maxFontSizeMultiplier={1.15} style={st.streakNum}>{shownStreak}</Text>
+          <Text maxFontSizeMultiplier={1.1} style={st.streakLbl}>DAY STREAK</Text>
         </Animated.View>
       </View>
 
@@ -176,7 +176,7 @@ function Chests() {
         if (!c) {
           return (
             <View key={`empty${i}`} style={[st.chest, st.chestEmpty]}>
-              <Body size={11} color={C.dim} style={{ textAlign: 'center' }}>Empty slot · win a battle</Body>
+              <Body size={11} color={C.dim} style={{ textAlign: 'center' }}>Win a battle</Body>
             </View>
           );
         }
@@ -307,6 +307,7 @@ function Battle() {
           <PressScale
             key={m.label}
             onPress={() => { haptic.tap(); setRush(m.id); }}
+            containerStyle={{ flex: 1 }}
             style={[st.mode, rush === m.id && st.modeOn]}
             accessibilityRole="radio"
             accessibilityState={{ selected: rush === m.id }}
@@ -381,7 +382,10 @@ const st = StyleSheet.create({
   scroll: { padding: 14, gap: 14, paddingBottom: 120 },
   logo: { width: '70%', height: 84, alignSelf: 'center' },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  streakNum: { fontFamily: F.display, fontSize: 30, color: C.gold },
+  streakLbl: { fontFamily: F.uiBold, fontSize: 10, color: '#fff' },
   streakBadge: {
+    flexShrink: 0,
     backgroundColor: C.ink, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 4,
     alignItems: 'center', borderWidth: 2, borderColor: C.gold,
   },

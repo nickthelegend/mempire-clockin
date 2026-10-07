@@ -124,9 +124,12 @@ export function Btn({
  * just a dim.
  */
 export function PressScale({
-  children, onPress, style, accessibilityLabel, accessibilityRole = 'button', accessibilityState, hitSlop, disabled,
+  children, onPress, style, containerStyle, accessibilityLabel, accessibilityRole = 'button', accessibilityState, hitSlop, disabled,
 }: {
-  children: ReactNode; onPress?: () => void; style?: StyleProp<ViewStyle>; accessibilityLabel?: string;
+  children: ReactNode; onPress?: () => void; style?: StyleProp<ViewStyle>;
+  /** Layout for the touch target itself (e.g. flex: 1 in a row). */
+  containerStyle?: StyleProp<ViewStyle>;
+  accessibilityLabel?: string;
   accessibilityRole?: 'button' | 'tab' | 'radio' | 'link' | 'switch'; accessibilityState?: object; hitSlop?: number; disabled?: boolean;
 }) {
   const v = useRef(new Animated.Value(0)).current;
@@ -139,6 +142,7 @@ export function PressScale({
       onPressOut={() => to(0)}
       disabled={disabled}
       hitSlop={hitSlop}
+      style={containerStyle}
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
       accessibilityState={accessibilityState}

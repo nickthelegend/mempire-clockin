@@ -1,6 +1,6 @@
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Linking, Modal, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Animated, Linking, Modal, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { CHESTS } from '../game/rules';
 import { WIN_SKR, challengeMessage } from '../game/actions';
 import { sfx, useSound } from '../sound';
@@ -127,7 +127,7 @@ export function ResultSheet() {
               </View>
               <Tag text="ADDED" color={C.gold} />
             </View>
-          ) : r.tutorial ? <Body size={12} color={C.goldHi}>Chest slots full. Your welcome chest is waiting for a free slot.</Body> : null}
+          ) : null}
           <Body size={11} color={C.dimOnWood} style={{ marginTop: 6 }}>
             {r.plays} card{r.plays === 1 ? '' : 's'} deployed · counts toward today's quest
           </Body>
@@ -166,7 +166,8 @@ export function WalletSheet() {
   return (
     <Modal visible transparent animationType="slide" onRequestClose={() => setOpen(false)}>
       <Pressable style={{ flex: 1, backgroundColor: C.scrim }} onPress={() => setOpen(false)} />
-      <View style={st.sheet}>
+      <View style={[st.sheet, { maxHeight: '92%' }]}>
+        <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
         <Panel>
           <View style={st.row}>
             <Display size={22}>Wallet & settings</Display>
@@ -200,6 +201,7 @@ export function WalletSheet() {
             <Btn label="SIGN OUT" tone="ghost" size="sm" onPress={() => { setOpen(false); unload(); void disconnect(); }} />
           </View>
         </Panel>
+        </ScrollView>
       </View>
     </Modal>
   );

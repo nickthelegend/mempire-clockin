@@ -62,6 +62,8 @@ interface Save {
   clockIns: ClockInRecord[];
   coachRuns: number;
   quests: QuestState;
+  /** The welcome chest has been paid (once per player, even if the intro is replayed). */
+  welcomed?: boolean;
 }
 
 const fresh = (): Save => ({
@@ -117,6 +119,8 @@ interface GameState extends Save {
   claimQuest: (id: QuestId) => number;
   /** All three claimed → bonus chest (once per day). */
   claimQuestBonus: () => Chest | null;
+  /** Pay the welcome chest once; null if already paid or slots are full. */
+  grantWelcome: () => Chest | null;
   /**
    * Restore the streak from the chain's Clock-In memos when they are ahead of
    * this device (a reinstall, a second phone). The chain is the record.
@@ -149,7 +153,7 @@ export const useGame = create<GameState>((set, get) => {
         v: 1, cards: s.cards, deck: s.deck, chests: s.chests, nextChestId: s.nextChestId,
         streak: s.streak, skrSim: s.skrSim, trophies: s.trophies, wins: s.wins, losses: s.losses,
         draws: s.draws, history: s.history.slice(0, 50), clockIns: s.clockIns.slice(0, 120),
-        coachRuns: s.coachRuns, quests: s.quests,
+        coachRuns: s.coachRuns, quests: s.quests, welcomed: s.welcomed,
       };
       void AsyncStorage.setItem(keyFor(address), JSON.stringify(save));
     }, 250);
@@ -301,6 +305,12 @@ export const useGame = create<GameState>((set, get) => {
       if (q.claimed[id] || q.progress[id] < def.goal) return 0;
       put({ quests: { ...q, claimed: { ...q.claimed, [id]: true } } });
       return def.skr;
+    },
+    grantWelcome: () => {
+      if (get().welcomed) return null;
+      const c = get().addChest('golden', 'welcome');
+      if (c) put({ welcomed: true });
+      return c;
     },
     claimQuestBonus: () => {
       const q = get().quests;

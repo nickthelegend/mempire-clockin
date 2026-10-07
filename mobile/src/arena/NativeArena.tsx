@@ -496,7 +496,7 @@ export function NativeArena() {
             <Text style={st.prepSub}>Preparing the arena…</Text>
           </View>
         ) : null}
-        {lastFps ? <Text pointerEvents="none" style={[st.fps, { top: insets.top + 54 }]}>{lastFps} fps</Text> : null}
+        {lastFps ? <Text pointerEvents="none" style={[st.fps, { top: insets.top + 96 }]}>{lastFps} fps</Text> : null}
       </View>
     </Modal>
   );

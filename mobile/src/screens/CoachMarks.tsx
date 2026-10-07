@@ -58,7 +58,7 @@ export function CoachMarks({ mode, deployed = 0 }: { mode: 'native' | 'web'; dep
   const s = STEPS[step];
   const bubbleTop = s.at === 'field' ? H * 0.36 : s.at === 'elixir' ? H * 0.58 : H * 0.16;
   const from = { x: W * 0.24, y: H * 0.86 };
-  const to = { x: W * 0.62, y: H * 0.63 };
+  const to = { x: W * 0.62, y: H * (mode === 'native' ? 0.47 : 0.63) };
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill} accessibilityLiveRegion="polite">
