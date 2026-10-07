@@ -7,7 +7,7 @@ plays your deck before you do.
 
 - **Repo:** https://github.com/nickthelegend/mempire-clockin
 - **APK:** `mempire-clockin.apk` (release, signed with a dedicated release key).
-  sha256 `0f1183fa14fcb9f26f357ef25e76d25db1465f24906ea7332bbf7f91209fa0e3`, 59,397,902 bytes (56.6 MiB). See *Install* below for how to download it.
+  sha256 `32aed1f9fc222754f0b9a3b324cd7ee78332890cc3f85b1199eaa5215cfa5da3`, 63,903,832 bytes (60.9 MiB). See *Install* below for how to download it.
 - **Network:** Solana **devnet** only. No real funds move.
 - **Team:** Nivesh Gajengi (@nickthelegend).
 

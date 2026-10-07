@@ -36,9 +36,9 @@ Also verified: the shared battle sim is deterministic (`npx tsx app/scripts/sim-
 ## APK
 
 - `/Volumes/Extreme SSD/Projects/clockin/apks/mempire-clockin.apk`
-- sha256 `0f1183fa14fcb9f26f357ef25e76d25db1465f24906ea7332bbf7f91209fa0e3`
-- 59,397,902 bytes (56.6 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 2 (1.0.1)
-- Built from commit `dc4e6f7` (round-2 Android hardening included).
+- sha256 `32aed1f9fc222754f0b9a3b324cd7ee78332890cc3f85b1199eaa5215cfa5da3`
+- 63,903,832 bytes (60.9 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 3 (1.1.0)
+- Built from commit `5af44b8` (native 3D arena + round-2 Android hardening).
 - Signed with a **new dedicated release key**. The keystore and its password
   are **outside the repo** at
   `/Volumes/Extreme SSD/Projects/clockin/keys/mempire-release.keystore` and
@@ -107,7 +107,7 @@ was re-verified afterwards on the iPhone 17 simulator.
 | 5 | Edge-to-edge (Android 15+) | `edgeToEdgeEnabled=true`. Header and tab bar use safe-area insets. **Fixed:** the arena is now inset natively (status bar on top, plus navigation bar on Android), because an Android WebView gets no `env(safe-area-*)`. The same fix exposed a real iOS bug: the arena's quit button and match timer sat under the status bar, where the button could not be tapped. |
 | 5 | Keyboard / fonts / Linking | No text inputs. Fonts are bundled (`res/raw` / assets via expo-font). `Linking.openURL` is only used for explorer https links, which are covered by the `<queries>` https entry. |
 | 6 | Signing | `apksigner`: CN=Mempire, cert SHA-256 `510a32d6…3d943`. This is the **same key** as the first upload; no new key was generated. |
-| 7 | ABIs / size | arm64-v8a + x86_64, 56.6 MiB. |
+| 7 | ABIs / size | arm64-v8a + x86_64. 56.6 MiB in round 2, 60.9 MiB with the native arena (adds `libexpo-gl.so` and baked textures). |
 
 Re-verified on the iPhone 17 simulator after these changes, with a Release build under the shared build lock:
 - A battle opened through the new hash path.
@@ -115,7 +115,7 @@ Re-verified on the iPhone 17 simulator after these changes, with a Release build
 - A standard match played to the end and showed the native DEFEAT sheet (-15 trophies).
 - The relocated quit button opened the confirm; Leave produced a native loss result.
 
-Uploaded to the `clockin-v1` release with `--clobber`. A re-download hashes to `0f1183fa14fcb9f26f357ef25e76d25db1465f24906ea7332bbf7f91209fa0e3`.
+Uploaded to the `clockin-v1` release with `--clobber`. (That was the round-2 build; the current upload is the native-arena build, versionCode 3; see *APK* above.)
 
 Still unverified on Android, by necessity: real MWA approval with a wallet,
 WebGL performance in the Android WebView, notification delivery, and haptics.
