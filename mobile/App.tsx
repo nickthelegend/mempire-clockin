@@ -28,7 +28,7 @@ import { CardsScreen } from './src/screens/Cards';
 import { DeckScreen } from './src/screens/Deck';
 import { ShopScreen } from './src/screens/Shop';
 import { CoachSheet } from './src/screens/Coach';
-import { ArenaHost } from './src/screens/Arena';
+import { NativeArena } from './src/arena/NativeArena';
 import { ResultSheet, RevealSheet, Toast, WalletSheet } from './src/screens/Overlays';
 
 /**
@@ -162,7 +162,7 @@ function Game() {
       <Screens />
       <TabBar />
       <CoachSheet />
-      <ArenaHost />
+      <NativeArena />
       <ResultSheet />
       <RevealSheet />
       <WalletSheet />
