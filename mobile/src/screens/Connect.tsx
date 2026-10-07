@@ -4,7 +4,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { UI_ART, CARD_ART } from '../data/art';
 import { BY_TICKER } from '../game/rules';
 import { useUi } from '../state/ui';
-import { MWA_AVAILABLE, useWallet } from '../wallet/wallet';
+import { MWA_AVAILABLE, signInLabel, useWallet } from '../wallet/wallet';
+import { looksLikeSeeker } from '../chain/seeker';
 import { C } from '../theme';
 import { Body, Btn, Display, Rise, Tag, Well } from '../ui/kit';
 
@@ -41,24 +42,31 @@ export function ConnectScreen() {
       </Rise>
       <Rise delay={180} style={{ gap: 12, marginTop: 10 }}>
         <Btn
-          label="CONNECT WALLET"
-          sub={MWA_AVAILABLE ? 'Seed Vault · Phantom · Solflare via Mobile Wallet Adapter' : 'Mobile Wallet Adapter is Android-only'}
+          label="SIGN IN WITH SOLANA"
+          sub={MWA_AVAILABLE ? `One tap · ${looksLikeSeeker() ? 'Seed Vault' : 'Seed Vault, Phantom, Solflare'} via Mobile Wallet Adapter` : 'Mobile Wallet Adapter is Android-only'}
           size="lg"
           disabled={!MWA_AVAILABLE}
           busy={busy === 'mwa'}
           onPress={async () => {
             setBusy('mwa'); setErr(null);
-            try { await connectMwa(); } catch (e) { const m = e instanceof Error ? e.message : String(e); setErr(m); say(m, 'err'); } finally { setBusy(null); }
+            try {
+              await connectMwa();
+              const p = useWallet.getState().signIn;
+              say(p ? `${signInLabel(p)} · SIWS verified on this phone` : 'Connected. Your wallet skipped the sign-in message.', p ? 'ok' : 'info');
+            } catch (e) { const m = e instanceof Error ? e.message : String(e); setErr(m); say(m, 'err'); } finally { setBusy(null); }
           }}
         />
         <Btn
           label="USE DEV WALLET"
-          sub="a devnet-only key kept on this device"
+          sub={MWA_AVAILABLE ? 'a devnet-only key kept on this device' : 'devnet key on this device · signs in with SIWS locally'}
           tone="ghost"
           busy={busy === 'dev'}
           onPress={async () => {
             setBusy('dev');
-            try { await connectDev(); } catch (e) { const m = e instanceof Error ? e.message : String(e); setErr(`Could not create the dev wallet: ${m}`); } finally { setBusy(null); }
+            try {
+              await connectDev();
+              if (useWallet.getState().signIn) say('Signed in with Solana · dev wallet, verified on this device', 'ok');
+            } catch (e) { const m = e instanceof Error ? e.message : String(e); setErr(`Could not create the dev wallet: ${m}`); } finally { setBusy(null); }
           }}
         />
         {err ? (

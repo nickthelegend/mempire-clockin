@@ -10,7 +10,7 @@ import { airdrop, explorerAddr, explorerTx, short } from '../chain/solana';
 import { SKR_LABEL, SKR_LIVE } from '../chain/skr';
 import { useGame } from '../state/game';
 import { useUi } from '../state/ui';
-import { useWallet, walletLabel } from '../wallet/wallet';
+import { recheckProof, signInLabel, useWallet, walletLabel } from '../wallet/wallet';
 import { cancelChestReminders, haptic } from '../notify';
 import { C, F, TIER_COLORS } from '../theme';
 import { Body, Btn, CardTile, ChestArt, Display, Panel, Tag, Well } from '../ui/kit';
@@ -177,6 +177,7 @@ export function WalletSheet() {
               <Body size={11} color={C.dim}>tap to copy</Body>
             </Well>
           </Pressable>
+          <SignInCard />
           <View style={st.row}><Body color={C.dimOnWood}>Devnet SOL</Body><Display size={18}>{sol === null ? '…' : sol.toFixed(4)}</Display></View>
           <View style={st.row}><Body color={C.dimOnWood}>{SKR_LABEL}</Body><Display size={18} color={C.skr}>{SKR_LIVE ? (skr ?? 0) : useGame.getState().skrSim}</Display></View>
           <View style={{ gap: 8, marginTop: 10 }}>
@@ -201,6 +202,53 @@ export function WalletSheet() {
         </ScrollView>
       </View>
     </Modal>
+  );
+}
+
+/** "Signed in with Seed Vault": the SIWS proof, re-verifiable on the spot. */
+function SignInCard() {
+  const p = useWallet((s) => s.signIn);
+  const kind = useWallet((s) => s.kind);
+  const [check, setCheck] = useState<'idle' | 'ok' | 'bad'>('idle');
+  const [open, setOpen] = useState(false);
+  if (!p) {
+    return (
+      <Well style={{ marginBottom: 10, gap: 4 }}>
+        <Body size={12} bold color="#fff">Connected without a sign-in message</Body>
+        <Body size={11} color={C.dim}>
+          {kind === 'mwa' ? 'Your wallet authorized Mempire but skipped Sign In With Solana. Sign out and in again to add it.' : 'Sign out and in again to sign in with Solana.'}
+        </Body>
+      </Well>
+    );
+  }
+  const issued = new Date(p.issuedAt);
+  return (
+    <Well style={{ marginBottom: 10, gap: 6 }}>
+      <View style={st.row}>
+        <Body size={13} bold color="#fff" style={{ flex: 1 }}>{signInLabel(p)}</Body>
+        <Tag text={check === 'bad' ? 'INVALID' : 'SIWS ✓'} color={check === 'bad' ? C.red : C.teal} />
+      </View>
+      <Body size={11} color={C.dim}>
+        {p.method === 'siws' ? 'One tap: the wallet authorized Mempire and signed a Sign In With Solana message in the same sheet.'
+          : p.method === 'signMessage' ? 'Your wallet has no one-tap sign-in, so it signed the same Sign In With Solana message separately.'
+          : 'Dev wallet: the same Sign In With Solana message, signed by the key on this device (iOS has no Mobile Wallet Adapter).'}
+        {' '}The ed25519 signature was verified on this phone.
+      </Body>
+      <Body size={11} color={C.dim}>
+        {p.domain} · {p.chainId ?? 'no chain'} · nonce {p.nonce.slice(0, 8)}… · {issued.toLocaleString()}
+      </Body>
+      {open ? <Text selectable style={st.mono}>{p.message}</Text> : null}
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <Btn label={open ? 'HIDE MESSAGE' : 'SHOW MESSAGE'} tone="ghost" size="sm" style={{ flex: 1 }} onPress={() => setOpen(!open)} />
+        <Btn
+          label={check === 'ok' ? 'VERIFIED ✓' : 'VERIFY AGAIN'}
+          tone="ghost"
+          size="sm"
+          style={{ flex: 1 }}
+          onPress={() => { const ok = recheckProof(p); setCheck(ok ? 'ok' : 'bad'); if (ok) haptic.success(); else haptic.error(); }}
+        />
+      </View>
+    </Well>
   );
 }
 
@@ -296,6 +344,7 @@ const st = StyleSheet.create({
   centerScroll: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 16, paddingTop: 60, paddingBottom: 40 },
   drops: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12, marginTop: 20 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 3 },
+  mono: { fontFamily: 'Courier', fontSize: 10, color: '#cfe0ff', backgroundColor: 'rgba(0,0,0,0.35)', padding: 8, borderRadius: 8 },
   sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 12, paddingBottom: 30 },
   toast: {
     position: 'absolute', top: 58, left: 16, right: 16, borderRadius: 14, padding: 12,

@@ -7,7 +7,7 @@ set -eo pipefail
 UDID="${SIM_UDID:-91D81975-0680-40B8-92D2-725D726953AF}"
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 [ -f "/Volumes/Extreme SSD/Projects/clockin/env.sh" ] && source "/Volumes/Extreme SSD/Projects/clockin/env.sh"
-APP="${CLOCKIN_DERIVED_DATA:-$HERE/ios/build}/mempire/Build/Products/Release-iphonesimulator/Mempire.app"
+APP="${APP:-${CLOCKIN_DERIVED_DATA:-$HERE/ios/build}/mempire/Build/Products/Release-iphonesimulator/Mempire.app}"
 [ -d "$APP" ] || { echo "no built app at $APP - run scripts/ios-sim.sh first"; exit 1; }
 cd "$HERE"
 npx expo export:embed --platform ios --dev false --entry-file index.ts \
