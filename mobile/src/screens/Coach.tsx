@@ -28,7 +28,8 @@ export function CoachSheet() {
   const [progress, setProgress] = useState({ done: 0, total: 1, label: '' });
   const [ev, setEv] = useState<Evaluation | null>(null);
   const [swap, setSwap] = useState<SwapSuggestion | null | undefined>(undefined);
-  const cancelled = useRef(false);
+  // A run id, not a boolean: closing and re-opening must invalidate the old run.
+  const runId = useRef(0);
 
   const toCoach = (t: string): CoachCard => ({ ticker: t, mint: BY_TICKER.get(t)!.mint, level: cards[t]?.level ?? 1 });
   const rivals = () => {
@@ -37,13 +38,14 @@ export function CoachSheet() {
   };
 
   const scout = async () => {
-    cancelled.current = false;
+    const id = ++runId.current;
+    const stale = () => id !== runId.current;
     setPhase('scouting'); setEv(null); setSwap(undefined);
     const r = rivals();
     const result = await evaluate(deck.map(toCoach), r, SEEDS, (done, total) => {
-      if (!cancelled.current) setProgress({ done, total, label: `Simulating match ${done}/${total}` });
+      if (!stale()) setProgress({ done, total, label: `Simulating match ${done}/${total}` });
     });
-    if (cancelled.current) return;
+    if (stale()) return;
     setEv(result);
     noteCoachRun();
     haptic.success();
@@ -52,18 +54,20 @@ export function CoachSheet() {
 
   const search = async () => {
     if (!ev) return;
+    const id = ++runId.current;
+    const stale = () => id !== runId.current;
     setPhase('searching');
     const pool = Object.keys(cards).map(toCoach);
     const s = await bestSwap(deck.map(toCoach), pool, rivals(), ev, { slots: 3, candidates: 3, seeds: SEEDS }, (label, done, total) => {
-      if (!cancelled.current) setProgress({ done, total, label: `Trying ${label}` });
+      if (!stale()) setProgress({ done, total, label: `Trying ${label}` });
     });
-    if (cancelled.current) return;
+    if (stale()) return;
     setSwap(s);
     haptic.success();
     setPhase('done');
   };
 
-  const close = () => { cancelled.current = true; setPhase('idle'); setCoach(false); };
+  const close = () => { runId.current += 1; setPhase('idle'); setCoach(false); };
   const running = phase === 'scouting' || phase === 'searching';
 
   return (

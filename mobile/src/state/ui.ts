@@ -31,6 +31,8 @@ export interface MatchResult {
   crowns: [number, number];
   trophyDelta: number;
   chest: ChestTier | null;
+  /** All four slots were full: the chest is waiting in the inbox. */
+  chestQueued?: boolean;
   renderer: Renderer;
   fellBack?: boolean;
   skr: number;
@@ -40,6 +42,7 @@ export interface MatchResult {
   tutorial?: boolean;
   /** The welcome chest the guided first battle pays. */
   welcomeChest?: ChestTier | null;
+  welcomeQueued?: boolean;
   rivalIndex: number;
   rush: boolean;
 }
@@ -79,7 +82,7 @@ interface UiState {
   setSeeker: (p: { sgt: string | null; mainnetSkr: number | null }) => void;
   /** This wallet's Clock-In memos read back from devnet; null = could not read, undefined = reading. */
   chainLedger: { day: number; streak: number; sig: string }[] | null | undefined;
-  setChainLedger: (l: { day: number; streak: number; sig: string }[] | null) => void;
+  setChainLedger: (l: { day: number; streak: number; sig: string }[] | null | undefined) => void;
 }
 
 let toastId = 0;

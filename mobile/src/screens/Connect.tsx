@@ -58,7 +58,7 @@ export function ConnectScreen() {
           busy={busy === 'dev'}
           onPress={async () => {
             setBusy('dev');
-            try { await connectDev(); } finally { setBusy(null); }
+            try { await connectDev(); } catch (e) { const m = e instanceof Error ? e.message : String(e); setErr(`Could not create the dev wallet: ${m}`); } finally { setBusy(null); }
           }}
         />
         {err ? (

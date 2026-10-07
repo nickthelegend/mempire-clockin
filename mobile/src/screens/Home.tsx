@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Image, Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { UI_ART } from '../data/art';
-import { CHESTS, CHEST_SLOTS, QUESTS, QUEST_BONUS, RIVALS, WEEK, dayKey, msToUtcMidnight, streakState } from '../game/rules';
+import { CHESTS, CHEST_SLOTS, QUESTS, QUEST_BONUS, RIVALS, WEEK, dayKey, msToUtcMidnight, rolloverLabel, streakState } from '../game/rules';
 import { challengeMessage, claimQuest, doClockIn, openChest, prepareMatch, startUnlock } from '../game/actions';
 import { explorerTx, short } from '../chain/solana';
 import { SKR_LABEL, SKR_LIVE } from '../chain/skr';
@@ -34,9 +34,12 @@ function ClockIn() {
   const streak = useGame((s) => s.streak);
   const last = useGame((s) => s.clockIns[0]);
   const sgt = useUi((s) => s.sgt);
+  const sgtChecked = useUi((s) => s.sgtChecked);
   const say = useUi((s) => s.say);
   const ledger = useUi((s) => s.chainLedger);
   const [busy, setBusy] = useState(false);
+  // Ticks so the button re-opens when the game day turns over with the app open.
+  useNow(30_000);
   const pop = useRef(new Animated.Value(0)).current;
   const stampV = useRef(new Animated.Value(0)).current;
   const [stampDay, setStampDay] = useState<number | null>(null);
@@ -50,7 +53,11 @@ function ClockIn() {
   const go = async () => {
     setBusy(true);
     try {
-      const r = await doClockIn(!!sgt);
+      // The Seeker x2 perk is a mainnet read; give it a moment to land so a
+      // Seeker owner is not paid the single rate (bounded, 5 s).
+      const t0 = Date.now();
+      while (!useUi.getState().sgtChecked && Date.now() - t0 < 5000) await new Promise((r) => setTimeout(r, 250));
+      const r = await doClockIn(!!useUi.getState().sgt);
       if (!r) { say('Already clocked in today'); return; }
       // The stamp: lands hard, holds, fades. The one moment a day this app
       // is allowed to be loud about itself.
@@ -67,7 +74,7 @@ function ClockIn() {
       pop.setValue(0);
       Animated.spring(pop, { toValue: 1, useNativeDriver: true, bounciness: 14 }).start();
       const bits = [`Day ${r.streak}`, `+${r.skr} SKR`];
-      if (r.chestTier) bits.push(r.chestStored ? `${CHESTS[r.chestTier as keyof typeof CHESTS].name}` : 'chest slots full');
+      if (r.chestTier) bits.push(r.chestQueued ? `${CHESTS[r.chestTier as keyof typeof CHESTS].name} waiting for a free slot` : `${CHESTS[r.chestTier as keyof typeof CHESTS].name}`);
       if (r.shieldsUsed) bits.push(`${r.shieldsUsed} shield used`);
       say(`${bits.join(' · ')}${r.sig ? ' · proof on devnet' : ''}`, 'ok');
     } catch (e) {
@@ -83,7 +90,7 @@ function ClockIn() {
         <View style={{ flex: 1 }}>
           <Display size={26}>Daily Clock-In</Display>
           <Body size={13} color={C.dimOnWood}>
-            {doneToday ? 'Clocked in. Come back tomorrow.' : state === 'lapsed' ? 'Streak lapsed — start a new one.' : 'One tap keeps your streak alive.'}
+            {doneToday ? `Clocked in. Next day starts at ${rolloverLabel()}.` : state === 'lapsed' ? 'Streak lapsed — start a new one.' : `One tap keeps your streak alive. Day resets at ${rolloverLabel()}.`}
           </Body>
         </View>
         <Animated.View style={[st.streakBadge, { transform: [{ scale: pop.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.25, 1] }) }] }]}>
@@ -108,7 +115,7 @@ function ClockIn() {
 
       <Btn
         label={doneToday ? 'CLOCKED IN ✓' : 'CLOCK IN'}
-        sub={doneToday ? undefined : `Day ${ladderDay} reward · signed on Solana devnet`}
+        sub={doneToday ? undefined : !sgtChecked && busy ? 'checking Seeker perk…' : `Day ${ladderDay} reward · signed on Solana devnet`}
         size="lg"
         tone={doneToday ? 'ghost' : 'gold'}
         disabled={doneToday}
@@ -161,6 +168,27 @@ function ClockIn() {
         </View>
       ) : null}
     </Panel>
+  );
+}
+
+/** Chests earned while all four slots were full: none are lost, they wait here. */
+function Waiting() {
+  const pending = useGame((s) => s.pending);
+  const delivered = useGame((s) => s.lastDelivered);
+  const say = useUi((s) => s.say);
+  useEffect(() => {
+    if (delivered.length) say(`A waiting chest moved into your rail`, 'ok');
+  }, [delivered, say]);
+  if (!pending.length) return null;
+  const names = pending.map((p) => CHESTS[p.tier].name);
+  return (
+    <View style={st.waiting} accessible accessibilityLabel={`${pending.length} chest${pending.length === 1 ? '' : 's'} waiting for a free slot`}>
+      <ChestArt tier={pending[0].tier} size={30} />
+      <View style={{ flex: 1 }}>
+        <Body size={12} bold color="#fff">{pending.length} waiting · slots full</Body>
+        <Body size={11} color={C.dim} numberOfLines={2}>{names.join(', ')}. Open a chest to make room; the next one moves in automatically.</Body>
+      </View>
+    </View>
   );
 }
 
@@ -227,7 +255,7 @@ function Quests() {
     <Well style={{ gap: 10 }}>
       <View style={st.rowBetween}>
         <Display size={18}>Daily quests</Display>
-        <Body size={11} color={C.dim}>new in {fmtHours(msToUtcMidnight())}</Body>
+        <Body size={11} color={C.dim}>new at {rolloverLabel()} · in {fmtHours(msToUtcMidnight())}</Body>
       </View>
       {QUESTS.map((q) => {
         const p = Math.min(q.goal, quests.progress[q.id]);
@@ -253,7 +281,7 @@ function Quests() {
                   setBusy(q.id);
                   try {
                     const r = await claimQuest(q.id);
-                    say(`+${r.skr} ${SKR_LABEL}${r.bonus ? ` · all done: ${CHESTS[r.bonus.tier].name}!` : ''}`, 'ok');
+                    say(`+${r.skr} ${SKR_LABEL}${r.bonus ? ` · all done: ${CHESTS[r.bonus.tier].name}${r.bonus.queued ? ' waiting for a free slot' : '!'}` : ''}`, 'ok');
                   } finally { setBusy(null); }
                 }}
               />
@@ -266,7 +294,7 @@ function Quests() {
         );
       })}
       <Body size={11} color={C.dim}>
-        {quests.bonusClaimed ? `All three done. ${CHESTS[QUEST_BONUS].name} earned — back tomorrow.` : `Finish all three for a ${CHESTS[QUEST_BONUS].name}. ${done}/3 done.`}
+        {quests.bonusClaimed ? `All three done. ${CHESTS[QUEST_BONUS].name} earned (see Chests) — back tomorrow.` : `Finish all three for a ${CHESTS[QUEST_BONUS].name}. ${done}/3 done.`}
       </Body>
     </Well>
   );
@@ -370,6 +398,7 @@ export function HomeScreen() {
             <Body size={11} color={C.dim}>Tap to unlock · one at a time</Body>
           </View>
           <Chests />
+          <Waiting />
         </Well>
       </Rise>
       <Rise delay={120}><Battle /></Rise>
@@ -412,6 +441,7 @@ const st = StyleSheet.create({
   modes: { flexDirection: 'row', gap: 8, marginBottom: 10 },
   mode: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 44, paddingVertical: 7, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.3)' },
   pressed: { transform: [{ scale: 0.97 }], opacity: 0.92 },
+  waiting: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,196,34,0.12)', borderRadius: 12, padding: 10, borderWidth: 1, borderColor: 'rgba(255,196,34,0.4)' },
   quest: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 },
   stampWrap: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   stamp: {

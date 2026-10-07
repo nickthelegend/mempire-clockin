@@ -11,7 +11,7 @@ import { SKR_LABEL, SKR_LIVE } from '../chain/skr';
 import { useGame } from '../state/game';
 import { useUi } from '../state/ui';
 import { useWallet, walletLabel } from '../wallet/wallet';
-import { haptic } from '../notify';
+import { cancelChestReminders, haptic } from '../notify';
 import { C, F, TIER_COLORS } from '../theme';
 import { Body, Btn, CardTile, ChestArt, Display, Panel, Tag, Well } from '../ui/kit';
 
@@ -113,9 +113,12 @@ export function ResultSheet() {
                 <ChestArt tier={r.chest} size={44} />
                 <Body color="#fff" bold>{CHESTS[r.chest].name}</Body>
               </View>
-              <Tag text="ADDED" color={C.gold} />
+              <Tag text={r.chestQueued ? 'WAITING' : 'ADDED'} color={C.gold} />
             </View>
-          ) : r.won ? <Body size={12} color={C.goldHi}>Chest slots full — open one to make room.</Body> : null}
+          ) : null}
+          {r.chestQueued || r.welcomeQueued ? (
+            <Body size={12} color={C.goldHi}>Chest slots are full, so it is waiting. Open a chest and it moves in automatically.</Body>
+          ) : null}
           {r.welcomeChest ? (
             <View style={[st.row, { marginTop: 8 }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -125,16 +128,16 @@ export function ResultSheet() {
                   <Body size={11} color={C.dimOnWood}>For finishing your first battle</Body>
                 </View>
               </View>
-              <Tag text="ADDED" color={C.gold} />
+              <Tag text={r.welcomeQueued ? 'WAITING' : 'ADDED'} color={C.gold} />
             </View>
           ) : null}
           <Body size={11} color={C.dimOnWood} style={{ marginTop: 6 }}>
             {r.plays} card{r.plays === 1 ? '' : 's'} deployed · counts toward today's quest
           </Body>
         </Panel>
-        {r.tutorial ? (
+        {r.tutorial && r.welcomeChest ? (
           <Body size={13} color="#fff" style={{ width: '88%', textAlign: 'center', marginTop: 14 }}>
-            {r.won ? 'First win! ' : ''}Start your welcome chest on Home, then clock in for today's reward.
+            {r.won ? 'First win! ' : ''}{r.welcomeQueued ? 'Your welcome chest is waiting for a free slot.' : 'Start your welcome chest on Home'}, then clock in for today's reward.
           </Body>
         ) : null}
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 18, width: '88%' }}>
@@ -198,7 +201,7 @@ export function WalletSheet() {
             <SoundSetting />
             <RendererSetting />
             <Btn label="REPLAY THE INTRO" tone="ghost" size="sm" onPress={() => { markFtue(false); setOpen(false); useUi.getState().setIntro(true); }} />
-            <Btn label="SIGN OUT" tone="ghost" size="sm" onPress={() => { setOpen(false); unload(); void disconnect(); }} />
+            <Btn label="SIGN OUT" tone="ghost" size="sm" onPress={() => { setOpen(false); void cancelChestReminders(address); unload(); void disconnect(); }} />
           </View>
         </Panel>
         </ScrollView>

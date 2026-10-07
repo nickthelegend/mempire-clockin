@@ -1,4 +1,4 @@
-import { Component, useEffect, useRef, type ReactNode } from 'react';
+import { Component, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator, Animated, AppState, BackHandler, Image, Linking, Pressable, StyleSheet, View,
 } from 'react-native';
@@ -19,7 +19,7 @@ import { useNet } from './src/state/net';
 import { Intro } from './src/screens/Intro';
 import { initSound } from './src/sound';
 import { reduceMotion, useCountUp, EASE_OUT } from './src/motion';
-import { dayKey } from './src/game/rules';
+import { streakState } from './src/game/rules';
 import { findSgtMint, mainnetSkr } from './src/chain/seeker';
 import { SKR_LIVE } from './src/chain/skr';
 import { readClockIns, short } from './src/chain/solana';
@@ -105,7 +105,11 @@ function TabBar() {
   const setTab = useUi((s) => s.setTab);
   const upgradable = useGame((s) => Object.values(s.cards)
     .some((c) => c.level < MAX_LEVEL && c.copies >= COPIES_TO_LEVEL[c.level]));
-  const chestReady = useGame((s) => s.chests.some((c) => c.unlockAt !== null && c.unlockAt <= Date.now()));
+  // Re-evaluated every 15 s: a timer finishing changes no store value.
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 15_000); return () => clearInterval(t); }, []);
+  const chests = useGame((s) => s.chests);
+  const chestReady = chests.some((c) => c.unlockAt !== null && c.unlockAt <= now);
   return (
     <View style={[st.tabs, { paddingBottom: Math.max(insets.bottom, 8) }]}>
       {TABS.map((t) => {
@@ -154,6 +158,8 @@ function Screens() {
   );
 }
 
+let initialUrlConsumed = false;
+
 function OfflineBanner() {
   const status = useNet((s) => s.status);
   const check = useNet((s) => s.check);
@@ -174,7 +180,7 @@ function Game() {
   useEffect(() => {
     const sync = () => {
       const st = useGame.getState().streak;
-      ensureStreakReminder(st.lastDay === dayKey(), st.count);
+      ensureStreakReminder(streakState(st), st.count);
     };
     sync();
     const unsub = useGame.subscribe((s, prev) => { if (s.streak !== prev.streak) sync(); });
@@ -204,7 +210,12 @@ function Game() {
       if (r === 'native' || r === 'web') m.renderer = r;
       if (!useUi.getState().battle) useUi.getState().openBattle(m);
     };
-    void Linking.getInitialURL().then(open);
+    // The launch URL is consumed once per process; a sign-out/sign-in or an
+    // error-boundary retry must not replay it.
+    if (!initialUrlConsumed) {
+      initialUrlConsumed = true;
+      void Linking.getInitialURL().then(open);
+    }
     const sub = Linking.addEventListener('url', (e) => open(e.url));
     return () => sub.remove();
   }, []);
@@ -253,15 +264,24 @@ function Root() {
   // phone), adopt the latest signed Clock-In memo.
   const adoptChainStreak = useGame((s) => s.adoptChainStreak);
   const setChainLedger = useUi((s) => s.setChainLedger);
-  useEffect(() => {
-    if (!address || loadedFor !== address) return;
+  const readLedger = useCallback(() => {
+    if (!address || useGame.getState().address !== address) return;
+    if (Array.isArray(useUi.getState().chainLedger)) return; // read once per session
     void readClockIns(address).then((list) => {
+      if (useWallet.getState().address !== address) return;
       setChainLedger(list);
       if (list[0] && adoptChainStreak(list[0])) {
-        useUi.getState().say(`Streak restored from Solana: day ${list[0].streak}`, 'ok');
+        useUi.getState().say(`Streak restored from Solana: day ${useGame.getState().streak.count}`, 'ok');
       }
-    }).catch(() => setChainLedger(null));
-  }, [address, loadedFor, adoptChainStreak, setChainLedger]);
+    }).catch(() => setChainLedger(null)); // retried on resume and on the 45 s poll
+  }, [address, adoptChainStreak, setChainLedger]);
+  useEffect(() => {
+    if (!address || loadedFor !== address) return undefined;
+    setChainLedger(undefined);
+    readLedger();
+    const t = setInterval(readLedger, 45_000);
+    return () => clearInterval(t);
+  }, [address, loadedFor, readLedger, setChainLedger]);
 
   // Seeker perks are a mainnet *read* for a real wallet; a dev key never has one.
   useEffect(() => {
@@ -274,10 +294,10 @@ function Root() {
   // Coming back to the app is when balances and chest timers matter.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => {
-      if (s === 'active') { void refresh(); void useNet.getState().check(); useGame.getState().refreshQuests(); }
+      if (s === 'active') { void refresh(); void useNet.getState().check(); useGame.getState().refreshQuests(); readLedger(); }
     });
     return () => sub.remove();
-  }, [refresh]);
+  }, [refresh, readLedger]);
 
   if (restoring) return <Loading />;
   return (
