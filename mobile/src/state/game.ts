@@ -2,8 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import {
   QUESTS, QUEST_BONUS, freshQuests, utcDayKey, type QuestId, type QuestState,
-  BY_TICKER, CHESTS, CHEST_SLOTS, COPIES_TO_LEVEL, MAX_LEVEL, STARTER_DECK, STARTER_POOL,
-  clockIn, dayKey, rewardFor, rollChest, winChestTier,
+  BY_TICKER, CHESTS, COPIES_TO_LEVEL, MAX_LEVEL, STARTER_DECK, STARTER_POOL,
+  clockIn, dayKey, mergeChainStreak, rewardFor, rollChest, winChestTier,
   type ChestTier, type ClockInOutcome, type DayReward, type Drop, type OwnedCard, type Streak,
 } from '../game/rules';
 
@@ -15,13 +15,11 @@ import {
  * the chain is the authority for — SOL and stand-in SKR balances come from
  * the wallet store, and each Clock-In's proof is its devnet signature.
  */
-export interface Chest {
-  id: string;
-  tier: ChestTier;
-  /** null until the player starts the timer; then the time it opens. */
-  unlockAt: number | null;
-  source: 'win' | 'clockin' | 'shop' | 'quest' | 'welcome';
-}
+import { drainPending, placeChest, type Chest, type PendingChest } from '../game/inbox';
+export type { Chest } from '../game/inbox';
+
+/** What granting a chest did: it is in a slot, or waiting in the inbox (never lost). */
+export interface Grant { tier: ChestTier; chest: Chest | null; queued: boolean }
 
 export interface BattleRecord {
   at: number;
@@ -50,6 +48,8 @@ interface Save {
   cards: Record<string, OwnedCard>;
   deck: string[];
   chests: Chest[];
+  /** Chests earned while the rail was full; delivered as slots free. */
+  pending: PendingChest[];
   nextChestId: number;
   streak: Streak;
   /** Simulated SKR, used only while the devnet stand-in mint is not deployed. */
@@ -71,6 +71,7 @@ const fresh = (): Save => ({
   cards: Object.fromEntries(STARTER_POOL.map((t) => [t, { level: 1, copies: 0 }])),
   deck: [...STARTER_DECK],
   chests: [{ id: 'chest_1', tier: 'silver', unlockAt: null, source: 'clockin' }],
+  pending: [],
   nextChestId: 2,
   streak: { count: 0, best: 0, lastDay: 0, shields: 0 },
   skrSim: 0,
@@ -92,7 +93,8 @@ interface GameState extends Save {
   load: (address: string) => Promise<void>;
   unload: () => void;
 
-  addChest: (tier: ChestTier, source: Chest['source']) => Chest | null;
+  /** Grant a chest: into a free slot, else into the inbox. Never dropped. */
+  grant: (tier: ChestTier, source: Chest['source']) => Grant;
   startUnlock: (id: string) => Chest | null;
   finishUnlock: (id: string) => void;
   openChest: (id: string) => Drop[] | null;
@@ -104,13 +106,13 @@ interface GameState extends Save {
   /** Compute today's Clock-In without committing it. */
   previewClockIn: (seeker: boolean) => { outcome: ClockInOutcome; reward: DayReward } | null;
   /** Commit today's Clock-In and pay its rewards. */
-  commitClockIn: (seeker: boolean, proof: { sig?: string; offlineReason?: string }) =>
-    { outcome: ClockInOutcome; reward: DayReward; chest: Chest | null } | null;
+  commitClockIn: (seeker: boolean, proof: { sig?: string; offlineReason?: string }, day?: number) =>
+    { outcome: ClockInOutcome; reward: DayReward; chest: Grant | null } | null;
 
   addSkrSim: (n: number) => void;
   spendSkrSim: (n: number) => boolean;
   addShield: () => void;
-  recordBattle: (b: Omit<BattleRecord, 'at' | 'trophyDelta'>) => { record: BattleRecord; chest: Chest | null };
+  recordBattle: (b: Omit<BattleRecord, 'at' | 'trophyDelta'>) => { record: BattleRecord; chest: Grant | null };
   noteCoachRun: () => void;
   /** Roll the quest board over if the UTC day changed. */
   refreshQuests: () => void;
@@ -118,14 +120,16 @@ interface GameState extends Save {
   /** Mark a finished quest claimed; returns its SKR reward, or 0. */
   claimQuest: (id: QuestId) => number;
   /** All three claimed → bonus chest (once per day). */
-  claimQuestBonus: () => Chest | null;
+  claimQuestBonus: () => Grant | null;
   /** Pay the welcome chest once; null if already paid or slots are full. */
-  grantWelcome: () => Chest | null;
+  grantWelcome: () => Grant | null;
   /**
    * Restore the streak from the chain's Clock-In memos when they are ahead of
    * this device (a reinstall, a second phone). The chain is the record.
    */
   adoptChainStreak: (latest: { day: number; streak: number }) => boolean;
+  /** Ids of chests that just moved from the inbox into a slot (for a toast). */
+  lastDelivered: string[];
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -147,10 +151,12 @@ export const useGame = create<GameState>((set, get) => {
     const { address } = get();
     if (!address) return;
     if (saveTimer) clearTimeout(saveTimer);
+    // Snapshot now, write later: a sign-out or wallet switch inside the
+    // debounce window must not write one wallet's state under another's key.
+    const s = get();
     saveTimer = setTimeout(() => {
-      const s = get();
       const save: Save = {
-        v: 1, cards: s.cards, deck: s.deck, chests: s.chests, nextChestId: s.nextChestId,
+        v: 1, cards: s.cards, deck: s.deck, chests: s.chests, pending: s.pending, nextChestId: s.nextChestId,
         streak: s.streak, skrSim: s.skrSim, trophies: s.trophies, wins: s.wins, losses: s.losses,
         draws: s.draws, history: s.history.slice(0, 50), clockIns: s.clockIns.slice(0, 120),
         coachRuns: s.coachRuns, quests: s.quests, welcomed: s.welcomed,
@@ -166,26 +172,39 @@ export const useGame = create<GameState>((set, get) => {
     loaded: false,
 
     load: async (address) => {
+      if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
       const raw = await AsyncStorage.getItem(keyFor(address)).catch(() => null);
       let save = fresh();
-      if (raw) {
-        try { save = { ...save, ...(JSON.parse(raw) as Save) }; } catch { /* corrupt save → fresh */ }
+      try {
+        if (raw) save = { ...save, ...(JSON.parse(raw) as Save) };
+        if (!save.quests || save.quests.day !== utcDayKey()) save.quests = freshQuests();
+        if (!Array.isArray(save.pending)) save.pending = [];
+        if (!Array.isArray(save.chests)) save.chests = [];
+        // Drop anything the roster no longer has, so a stale save cannot crash a screen.
+        save.cards = Object.fromEntries(Object.entries(save.cards ?? {}).filter(([t]) => BY_TICKER.has(t)));
+        if (!Array.isArray(save.deck) || save.deck.length !== 8 || save.deck.some((t) => !save.cards[t])) {
+          save.deck = [...STARTER_DECK];
+          for (const t of STARTER_DECK) save.cards[t] ??= { level: 1, copies: 0 };
+        }
+      } catch {
+        save = fresh(); // a malformed save must never strand the player on Loading
       }
-      if (!save.quests || save.quests.day !== utcDayKey()) save.quests = freshQuests();
-      // Drop anything the roster no longer has, so a stale save cannot crash a screen.
-      save.cards = Object.fromEntries(Object.entries(save.cards).filter(([t]) => BY_TICKER.has(t)));
-      if (save.deck.length !== 8 || save.deck.some((t) => !save.cards[t])) save.deck = [...STARTER_DECK];
-      set({ ...save, address, loaded: true });
+      const { rail } = drainPending({ chests: save.chests, pending: save.pending, nextChestId: save.nextChestId });
+      set({ ...save, ...rail, address, loaded: true, lastDelivered: [] });
     },
 
-    unload: () => set({ ...fresh(), address: null, loaded: false }),
+    unload: () => {
+      if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+      set({ ...fresh(), address: null, loaded: false, lastDelivered: [] });
+    },
 
-    addChest: (tier, source) => {
+    lastDelivered: [],
+
+    grant: (tier, source) => {
       const s = get();
-      if (s.chests.length >= CHEST_SLOTS) return null;
-      const chest: Chest = { id: `chest_${s.nextChestId}`, tier, unlockAt: null, source };
-      put({ chests: [...s.chests, chest], nextChestId: s.nextChestId + 1 });
-      return chest;
+      const placed = placeChest({ chests: s.chests, pending: s.pending, nextChestId: s.nextChestId }, tier, source);
+      put({ ...placed.rail });
+      return { tier, chest: placed.chest, queued: placed.queued };
     },
 
     startUnlock: (id) => {
@@ -210,7 +229,11 @@ export const useGame = create<GameState>((set, get) => {
       const c = s.chests.find((x) => x.id === id);
       if (!c || c.unlockAt === null || c.unlockAt > Date.now()) return null;
       const drops = rollChest(c.tier, s.cards);
-      put({ chests: s.chests.filter((x) => x.id !== id), cards: applyDrops(s.cards, drops) });
+      // The freed slot goes to the oldest chest waiting in the inbox.
+      const { rail, delivered } = drainPending({
+        chests: s.chests.filter((x) => x.id !== id), pending: s.pending, nextChestId: s.nextChestId,
+      });
+      put({ ...rail, cards: applyDrops(s.cards, drops), lastDelivered: delivered.map((d) => d.id) });
       return drops;
     },
 
@@ -246,8 +269,10 @@ export const useGame = create<GameState>((set, get) => {
       return { outcome, reward: rewardFor(outcome.streak.count, seeker) };
     },
 
-    commitClockIn: (seeker, proof) => {
-      const today = dayKey();
+    commitClockIn: (seeker, proof, day) => {
+      // The day the memo was built for, so an approval spanning midnight UTC
+      // records the same day the chain does.
+      const today = day ?? dayKey();
       const outcome = clockIn(get().streak, today);
       if (!outcome) return null;
       const reward = rewardFor(outcome.streak.count, seeker);
@@ -258,7 +283,7 @@ export const useGame = create<GameState>((set, get) => {
           sig: proof.sig, offlineReason: proof.offlineReason,
         }, ...get().clockIns],
       });
-      const chest = reward.chest ? get().addChest(reward.chest, 'clockin') : null;
+      const chest = reward.chest ? get().grant(reward.chest, 'clockin') : null;
       return { outcome, reward, chest };
     },
 
@@ -281,7 +306,7 @@ export const useGame = create<GameState>((set, get) => {
         losses: s.losses + (!b.won && !b.draw ? 1 : 0),
         draws: s.draws + (b.draw ? 1 : 0),
       });
-      const chest = b.won ? get().addChest(winChestTier(), 'win') : null;
+      const chest = b.won ? get().grant(winChestTier(), 'win') : null;
       return { record, chest };
     },
 
@@ -308,25 +333,22 @@ export const useGame = create<GameState>((set, get) => {
     },
     grantWelcome: () => {
       if (get().welcomed) return null;
-      const c = get().addChest('golden', 'welcome');
-      if (c) put({ welcomed: true });
-      return c;
+      const g = get().grant('golden', 'welcome'); // slot or inbox: either way it is delivered
+      put({ welcomed: true });
+      return g;
     },
     claimQuestBonus: () => {
       const q = get().quests;
       if (q.bonusClaimed || !QUESTS.every((x) => q.claimed[x.id])) return null;
-      put({ quests: { ...q, bonusClaimed: true } });
-      return get().addChest(QUEST_BONUS, 'quest');
+      const g = get().grant(QUEST_BONUS, 'quest');
+      put({ quests: { ...get().quests, bonusClaimed: true } });
+      return g;
     },
 
     adoptChainStreak: (latest) => {
-      const st = get().streak;
-      if (latest.day <= st.lastDay) return false;
-      put({
-        streak: {
-          ...st, count: latest.streak, lastDay: latest.day, best: Math.max(st.best, latest.streak),
-        },
-      });
+      const merged = mergeChainStreak(get().streak, latest);
+      if (!merged) return false;
+      put({ streak: merged });
       return true;
     },
   };

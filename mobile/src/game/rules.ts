@@ -82,14 +82,31 @@ export function winChestTier(): ChestTier {
 
 // ── the daily Clock-In ─────────────────────────────────────────────────────
 
-/** Local calendar day as YYYYMMDD — the unit a streak is counted in. */
+/**
+ * The game day, YYYYMMDD in **UTC** — the one day definition for the streak,
+ * the Clock-In button, the on-chain memo and the daily quests. Everyone's day
+ * turns over at 00:00 UTC (05:30 in India, 20:00 the day before in New York),
+ * and the UI states that time in the player's local clock.
+ */
 export function dayKey(d = new Date()): number {
-  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
 }
 
+const keyToUtcMs = (k: number) => Date.UTC(Math.floor(k / 10000), Math.floor((k % 10000) / 100) - 1, k % 100);
+
 export function daysBetween(a: number, b: number): number {
-  const toDate = (k: number) => new Date(Math.floor(k / 10000), Math.floor((k % 10000) / 100) - 1, k % 100);
-  return Math.round((toDate(b).getTime() - toDate(a).getTime()) / 86_400_000);
+  return Math.round((keyToUtcMs(b) - keyToUtcMs(a)) / 86_400_000);
+}
+
+/** The next game-day rollover (00:00 UTC) as a local Date. */
+export function nextRollover(d = new Date()): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1));
+}
+
+/** "05:30" — when the game day turns over, in the device's local time. */
+export function rolloverLabel(d = new Date()): string {
+  const r = nextRollover(d);
+  return `${String(r.getHours()).padStart(2, '0')}:${String(r.getMinutes()).padStart(2, '0')}`;
 }
 
 export interface Streak {
@@ -115,6 +132,8 @@ export interface ClockInOutcome {
  */
 export function clockIn(s: Streak, today = dayKey()): ClockInOutcome | null {
   if (s.lastDay === today) return null; // already clocked in
+  // A clock moved backwards (manual change) must not mint an extra Clock-In.
+  if (s.lastDay && today < s.lastDay) return null;
   if (!s.lastDay) {
     const streak = { ...s, count: 1, best: Math.max(s.best, 1), lastDay: today };
     return { streak, shieldsUsed: 0, broke: false };
@@ -139,7 +158,7 @@ export function clockIn(s: Streak, today = dayKey()): ClockInOutcome | null {
 /** Is the streak at risk right now (clocked in yesterday, not yet today)? */
 export function streakState(s: Streak, today = dayKey()): 'done' | 'due' | 'lapsed' | 'new' {
   if (!s.lastDay) return 'new';
-  if (s.lastDay === today) return 'done';
+  if (s.lastDay >= today) return 'done';
   const missed = daysBetween(s.lastDay, today) - 1;
   if (missed <= 0) return 'due';
   return missed <= s.shields ? 'due' : 'lapsed';
@@ -215,10 +234,8 @@ export const STARTER_DECK = ['ETH', 'WIF', 'BTC', 'DOGE', 'SOL', 'BONK', 'POPCAT
 
 // ── daily quests ────────────────────────────────────────────────────────────
 
-/** UTC calendar day as YYYYMMDD — quests reset at UTC midnight for everyone. */
-export function utcDayKey(d = new Date()): number {
-  return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
-}
+/** Quests use the same game day as the streak (UTC). Kept as a name for clarity. */
+export const utcDayKey = dayKey;
 
 /** Milliseconds until the next UTC midnight. */
 export function msToUtcMidnight(d = new Date()): number {
@@ -248,3 +265,30 @@ export const freshQuests = (day = utcDayKey()): QuestState => ({
   claimed: { clockin: false, win: false, deploy: false },
   bonusClaimed: false,
 });
+
+// ── chain streak merge ──────────────────────────────────────────────────────
+
+/**
+ * Reconcile the device's streak with the newest signed Clock-In memo read from
+ * chain. The chain wins whenever it knows more:
+ *  - a later day than the device has (reinstall, second phone);
+ *  - the same day with a higher count;
+ *  - the day *before* the device's last Clock-In, when the device restarted
+ *    the count (it clocked in before the chain read landed): the device's
+ *    Clock-In continues the chain, so the count is chain + 1.
+ * Returns the merged streak, or null when the device is already right.
+ */
+export function mergeChainStreak(local: Streak, chain: { day: number; streak: number }): Streak | null {
+  if (!chain.day || chain.streak < 1) return null;
+  if (chain.day > local.lastDay) {
+    return { ...local, count: chain.streak, lastDay: chain.day, best: Math.max(local.best, chain.streak) };
+  }
+  if (chain.day === local.lastDay && chain.streak > local.count) {
+    return { ...local, count: chain.streak, best: Math.max(local.best, chain.streak) };
+  }
+  if (local.lastDay && daysBetween(chain.day, local.lastDay) === 1 && local.count < chain.streak + 1) {
+    const count = chain.streak + 1;
+    return { ...local, count, best: Math.max(local.best, count) };
+  }
+  return null;
+}
