@@ -1,85 +1,108 @@
-# Solana dApp Store listing.
+# Mempire: Solana dApp Store listing (source of truth for the Publisher Portal form)
 #
-# Publishing is three NFTs minted on mainnet-beta — a Publisher, an App, and a
-# Release — using `@solana-mobile/dapp-store-cli`. They are minted once and
-# referenced forever, so the addresses this produces belong in DEPLOY.md the
-# moment they exist.
+# HOW PUBLISHING WORKS NOW (checked Oct 7, 2026; see clockin/store/STORE-REQUIREMENTS.md)
+#   * New apps are created in the Publisher Portal, https://publish.solanamobile.com
+#     (KYC/KYB, a publisher wallet with about 0.2 SOL, ArDrive storage). No CLI step creates them.
+#   * Updates go through @solana-mobile/dapp-store-cli 1.0.1:
+#       dapp-store --apk-file <apk> --keypair <signer.json> --whats-new "..."
+#     That CLI does not read this file. The old 0.x `create publisher|app|release` flow that used
+#     this YAML is legacy.
+#   * This file keeps the old schema so the listing stays structured and diffable. Copy each field
+#     into the portal form. Step-by-step: clockin/store/PUBLISH.md
 #
-#   npx dapp-store create publisher -k <PUBLISHER_KEYPAIR>
-#   npx dapp-store create app       -k <PUBLISHER_KEYPAIR>
-#   npx dapp-store create release   -k <PUBLISHER_KEYPAIR> -b <ANDROID_SDK_BUILD_TOOLS>
-#   npx dapp-store publish submit   -k <PUBLISHER_KEYPAIR> --requestor-is-authorized
-#
-# The APK referenced below must be the *signed release* build. Every future
-# release has to carry the same signing key — Android identifies an app by its
-# signature, so a lost keystore means a new listing and every install stranded.
+# Fields marked FILL IN are the publisher's to complete. Never guess a legal identity here.
+# Paths are relative to this file.
 
 publisher:
-  name: Mempire
-  address: ""            # filled in by `dapp-store create publisher`
+  name: "<PUBLISHER_LEGAL_NAME>"      # FILL IN, exactly as verified in the portal's KYC/KYB
+  address: ""                         # the publisher wallet's address (public key only, never a secret)
   website: https://mempire.fun
-  email: niveshgajengi@gmail.com
+  email: "<SUPPORT_EMAIL>"            # FILL IN, an address you will read; review results arrive here
   media:
     - purpose: icon
-      uri: ./assets/icon.png
+      uri: ../../clockin/store/icon-512.png
 
 app:
-  name: Mempire
-  address: ""            # filled in by `dapp-store create app`
-  android_package: fun.mempire.app
+  name: Mempire                       # portal limit: 25 characters
+  address: ""                         # App NFT; the portal mints it. Record it in DEPLOY.md
+  android_package: fun.mempire.app    # must match the APK (aapt2 dump badging)
+  category: games                     # requested; the docs suggest Solana Mobile assigns it at review
   urls:
-    license_url: https://mempire.fun/terms
-    copyright_url: https://mempire.fun
-    privacy_policy_url: https://mempire.fun/privacy
     website: https://mempire.fun
+    privacy_policy_url: https://mempire.fun/privacy   # FILL IN: returns 404 today; host clockin/store/PRIVACY.md here
+    license_url: https://mempire.fun/terms            # FILL IN: returns 404 today; the repo has no LICENSE file
+    copyright_url: https://mempire.fun
   media:
     - purpose: icon
-      uri: ./assets/icon.png
+      uri: ../../clockin/store/icon-512.png
 
 release:
-  address: ""            # filled in by `dapp-store create release`
+  address: ""                         # Release NFT; the portal mints it on "New Version"
+  version_name: "1.2.0"               # bump for the store build (see PUBLISH.md step 0); must match app.json
+  version_code: 4                     # the judges' APK is 4, so the store build needs 5 or more
   media:
     - purpose: icon
-      uri: ./assets/icon.png
-    # Screenshots are required and must be real captures of the running app,
-    # not renders. Take them from the device, not the emulator — the emulator
-    # software-renders WebGL and the arena looks nothing like it does on glass.
+      uri: ../../clockin/store/icon-512.png
+    - purpose: banner                 # 1200x600, required by the portal
+      uri: ../../clockin/store/banner-1200x600.png
+    - purpose: featureGraphic         # 1200x1200, only the legacy CLI used it
+      uri: ../../clockin/store/feature-1200x1200.png
+    # dApp Preview: the portal wants 1080x2400, at least 4, jpg/png/webp up to 3 MB each.
     - purpose: screenshot
-      uri: ./assets/screenshots/arena.png
+      uri: ../../clockin/store/screenshots/01-arena.png
     - purpose: screenshot
-      uri: ./assets/screenshots/cards.png
+      uri: ../../clockin/store/screenshots/02-clock-in.png
     - purpose: screenshot
-      uri: ./assets/screenshots/battle.png
+      uri: ../../clockin/store/screenshots/03-battle.png
+    - purpose: screenshot
+      uri: ../../clockin/store/screenshots/04-ai-coach.png
+    - purpose: screenshot
+      uri: ../../clockin/store/screenshots/05-chests.png
+    - purpose: screenshot
+      uri: ../../clockin/store/screenshots/06-devnet.png
   files:
+    # Release-signed with the Mempire key (CN=Mempire, cert SHA-256 510a32d6…3d943), never the debug key.
+    # `npm run apk` writes it here; the keystore lives outside the repo (PUBLISH.md step 1).
     - purpose: install
-      uri: ../android/app/build/outputs/apk/release/app-release.apk
+      uri: "/Volumes/Extreme SSD/Projects/clockin/apks/mempire-clockin.apk"
   catalog:
     en-US:
       name: Mempire
-      short_description: Battle with the meme coins you actually hold.
-      long_description: >
-        Mempire turns your bags into an army. Mint a card from any coin in your
-        wallet, stake tokens behind it to set its power, and take it into a
-        real-time three-minute duel for a SOL pot.
+      short_description: Every coin is a fighter        # 23 of 30 characters
+      long_description: |
+        Mempire is a real-time card battler for Solana Seeker where every coin is a fighter.
 
-        Matches run as a deterministic lockstep simulation on both phones at
-        twenty ticks a second, with the match log committed to a MagicBlock
-        ephemeral rollup and settled on Solana. Chest tiers come from an
-        on-chain VRF oracle, and the randomness that produced each one is
-        stored so anyone can re-derive it.
+        Build a deck of eight from a 64-fighter roster, drag cards onto your half of a 3D arena, and take the rival's towers before the clock runs out.
 
-        Devnet only. No real funds move.
-      new_in_version: First release.
-      saga_features: >
-        Connects through Mobile Wallet Adapter — no seed phrase, no extension.
-        Notifies you when a chest finishes even when the app is closed.
+        • Daily Clock-In: one tap a day keeps your streak alive. A 7-day ladder pays out chests and SKR, with a Legendary chest on day 7. Each Clock-In is a memo transaction you sign on Solana devnet, so your streak can be rebuilt from the chain after a reinstall.
+        • Battles: Standard (3:00) or Rush (0:30) against four AI rival decks, on the game's own deterministic battle engine, rendered natively in 3D.
+        • Chests: win a battle, earn a chest. One unlocks at a time, and a notification tells you when it is ready. Duplicates level your fighters up.
+        • Daily quests and a streak reminder before midnight.
+        • AI Coach on your phone: it plays your deck against every rival with the real battle engine (24 simulated matches), shows where you lose, and finds the one card swap that wins more. No server and no chatbot; nothing leaves the device.
+        • SKR you earn by showing up: spend it on a Streak Shield, a Seeker Chest or a Rush Unlock. You can never pay for power. Seeker Genesis Token holders earn double.
+        • Mobile Wallet Adapter: connect Seed Vault or any MWA wallet. Mempire never asks for a seed phrase.
+
+        Be aware: this is a devnet build and no real funds move. SKR is simulated on your device until the devnet SKR stand-in is deployed, and every SKR balance says so. The Seeker Genesis Token check and your real SKR balance are read-only lookups on mainnet.
+      new_in_version: |
+        • First-run intro and a guided first battle.
+        • Daily quests and a Clock-In stamp.
+        • Sound effects and battle music, with one mute toggle.
+        • An evening reminder before your streak lapses.
+        • Challenge a friend from the share sheet.
+        • Larger text support, bigger touch targets, clearer offline and empty states.
+        • New app icon and splash.
+      saga_features: |
+        Signs in with Mobile Wallet Adapter, so Seed Vault approves every transaction and there is no seed phrase in the app. Seeker Genesis Token holders earn double SKR on each daily Clock-In. Chest and streak reminders are local notifications.
       images: []
 
 solana_mobile_dapp_publisher_portal:
-  google_store_package: fun.mempire.app
+  # Mempire is not on Google Play, so there is no Play package to link.
   testing_instructions: >
-    Tap Connect Wallet and choose Phantom, or Play as Guest to skip the wallet
-    entirely. Claim the starter bags on the Cards tab — this hands the wallet
-    0.35 devnet SOL and eight coins. Mint a deck from the Arena button, then
-    queue a Ranked match; the stake escrows on chain and the pot settles to the
-    winner. Everything is devnet and no real funds move.
+    Install and open Mempire. Tap Connect Wallet to use Mobile Wallet Adapter
+    (Seed Vault, Phantom or Solflare on devnet), or Use dev wallet for a
+    devnet-only key kept on the device. On Home, tap Clock In: with devnet SOL in
+    the wallet this signs a memo transaction; without it, the Clock-In is kept on
+    the device and labelled "Not on-chain". Tap Battle and pick a rival (Rush is
+    30 seconds); drag cards onto your half of the arena. Open AI Coach to run the
+    on-device scouting report. The Shop spends simulated SKR. Everything is
+    devnet: no real funds move.
