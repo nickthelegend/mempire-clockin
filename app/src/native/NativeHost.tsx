@@ -5,6 +5,7 @@ import type { MatchCard } from '../sim/types';
 import { archetypeForMint } from '../sim/archetypes';
 import { traitForMint } from '../sim/traits';
 import { hashState } from '../sim/engine';
+import { setMuted } from '../lib/audio';
 
 /** One match per page load: returning to `/` after a match must not start another. */
 let startedOnce = false;
@@ -27,6 +28,8 @@ export interface NativeMatchSpec {
   rush?: boolean;
   /** Match seed chosen by the app, so a native-arena fallback replays the same match. */
   seed?: number;
+  /** The app's sound setting; the arena follows it. */
+  muted?: boolean;
 }
 
 declare global {
@@ -84,6 +87,7 @@ export function NativeHost() {
     startedOnce = true;
     const spec = BOOT_SPEC;
     if (!spec) { post({ channel: 'exit', reason: 'no match' }); return; }
+    if (typeof spec.muted === 'boolean') setMuted(spec.muted);
     // The page has booted and owns the screen: the shell can drop its cover.
     post({ channel: 'ready' });
     const err = startNativeMatch(toCards(spec.player), toCards(spec.bot), {
@@ -130,6 +134,7 @@ export function useNativeExit(): void {
         draw: !!s.result?.draw,
         crowns: s.result?.crowns ?? [0, 0],
         hashes: s.result?.hashes ?? 0,
+        plays: s.plays ?? 0,
         ticks: sim?.tick ?? 0,
         finalHash: sim ? (hashState(sim) >>> 0) : 0,
       });

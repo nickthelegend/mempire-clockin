@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { Component, useEffect, useRef, type ReactNode } from 'react';
 import {
-  Animated, AppState, BackHandler, Image, Linking, Pressable, StyleSheet, View,
+  ActivityIndicator, Animated, AppState, BackHandler, Image, Linking, Pressable, StyleSheet, View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,15 +14,20 @@ import {
 import { UI_ART } from './src/data/art';
 import { useWallet } from './src/wallet/wallet';
 import { useGame } from './src/state/game';
-import { loadRendererPref, useUi, type Tab } from './src/state/ui';
+import { ftueDone, loadRendererPref, useUi, type Tab } from './src/state/ui';
+import { useNet } from './src/state/net';
+import { Intro } from './src/screens/Intro';
+import { initSound } from './src/sound';
+import { reduceMotion, useCountUp, EASE_OUT } from './src/motion';
+import { dayKey } from './src/game/rules';
 import { findSgtMint, mainnetSkr } from './src/chain/seeker';
 import { SKR_LIVE } from './src/chain/skr';
 import { readClockIns, short } from './src/chain/solana';
 import { COPIES_TO_LEVEL, MAX_LEVEL } from './src/game/rules';
 import { prepareMatch } from './src/game/actions';
-import { ensureChannel, haptic } from './src/notify';
+import { ensureChannel, ensureStreakReminder, haptic } from './src/notify';
 import { C } from './src/theme';
-import { Body, Chip } from './src/ui/kit';
+import { Body, Btn, Chip, Display } from './src/ui/kit';
 import { ConnectScreen } from './src/screens/Connect';
 import { HomeScreen } from './src/screens/Home';
 import { CardsScreen } from './src/screens/Cards';
@@ -66,9 +71,11 @@ function Header() {
   const sgt = useUi((s) => s.sgt);
   const setWalletOpen = useUi((s) => s.setWalletOpen);
   const setTab = useUi((s) => s.setTab);
+  const shownTrophies = useCountUp(trophies);
+  const shownSkr = useCountUp(SKR_LIVE ? Math.floor(skr ?? 0) : skrSim);
   return (
     <View style={[st.header, { paddingTop: insets.top + 6 }]}>
-      <Pressable style={st.who} onPress={() => { haptic.tap(); setWalletOpen(true); }} accessibilityLabel="Wallet">
+      <Pressable style={({ pressed }) => [st.who, pressed && { opacity: 0.75 }]} onPress={() => { haptic.tap(); setWalletOpen(true); }} accessibilityRole="button" accessibilityLabel="Wallet and settings">
         <Image source={UI_ART.avatar_guest} style={st.avatar} />
         <View>
           <Body size={13} color="#fff" bold>{address ? short(address, 4) : '-'}</Body>
@@ -78,11 +85,11 @@ function Header() {
         </View>
       </Pressable>
       <View style={{ flexDirection: 'row', gap: 6 }}>
-        <Chip label="TROPHY" value={String(trophies)} color={C.gold} />
+        <Chip label="TROPHY" value={String(shownTrophies)} color={C.gold} />
         <Chip label="SOL" value={sol === null ? '…' : sol.toFixed(2)} color={C.bluePale} onPress={() => setWalletOpen(true)} tag="devnet" />
         <Chip
           label="SKR"
-          value={String(SKR_LIVE ? Math.floor(skr ?? 0) : skrSim)}
+          value={String(shownSkr)}
           color={C.skr}
           tag={SKR_LIVE ? 'stand-in' : 'sim'}
           onPress={() => setTab('shop')}
@@ -132,14 +139,14 @@ function Screens() {
   useEffect(() => {
     prev.current = tab;
     v.setValue(0);
-    Animated.timing(v, { toValue: 1, duration: 240, useNativeDriver: true }).start();
+    Animated.timing(v, { toValue: 1, duration: 220, easing: EASE_OUT, useNativeDriver: true }).start();
   }, [tab, v]);
   return (
     <Animated.View
       style={{
         flex: 1,
         opacity: v,
-        transform: [{ translateX: v.interpolate({ inputRange: [0, 1], outputRange: [24 * dir, 0] }) }],
+        transform: [{ translateX: v.interpolate({ inputRange: [0, 1], outputRange: [reduceMotion() ? 0 : 24 * dir, 0] }) }],
       }}
     >
       {tab === 'home' ? <HomeScreen /> : tab === 'cards' ? <CardsScreen /> : tab === 'deck' ? <DeckScreen /> : <ShopScreen />}
@@ -147,7 +154,33 @@ function Screens() {
   );
 }
 
+function OfflineBanner() {
+  const status = useNet((s) => s.status);
+  const check = useNet((s) => s.check);
+  if (status !== 'down') return null;
+  return (
+    <Pressable onPress={() => void check()} style={st.offline} accessibilityRole="button" accessibilityLabel="Devnet unreachable. Tap to retry.">
+      <Body size={12} bold color="#fff">Devnet is unreachable right now.</Body>
+      <Body size={11} color={C.dim}>Battles, chests and quests still work. On-chain actions wait. Tap to retry.</Body>
+    </Pressable>
+  );
+}
+
 function Game() {
+  const setIntro = useUi((s) => s.setIntro);
+  // First run: the intro opens once per device until finished or skipped.
+  useEffect(() => { void ftueDone().then((done) => { if (!done) setIntro(true); }); }, [setIntro]);
+  // Streak-at-risk reminder, re-evaluated whenever the app comes and goes.
+  useEffect(() => {
+    const sync = () => {
+      const st = useGame.getState().streak;
+      ensureStreakReminder(st.lastDay === dayKey(), st.count);
+    };
+    sync();
+    const unsub = useGame.subscribe((s, prev) => { if (s.streak !== prev.streak) sync(); });
+    const sub = AppState.addEventListener('change', (a) => { if (a === 'background') sync(); });
+    return () => { unsub(); sub.remove(); };
+  }, []);
   // Android back: from any tab, go Home first; only Home exits. Sheets and the
   // arena are Modals and get the back press through their onRequestClose.
   useEffect(() => {
@@ -178,6 +211,7 @@ function Game() {
   return (
     <View style={{ flex: 1 }}>
       <Header />
+      <OfflineBanner />
       <Screens />
       <TabBar />
       <CoachSheet />
@@ -186,6 +220,7 @@ function Game() {
       <ResultSheet />
       <RevealSheet />
       <WalletSheet />
+      <Intro />
     </View>
   );
 }
@@ -203,7 +238,11 @@ function Root() {
   useEffect(() => {
     void restore();
     void loadRendererPref();
+    void initSound();
+    void useNet.getState().check();
+    const t = setInterval(() => void useNet.getState().check(), 45_000);
     void ensureChannel();
+    return () => clearInterval(t);
   }, [restore]);
 
   useEffect(() => {
@@ -234,17 +273,49 @@ function Root() {
 
   // Coming back to the app is when balances and chest timers matter.
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (s) => { if (s === 'active') void refresh(); });
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') { void refresh(); void useNet.getState().check(); useGame.getState().refreshQuests(); }
+    });
     return () => sub.remove();
   }, [refresh]);
 
-  if (restoring) return null;
+  if (restoring) return <Loading />;
   return (
     <>
-      {address && loadedFor === address ? <Game /> : address ? null : <ConnectScreen />}
+      {address && loadedFor === address ? <Game /> : address ? <Loading /> : <ConnectScreen />}
       <Toast />
     </>
   );
+}
+
+function Loading() {
+  return (
+    <View style={st.loading} accessibilityLabel="Loading your empire">
+      <Image source={UI_ART.logo} style={{ width: 220, height: 80 }} resizeMode="contain" />
+      <ActivityIndicator color={C.gold} size="large" />
+    </View>
+  );
+}
+
+/** A render crash anywhere shows a way back instead of a white screen. */
+class AppBoundary extends Component<{ children: ReactNode }, { error: string | null; key: number }> {
+  state = { error: null as string | null, key: 0 };
+  static getDerivedStateFromError(e: unknown) { return { error: e instanceof Error ? e.message : String(e) }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <View style={st.loading}>
+          <Display size={28}>Something broke</Display>
+          <Body style={{ textAlign: 'center', paddingHorizontal: 30 }}>
+            Your cards, chests and streak are saved. Try again; if it keeps happening, restart the app.
+          </Body>
+          <Body size={11} color={C.dim} style={{ textAlign: 'center', paddingHorizontal: 30 }}>{this.state.error}</Body>
+          <Btn label="TRY AGAIN" onPress={() => this.setState((s) => ({ error: null, key: s.key + 1 }))} style={{ width: 220 }} />
+        </View>
+      );
+    }
+    return <View key={this.state.key} style={{ flex: 1 }}>{this.props.children}</View>;
+  }
 }
 
 export default function App() {
@@ -259,13 +330,15 @@ export default function App() {
     <SafeAreaProvider>
       <LinearGradient colors={[C.blueLit, C.blue, C.blueDeep]} style={{ flex: 1 }}>
         <StatusBar style="light" />
-        <Root />
+        <AppBoundary><Root /></AppBoundary>
       </LinearGradient>
     </SafeAreaProvider>
   );
 }
 
 const st = StyleSheet.create({
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 18 },
+  offline: { backgroundColor: '#7a2236', paddingHorizontal: 14, paddingVertical: 8, minHeight: 44, justifyContent: 'center' },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 12, paddingBottom: 8, backgroundColor: 'rgba(9,22,48,0.55)',
@@ -277,7 +350,7 @@ const st = StyleSheet.create({
     flexDirection: 'row', backgroundColor: C.woodDark, borderTopWidth: 3, borderTopColor: C.woodEdge,
     paddingTop: 6, paddingHorizontal: 6,
   },
-  tab: { flex: 1, alignItems: 'center', paddingVertical: 4, borderRadius: 12 },
+  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4, borderRadius: 12, minHeight: 56 },
   tabOn: { backgroundColor: 'rgba(255,196,34,0.18)' },
   dot: {
     position: 'absolute', top: 2, right: '28%', width: 10, height: 10, borderRadius: 5,

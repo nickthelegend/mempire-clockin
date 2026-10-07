@@ -212,3 +212,39 @@ export function rivalDeck(r: RivalDef, avgLevel: number): { ticker: string; mint
 export const STARTER_POOL = ['ETH', 'NVDA', 'WIF', 'GOAT', 'BTC', 'POPCAT', 'DOGE', 'SHIB', 'SOL', 'MSTR', 'BONK', 'PEPE'];
 /** The opening eight: one tank, swarm, ranged, splash, support and spell, plus two. */
 export const STARTER_DECK = ['ETH', 'WIF', 'BTC', 'DOGE', 'SOL', 'BONK', 'POPCAT', 'GOAT'];
+
+// ── daily quests ────────────────────────────────────────────────────────────
+
+/** UTC calendar day as YYYYMMDD — quests reset at UTC midnight for everyone. */
+export function utcDayKey(d = new Date()): number {
+  return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
+}
+
+/** Milliseconds until the next UTC midnight. */
+export function msToUtcMidnight(d = new Date()): number {
+  const next = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1);
+  return next - d.getTime();
+}
+
+export type QuestId = 'clockin' | 'win' | 'deploy';
+export const QUESTS: { id: QuestId; title: string; goal: number; skr: number }[] = [
+  { id: 'clockin', title: 'Clock in today', goal: 1, skr: 5 },
+  { id: 'win', title: 'Win a battle', goal: 1, skr: 10 },
+  { id: 'deploy', title: 'Deploy 10 cards', goal: 10, skr: 5 },
+];
+/** Finishing all three also drops a Silver Chest. */
+export const QUEST_BONUS: ChestTier = 'silver';
+
+export interface QuestState {
+  day: number;
+  progress: Record<QuestId, number>;
+  claimed: Record<QuestId, boolean>;
+  bonusClaimed: boolean;
+}
+
+export const freshQuests = (day = utcDayKey()): QuestState => ({
+  day,
+  progress: { clockin: 0, win: 0, deploy: 0 },
+  claimed: { clockin: false, win: false, deploy: false },
+  bonusClaimed: false,
+});

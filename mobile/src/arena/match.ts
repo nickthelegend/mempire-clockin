@@ -18,7 +18,7 @@ import { bindArenaStore } from '../../../app/src/three/arenaStore';
  */
 const TICK_MS = 50;
 
-export interface NativeResult { won: boolean; draw: boolean; crowns: [number, number]; ticks: number; finalHash: number }
+export interface NativeResult { won: boolean; draw: boolean; crowns: [number, number]; ticks: number; finalHash: number; plays: number }
 
 interface NativeMatchState {
   sim: SimState | null;
@@ -33,6 +33,8 @@ interface NativeMatchState {
   deployed: number;
   result: NativeResult | null;
   paused: boolean;
+  /** Cards the player has queued this match. */
+  plays: number;
 }
 
 export const useNativeMatch = create<NativeMatchState>(() => ({
@@ -46,6 +48,7 @@ export const useNativeMatch = create<NativeMatchState>(() => ({
   deployed: 0,
   result: null,
   paused: false,
+  plays: 0,
 }));
 bindArenaStore(useNativeMatch);
 
@@ -82,6 +85,7 @@ function finish(sim: SimState): void {
     crowns: crownsOf(sim, me),
     ticks: sim.tick,
     finalHash: hashState(sim) >>> 0,
+    plays: useNativeMatch.getState().plays,
   };
   useNativeMatch.setState({ result });
   onEnd?.(result);
@@ -144,7 +148,7 @@ export function startNativeArena(opts: {
   const sim = createMatch(opts.seed >>> 0, [opts.player, opts.bot], FORMATS[opts.rush ? 'rush' : 'standard']);
   useNativeMatch.setState({
     sim, perspective: 0, playerDeck: opts.player, botDeck: opts.bot,
-    version: 0, crowns: [0, 0], towerFell: null, deployed: 0, result: null, paused: false,
+    version: 0, crowns: [0, 0], towerFell: null, deployed: 0, result: null, paused: false, plays: 0,
   });
   startedAt = Date.now();
   loop = setInterval(tick, TICK_MS / 2);
@@ -158,6 +162,7 @@ export function playCard(deckIndex: number, xFp: number, yFp: number): boolean {
   const list = pending.get(ev.tick) ?? [];
   list.push(ev);
   pending.set(ev.tick, list);
+  useNativeMatch.setState((st) => ({ plays: st.plays + 1 }));
   return true;
 }
 

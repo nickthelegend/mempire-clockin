@@ -65,7 +65,8 @@
       "./plugins/withBundledWeb",
       "expo-secure-store",
       "expo-font",
-      "expo-asset"
+      "expo-asset",
+      "expo-audio"
     ],
     "extra": {
       "eas": {

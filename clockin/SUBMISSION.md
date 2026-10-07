@@ -35,7 +35,18 @@ fallback (see *Native 3D arena* below).
   decks, in the game's React Three Fiber arena on its deterministic
   fixed-point simulation.
 - **AI Coach.** Described below.
-- **Haptics everywhere**, plus animated transitions and chest reveals.
+- **First run.** A three-beat intro, then a guided 30-second first battle with
+  coach marks and a Golden welcome chest. A new player is in a match within a
+  minute.
+- **Daily quests.** Clock in, win a battle, deploy 10 cards. They reset at UTC
+  midnight and pay SKR; finishing all three adds a Silver chest.
+- **Reminders and sharing.** An evening reminder fires if today's Clock-In
+  hasn't happened, so the streak isn't lost. Any rival can be sent to a friend
+  as a link.
+- **Feel.** Haptics everywhere, a Clock-In "stamp", counters that tick up,
+  press states on every control, sound and music with a mute toggle, and
+  Reduce Motion respected. Text scales cleanly up to the largest standard
+  Dynamic Type size.
 
 ### Native 3D arena
 
@@ -59,7 +70,7 @@ fallback (see *Native 3D arena* below).
 
 ## Why Seeker users come back daily
 
-The session takes under a minute. You clock in to keep the streak (the
+The session takes under a minute: three daily quests on Home give it shape. You clock in to keep the streak (the
 notification arrives the evening before it would lapse), start a chest timer
 that will ping you, and play a 30-second Rush match. Day 7 is a Legendary chest.
 SKR earned from streaks buys **Streak Shields**, so the habit protects itself.

@@ -46,6 +46,23 @@ Also verified: the shared battle sim is deterministic (`npx tsx app/scripts/sim-
   dApp Store, must be signed with this key.
 - `apksigner` certificate: CN=Mempire, O=Mempire, C=IN; cert SHA-256 510a32d604173681a92bd6cb9c9b3809c4042c7d59a3fbbaf02316769fc3d943
 
+## Polish round (Oct 7, branch `polish`, merged)
+
+Before and after screenshots are in `clockin/screens/polish/`. Everything below was verified on the iPhone 17 simulator, except where it says otherwise.
+
+| Item | What shipped | Verified |
+|---|---|---|
+| First-run intro | Three slides, skippable, persisted (`mempire.ftue.v1`), replayable from Wallet & settings. | Yes. All three slides, and Replay. |
+| Guided first battle | Rush against the easiest rival. Coach marks (ghost finger from card to field, elixir, crowns) sit on top as a touch-through overlay in both arenas. A Golden welcome chest is granted once per player. | Yes, in both the web arena (auto on sim) and the native arena. The result sheet shows the welcome chest. |
+| Daily quests | Clock in, win 1, deploy 10. They reset at UTC midnight with a countdown. Claiming pays SKR (simulated until the stand-in is deployed). Finishing all three adds a Silver chest. | Clock-in quest went 0/1, then Claim, then +5 SKR (simulated), then Done. Deploy progress counted 2/10. |
+| Clock-In stamp | A "CLOCKED IN / DAY N" spring with heavy haptic and coin sound. The streak, trophy and SKR numbers count up. | Yes (screenshot). |
+| Sound | The game's SFX and battle music through expo-audio, following the silent switch, with a persisted mute in settings and in the arena HUD. The web arena follows it too. | The toggle and HUD control render. **The sim runs muted, so audio output was not heard or verified.** |
+| Chest reveal | The anticipation shake runs longer (~0.7 s, ease-in-out) before the burst, plus sound. Drops are staggered. | Same code path as the earlier verified reveal. Not re-filmed. |
+| Reminders | Streak-at-risk at 19:00 (or 21:30) if you haven't clocked in, otherwise tomorrow evening. Uses a fixed id, so reminders never stack. | Scheduling code path only. **Delivery was not observed.** |
+| Challenge a friend | System share sheet with `mempire://battle?rival=…` plus a play.mempire.fun fallback. On Home and on the result sheet. | Buttons render. The deep link itself was verified earlier. |
+| States | Branded loading, app-level error boundary with retry, devnet-unreachable banner (45 s poll, tap to retry), friendlier no-wallet state. | Loading and normal states were seen. **The offline banner and error boundary were not forced on the sim.** |
+| Accessibility | Dynamic Type capped at 1.3–1.35× and laid out to grow. 44 pt targets. State in a11y labels. Reduce Motion drops movement and keeps fades. | Checked at the largest non-accessibility Dynamic Type size, then fixed the streak-badge clip and the toggle/settings overflow (before and after screenshots). **Reduce Motion was not toggled on the sim.** |
+
 ## Native 3D arena (Oct 7, merged to main)
 
 The battle is no longer a WebView by default. `mobile/src/arena/NativeArena.tsx`

@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import {
+  QUESTS, QUEST_BONUS, freshQuests, utcDayKey, type QuestId, type QuestState,
   BY_TICKER, CHESTS, CHEST_SLOTS, COPIES_TO_LEVEL, MAX_LEVEL, STARTER_DECK, STARTER_POOL,
   clockIn, dayKey, rewardFor, rollChest, winChestTier,
   type ChestTier, type ClockInOutcome, type DayReward, type Drop, type OwnedCard, type Streak,
@@ -19,7 +20,7 @@ export interface Chest {
   tier: ChestTier;
   /** null until the player starts the timer; then the time it opens. */
   unlockAt: number | null;
-  source: 'win' | 'clockin' | 'shop';
+  source: 'win' | 'clockin' | 'shop' | 'quest' | 'welcome';
 }
 
 export interface BattleRecord {
@@ -60,6 +61,9 @@ interface Save {
   history: BattleRecord[];
   clockIns: ClockInRecord[];
   coachRuns: number;
+  quests: QuestState;
+  /** The welcome chest has been paid (once per player, even if the intro is replayed). */
+  welcomed?: boolean;
 }
 
 const fresh = (): Save => ({
@@ -77,6 +81,7 @@ const fresh = (): Save => ({
   history: [],
   clockIns: [],
   coachRuns: 0,
+  quests: freshQuests(),
 });
 
 const keyFor = (address: string) => `mempire.save.v1.${address}`;
@@ -107,6 +112,15 @@ interface GameState extends Save {
   addShield: () => void;
   recordBattle: (b: Omit<BattleRecord, 'at' | 'trophyDelta'>) => { record: BattleRecord; chest: Chest | null };
   noteCoachRun: () => void;
+  /** Roll the quest board over if the UTC day changed. */
+  refreshQuests: () => void;
+  progressQuest: (id: QuestId, by?: number) => void;
+  /** Mark a finished quest claimed; returns its SKR reward, or 0. */
+  claimQuest: (id: QuestId) => number;
+  /** All three claimed → bonus chest (once per day). */
+  claimQuestBonus: () => Chest | null;
+  /** Pay the welcome chest once; null if already paid or slots are full. */
+  grantWelcome: () => Chest | null;
   /**
    * Restore the streak from the chain's Clock-In memos when they are ahead of
    * this device (a reinstall, a second phone). The chain is the record.
@@ -139,7 +153,7 @@ export const useGame = create<GameState>((set, get) => {
         v: 1, cards: s.cards, deck: s.deck, chests: s.chests, nextChestId: s.nextChestId,
         streak: s.streak, skrSim: s.skrSim, trophies: s.trophies, wins: s.wins, losses: s.losses,
         draws: s.draws, history: s.history.slice(0, 50), clockIns: s.clockIns.slice(0, 120),
-        coachRuns: s.coachRuns,
+        coachRuns: s.coachRuns, quests: s.quests, welcomed: s.welcomed,
       };
       void AsyncStorage.setItem(keyFor(address), JSON.stringify(save));
     }, 250);
@@ -157,6 +171,7 @@ export const useGame = create<GameState>((set, get) => {
       if (raw) {
         try { save = { ...save, ...(JSON.parse(raw) as Save) }; } catch { /* corrupt save → fresh */ }
       }
+      if (!save.quests || save.quests.day !== utcDayKey()) save.quests = freshQuests();
       // Drop anything the roster no longer has, so a stale save cannot crash a screen.
       save.cards = Object.fromEntries(Object.entries(save.cards).filter(([t]) => BY_TICKER.has(t)));
       if (save.deck.length !== 8 || save.deck.some((t) => !save.cards[t])) save.deck = [...STARTER_DECK];
@@ -271,6 +286,38 @@ export const useGame = create<GameState>((set, get) => {
     },
 
     noteCoachRun: () => put({ coachRuns: get().coachRuns + 1 }),
+
+    refreshQuests: () => {
+      const today = utcDayKey();
+      if (get().quests?.day !== today) put({ quests: freshQuests(today) });
+    },
+    progressQuest: (id, by = 1) => {
+      get().refreshQuests();
+      const q = get().quests;
+      const goal = QUESTS.find((x) => x.id === id)!.goal;
+      if (q.progress[id] >= goal) return;
+      put({ quests: { ...q, progress: { ...q.progress, [id]: Math.min(goal, q.progress[id] + by) } } });
+    },
+    claimQuest: (id) => {
+      get().refreshQuests();
+      const q = get().quests;
+      const def = QUESTS.find((x) => x.id === id)!;
+      if (q.claimed[id] || q.progress[id] < def.goal) return 0;
+      put({ quests: { ...q, claimed: { ...q.claimed, [id]: true } } });
+      return def.skr;
+    },
+    grantWelcome: () => {
+      if (get().welcomed) return null;
+      const c = get().addChest('golden', 'welcome');
+      if (c) put({ welcomed: true });
+      return c;
+    },
+    claimQuestBonus: () => {
+      const q = get().quests;
+      if (q.bonusClaimed || !QUESTS.every((x) => q.claimed[x.id])) return null;
+      put({ quests: { ...q, bonusClaimed: true } });
+      return get().addChest(QUEST_BONUS, 'quest');
+    },
 
     adoptChainStreak: (latest) => {
       const st = get().streak;

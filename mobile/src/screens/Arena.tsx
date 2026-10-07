@@ -4,6 +4,8 @@ import { ActivityIndicator, Alert, Modal, Platform, StyleSheet, View } from 'rea
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { finishMatch } from '../game/actions';
+import { useSound } from '../sound';
+import { CoachMarks } from './CoachMarks';
 import { useUi } from '../state/ui';
 import { injectedBridge } from '../injected';
 import { C } from '../theme';
@@ -75,7 +77,7 @@ export function ArenaHost() {
       // A beat on the arena's own victory moment, then the native result.
       setTimeout(() => {
         closeBattle();
-        void finishMatch(match, { won: !!msg.won, draw: !!msg.draw, crowns });
+        void finishMatch(match, { won: !!msg.won, draw: !!msg.draw, crowns, plays: Number(msg.plays) || 0 });
       }, 1800);
     }
     if (msg.channel === 'exit') {
@@ -94,6 +96,7 @@ export function ArenaHost() {
   // injection can race a file:// page's own script there.
   const spec = JSON.stringify({
     player: match.player, bot: match.bot, tier: match.tier, opponent: match.rival, rush: match.rush, seed: match.seed,
+    muted: useSound.getState().muted,
   });
   const inject = `window.__MEMPIRE_MATCH__ = ${spec};\n${BRIDGE}`;
   const uri = `${GAME_URL}#/m/${encodeURIComponent(spec)}`;
@@ -126,6 +129,7 @@ export function ArenaHost() {
           onError={(e) => { say(`Arena failed to load: ${e.nativeEvent.description}`, 'err'); closeBattle(); }}
           style={st.fill}
         />
+        {match.tutorial && ready ? <CoachMarks mode="web" /> : null}
         {!ready ? (
           <View style={st.loading} pointerEvents="none">
             <Display size={26} color={C.gold}>vs {match.rival}</Display>

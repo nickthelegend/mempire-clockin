@@ -20,6 +20,8 @@ import { onTextureError } from '../../../app/src/three/canvasTex.native';
 import { finishMatch } from '../game/actions';
 import { haptic } from '../notify';
 import { useUi } from '../state/ui';
+import { sfx, startMusic, stopMusic, useSound } from '../sound';
+import { CoachMarks } from '../screens/CoachMarks';
 import { C, F } from '../theme';
 import {
   forfeit, playCard, setPaused, startNativeArena, teardown, toMatchCard, useNativeMatch,
@@ -156,6 +158,23 @@ const fmtClock = (ticks: number) => {
 
 interface Drag { handIndex: number; deckIndex: number; x: number; y: number }
 
+function MuteButton() {
+  const muted = useSound((s) => s.muted);
+  const setMuted = useSound((s) => s.setMuted);
+  return (
+    <Pressable
+      onPress={() => { haptic.tap(); setMuted(!muted); if (muted) startMusic(); }}
+      style={st.mute}
+      hitSlop={8}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: !muted }}
+      accessibilityLabel="Sound"
+    >
+      <Text style={st.muteText} maxFontSizeMultiplier={1.2}>{muted ? 'SOUND OFF' : 'SOUND ON'}</Text>
+    </Pressable>
+  );
+}
+
 function Hud({ onQuit }: { onQuit: () => void }) {
   const insets = useSafeAreaInsets();
   useNativeMatch((s) => s.version); // re-render at the sim's 20 Hz
@@ -176,10 +195,13 @@ function Hud({ onQuit }: { onQuit: () => void }) {
         <Text style={[st.clock, overtime && { color: C.red }]}>{fmtClock(left)}</Text>
         <Text style={st.sub}>{overtime ? 'OVERTIME' : double ? '2× ELIXIR' : `vs ${rival}`}</Text>
       </View>
+      <View style={{ alignItems: 'flex-end', gap: 4 }}>
       <View style={st.crowns}>
         <Text style={[st.crown, { color: C.teal }]}>{crowns[0]}</Text>
         <Text style={st.crownVs}>CROWNS</Text>
         <Text style={[st.crown, { color: C.red }]}>{crowns[1]}</Text>
+      </View>
+      <MuteButton />
       </View>
     </View>
   );
@@ -205,6 +227,7 @@ export function NativeArena() {
   const playerDeck = useNativeMatch((s) => s.playerDeck);
   const towerFell = useNativeMatch((s) => s.towerFell);
   const deployed = useNativeMatch((s) => s.deployed);
+  const plays = useNativeMatch((s) => s.plays);
   const shake = useRef(new Animated.Value(0)).current;
 
   useEffect(() => { if (!match) setSceneReady(false); }, [match]);
@@ -264,26 +287,29 @@ export function NativeArena() {
       seed: match.seed,
       onEnd: (r) => {
         setEnded(true);
+        stopMusic();
         if (r.won) haptic.success(); else haptic.warn();
         // A beat on the arena for the last tower to fall, then the native result.
         setTimeout(() => {
           closeBattle();
-          void finishMatch(match, { won: r.won, draw: r.draw, crowns: r.crowns });
+          void finishMatch(match, { won: r.won, draw: r.draw, crowns: r.crowns, plays: r.plays });
           teardown();
         }, 1600);
       },
     });
-    return () => teardown();
+    startMusic();
+    return () => { stopMusic(); teardown(); };
   }, [match, sceneReady, closeBattle]);
 
   // A crown is the biggest moment in a match: feel it.
   useEffect(() => {
     if (!towerFell) return;
     haptic.heavy();
+    sfx('tower');
     shake.setValue(1);
     Animated.timing(shake, { toValue: 0, duration: 380, useNativeDriver: true }).start();
   }, [towerFell, shake]);
-  useEffect(() => { if (deployed) haptic.light(); }, [deployed]);
+  useEffect(() => { if (deployed) { haptic.light(); sfx('deploy'); } }, [deployed]);
 
   // Leaving the app pauses the match rather than letting the bot win it.
   useEffect(() => {
@@ -462,6 +488,7 @@ export function NativeArena() {
           </View>
         ) : null}
 
+        {match.tutorial && sceneReady ? <CoachMarks mode="native" deployed={plays} /> : null}
         {paused && !ended ? <View pointerEvents="none" style={st.pausedVeil} /> : null}
         {!sceneReady ? (
           <View pointerEvents="none" style={st.preparing}>
@@ -469,7 +496,7 @@ export function NativeArena() {
             <Text style={st.prepSub}>Preparing the arena…</Text>
           </View>
         ) : null}
-        {lastFps ? <Text pointerEvents="none" style={[st.fps, { top: insets.top + 54 }]}>{lastFps} fps</Text> : null}
+        {lastFps ? <Text pointerEvents="none" style={[st.fps, { top: insets.top + 96 }]}>{lastFps} fps</Text> : null}
       </View>
     </Modal>
   );
@@ -487,7 +514,9 @@ const st = StyleSheet.create({
     position: 'absolute', left: 0, right: 0, top: 0, flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between', paddingHorizontal: 12, paddingBottom: 6, backgroundColor: 'rgba(9,22,48,0.35)',
   },
-  quit: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' },
+  mute: { backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 10, paddingHorizontal: 8, minHeight: 28, justifyContent: 'center' },
+  muteText: { color: '#fff', fontFamily: F.uiBold, fontSize: 10, letterSpacing: 0.5 },
+  quit: { width: 44, height: 44, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' },
   quitX: { color: '#fff', fontSize: 18, fontFamily: F.uiBold },
   clock: { color: '#fff', fontFamily: F.display, fontSize: 30, textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 0 },
   sub: { color: C.dim, fontFamily: F.uiBold, fontSize: 11, letterSpacing: 1 },

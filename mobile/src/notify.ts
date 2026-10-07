@@ -81,3 +81,24 @@ export const haptic = {
   warn: () => void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {}),
   error: () => void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {}),
 };
+
+/**
+ * Streak-at-risk: if today's Clock-In has not happened, ring this evening
+ * (19:00, or 21:30 if it is already past seven) while there is still time.
+ * If it has, the next nudge is tomorrow evening. Called on launch, on
+ * backgrounding, and after every Clock-In; the fixed id means it never stacks.
+ */
+export function ensureStreakReminder(clockedInToday: boolean, streak: number): void {
+  if (clockedInToday) { void streakReminder(streak); return; }
+  const now = new Date();
+  const at = new Date();
+  at.setHours(19, 0, 0, 0);
+  if (at.getTime() <= now.getTime()) at.setHours(21, 30, 0, 0);
+  if (at.getTime() <= now.getTime()) { void streakReminder(streak); return; }
+  void schedule(
+    'streak',
+    streak > 0 ? `Your ${streak}-day streak ends at midnight` : 'Your daily chest is waiting',
+    'One tap to clock in and keep it alive.',
+    at,
+  );
+}

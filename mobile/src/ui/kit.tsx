@@ -7,6 +7,8 @@ import {
 import { UI_ART, CARD_ART } from '../data/art';
 import { BY_TICKER, COPIES_TO_LEVEL, MAX_LEVEL, type OwnedCard } from '../game/rules';
 import { haptic } from '../notify';
+import { EASE_OUT, reduceMotion } from '../motion';
+import { sfx } from '../sound';
 import { ARCH_ICONS, ARCH_NAMES, C, F, R, TIER_COLORS } from '../theme';
 
 // ── type ────────────────────────────────────────────────────────────────────
@@ -16,6 +18,7 @@ export function Display({ children, size = 24, color = C.text, style }: {
 }) {
   return (
     <Text
+      maxFontSizeMultiplier={1.35}
       style={[{
         fontFamily: F.display, fontSize: size, color, letterSpacing: 0.5,
         textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 0,
@@ -30,7 +33,7 @@ export function Body({ children, size = 14, color = C.dim, style, bold, numberOf
   children: ReactNode; size?: number; color?: string; style?: StyleProp<TextStyle>; bold?: boolean; numberOfLines?: number;
 }) {
   return (
-    <Text numberOfLines={numberOfLines} style={[{ fontFamily: bold ? F.uiBold : F.ui, fontSize: size, color, lineHeight: size * 1.35 }, style]}>
+    <Text maxFontSizeMultiplier={1.35} numberOfLines={numberOfLines} style={[{ fontFamily: bold ? F.uiBold : F.ui, fontSize: size, color }, style]}>
       {children}
     </Text>
   );
@@ -86,24 +89,24 @@ export function Btn({
       accessibilityRole="button"
       accessibilityLabel={label}
       disabled={off}
-      onPressIn={() => { to(1); haptic.light(); }}
+      onPressIn={() => { to(1); haptic.light(); sfx('click'); }}
       onPressOut={() => to(0)}
       onPress={onPress}
       style={[{ opacity: off ? 0.55 : 1 }, style]}
     >
-      <View style={{ height: h + 5, borderRadius: R.pill, backgroundColor: t.edge }}>
+      <View style={{ minHeight: h + 5, paddingBottom: 5, borderRadius: R.pill, backgroundColor: t.edge }}>
         <Animated.View style={{ transform: [{ translateY: press.interpolate({ inputRange: [0, 1], outputRange: [0, 4] }) }] }}>
           <LinearGradient
             colors={[t.top, t.bottom]}
             style={{
-              height: h, borderRadius: R.pill, alignItems: 'center', justifyContent: 'center',
-              borderWidth: 2, borderColor: 'rgba(0,0,0,0.35)', paddingHorizontal: 14,
+              minHeight: h, borderRadius: R.pill, alignItems: 'center', justifyContent: 'center',
+              borderWidth: 2, borderColor: 'rgba(0,0,0,0.35)', paddingHorizontal: 14, paddingVertical: 6,
             }}
           >
             {busy ? <ActivityIndicator color={t.text} /> : (
               <>
-                <Text style={{ fontFamily: F.display, fontSize: fs, color: t.text, letterSpacing: 0.6 }}>{label}</Text>
-                {sub ? <Text style={{ fontFamily: F.uiBold, fontSize: 11, color: t.text, opacity: 0.8 }}>{sub}</Text> : null}
+                <Text maxFontSizeMultiplier={1.3} style={{ fontFamily: F.display, fontSize: fs, color: t.text, letterSpacing: 0.6, textAlign: 'center' }}>{label}</Text>
+                {sub ? <Text maxFontSizeMultiplier={1.3} style={{ fontFamily: F.uiBold, fontSize: 11, color: t.text, opacity: 0.85, textAlign: 'center' }}>{sub}</Text> : null}
               </>
             )}
           </LinearGradient>
@@ -115,22 +118,62 @@ export function Btn({
 
 // ── chips ───────────────────────────────────────────────────────────────────
 
+/**
+ * Anything pressable that is not a Btn: scales to 0.97 on press (ease-out,
+ * ~120 ms), so every tap is acknowledged. No movement under Reduce Motion,
+ * just a dim.
+ */
+export function PressScale({
+  children, onPress, style, containerStyle, accessibilityLabel, accessibilityRole = 'button', accessibilityState, hitSlop, disabled,
+}: {
+  children: ReactNode; onPress?: () => void; style?: StyleProp<ViewStyle>;
+  /** Layout for the touch target itself (e.g. flex: 1 in a row). */
+  containerStyle?: StyleProp<ViewStyle>;
+  accessibilityLabel?: string;
+  accessibilityRole?: 'button' | 'tab' | 'radio' | 'link' | 'switch'; accessibilityState?: object; hitSlop?: number; disabled?: boolean;
+}) {
+  const v = useRef(new Animated.Value(0)).current;
+  const to = (x: number) => Animated.timing(v, { toValue: x, duration: x ? 90 : 160, easing: EASE_OUT, useNativeDriver: true }).start();
+  const rm = reduceMotion();
+  return (
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => to(1)}
+      onPressOut={() => to(0)}
+      disabled={disabled}
+      hitSlop={hitSlop}
+      style={containerStyle}
+      accessibilityRole={accessibilityRole}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={accessibilityState}
+    >
+      <Animated.View
+        style={[style, rm
+          ? { opacity: v.interpolate({ inputRange: [0, 1], outputRange: [1, 0.7] }) }
+          : { transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 0.97] }) }] }]}
+      >
+        {children}
+      </Animated.View>
+    </Pressable>
+  );
+}
+
 export function Chip({ label, value, color = C.gold, onPress, tag }: {
   label: string; value: string; color?: string; onPress?: () => void; tag?: string;
 }) {
   return (
-    <Pressable onPress={onPress} style={s.chip} accessibilityLabel={`${label} ${value}`}>
-      <Text style={{ fontFamily: F.uiBold, fontSize: 11, color, letterSpacing: 0.5 }}>{label}</Text>
-      <Text style={{ fontFamily: F.display, fontSize: 16, color: '#fff' }}>{value}</Text>
-      {tag ? <Text style={{ fontFamily: F.ui, fontSize: 9, color: C.dim, opacity: 0.85 }}>{tag}</Text> : null}
-    </Pressable>
+    <PressScale onPress={onPress} style={s.chip} accessibilityLabel={`${label} ${value}${tag ? `, ${tag}` : ''}`}>
+      <Text maxFontSizeMultiplier={1.2} style={{ fontFamily: F.uiBold, fontSize: 11, color, letterSpacing: 0.5 }}>{label}</Text>
+      <Text maxFontSizeMultiplier={1.2} style={{ fontFamily: F.display, fontSize: 16, color: '#fff' }}>{value}</Text>
+      {tag ? <Text maxFontSizeMultiplier={1.2} style={{ fontFamily: F.ui, fontSize: 9, color: C.dim }}>{tag}</Text> : null}
+    </PressScale>
   );
 }
 
 export function Tag({ text, color = C.teal }: { text: string; color?: string }) {
   return (
     <View style={{ borderRadius: 8, borderWidth: 1, borderColor: color, paddingHorizontal: 6, paddingVertical: 2, alignSelf: 'flex-start' }}>
-      <Text style={{ fontFamily: F.uiBold, fontSize: 10, color, letterSpacing: 0.4 }}>{text}</Text>
+      <Text maxFontSizeMultiplier={1.3} style={{ fontFamily: F.uiBold, fontSize: 10, color, letterSpacing: 0.4 }}>{text}</Text>
     </View>
   );
 }
@@ -154,8 +197,9 @@ export function CardTile({
   const ready = !!owned && need > 0 && owned.copies >= need;
   const h = width * 1.33;
   return (
-    <Pressable
-      onPress={() => { haptic.tap(); onPress?.(); }}
+    <PressScale
+      onPress={onPress ? () => { haptic.tap(); onPress(); } : undefined}
+      disabled={!onPress}
       style={{ width, opacity: dim ? 0.38 : 1 }}
       accessibilityLabel={`${ticker}${owned ? ` level ${owned.level}` : ' not owned'}`}
     >
@@ -166,19 +210,19 @@ export function CardTile({
           <ArchIcon arch={f.archetype} size={18} />
         </View>
         {owned ? (
-          <View style={s.cardLevel}><Text style={{ fontFamily: F.display, fontSize: 12, color: '#fff' }}>Lv {owned.level}</Text></View>
+          <View style={s.cardLevel}><Text maxFontSizeMultiplier={1.2} style={{ fontFamily: F.display, fontSize: 12, color: '#fff' }}>Lv {owned.level}</Text></View>
         ) : null}
         <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={s.cardFoot}>
-          <Text numberOfLines={1} style={{ fontFamily: F.display, fontSize: width > 90 ? 14 : 12, color: '#fff' }}>${ticker}</Text>
+          <Text maxFontSizeMultiplier={1.2} numberOfLines={1} style={{ fontFamily: F.display, fontSize: width > 90 ? 14 : 12, color: '#fff' }}>${ticker}</Text>
         </LinearGradient>
       </View>
       {owned ? (
         <View style={s.bar}>
           <View style={{ width: `${pct * 100}%`, height: '100%', backgroundColor: ready ? C.teal : C.bluePale, borderRadius: 4 }} />
-          <Text style={s.barText}>{owned.level >= MAX_LEVEL ? 'MAX' : `${owned.copies}/${need}`}</Text>
+          <Text maxFontSizeMultiplier={1.2} style={s.barText}>{owned.level >= MAX_LEVEL ? 'MAX' : `${owned.copies}/${need}`}</Text>
         </View>
       ) : null}
-    </Pressable>
+    </PressScale>
   );
 }
 
@@ -196,13 +240,13 @@ export function TierGlow({ tier }: { tier: string }) {
 export function Rise({ children, delay = 0, style }: { children: ReactNode; delay?: number; style?: StyleProp<ViewStyle> }) {
   const v = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.timing(v, { toValue: 1, duration: 320, delay, useNativeDriver: true }).start();
+    Animated.timing(v, { toValue: 1, duration: 300, delay, easing: EASE_OUT, useNativeDriver: true }).start();
   }, [v, delay]);
   return (
     <Animated.View
       style={[style, {
         opacity: v,
-        transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }],
+        transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [reduceMotion() ? 0 : 14, 0] }) }],
       }]}
     >
       {children}
@@ -226,6 +270,7 @@ const s = StyleSheet.create({
   },
   well: { backgroundColor: C.recess, borderRadius: R.card, padding: 12, borderWidth: 1, borderColor: 'rgba(0,0,0,0.35)' },
   chip: {
+    minHeight: 44, justifyContent: 'center',
     backgroundColor: 'rgba(9,22,48,0.7)', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4,
     borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.5)', alignItems: 'center', minWidth: 62,
   },
