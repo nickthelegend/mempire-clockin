@@ -308,3 +308,24 @@ export function mergeChainStreak(local: Streak, chain: { day: number; streak: nu
   }
   return null;
 }
+
+// ── save migration for hidden fighters ─────────────────────────────────────
+
+/**
+ * Hidden fighters are migrated OUT of saves (decision, documented in HANDOFF):
+ * their cards are dropped from the collection, and each deck slot that held
+ * one gets the player's highest-level visible card not already in the deck,
+ * then a starter, so the rest of the deck the player built is kept.
+ */
+export function migrateDeck(deck: string[], cards: Record<string, OwnedCard>): string[] {
+  const visible = (t: string) => BY_TICKER.has(t) && !!cards[t];
+  const out = deck.slice(0, 8).filter((t, i, a) => visible(t) && a.indexOf(t) === i);
+  const spares = Object.keys(cards)
+    .filter((t) => BY_TICKER.has(t) && !out.includes(t))
+    .sort((a, b) => cards[b].level - cards[a].level || a.localeCompare(b));
+  for (const t of [...spares, ...STARTER_DECK]) {
+    if (out.length >= 8) break;
+    if (!out.includes(t) && BY_TICKER.has(t)) out.push(t);
+  }
+  return out;
+}

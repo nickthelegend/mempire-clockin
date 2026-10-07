@@ -1,15 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Image, ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { UI_ART, CARD_ART } from '../data/art';
 import { BY_TICKER } from '../game/rules';
+import { HERO_FIGHTERS } from '../data/showcase';
 import { useUi } from '../state/ui';
 import { MWA_AVAILABLE, signInLabel, useWallet } from '../wallet/wallet';
 import { looksLikeSeeker } from '../chain/seeker';
 import { C } from '../theme';
 import { Body, Btn, Display, Rise, Tag, Well } from '../ui/kit';
 
-const HERO = ['BTC', 'BONK', 'SOL', 'WIF', 'POPCAT'];
+const HERO = HERO_FIGHTERS;
 
 export function ConnectScreen() {
   const connectMwa = useWallet((s) => s.connectMwa);
@@ -17,13 +18,25 @@ export function ConnectScreen() {
   const say = useUi((s) => s.say);
   const [busy, setBusy] = useState<'mwa' | 'dev' | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  /**
+   * The hero fan mounts one beat after the screen. On iOS (Fabric, image view
+   * recycling on by default in RN 0.86) signing out unmounts Home and mounts
+   * this screen in the same commit; image views recycled from Home kept
+   * showing Home's art (a chest instead of $SOL). Mounting the fan in a later
+   * commit gives it image views whose new source is applied.
+   */
+  const [fan, setFan] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setFan(true), 60);
+    return () => clearTimeout(t);
+  }, []);
 
   return (
     <ScrollView contentContainerStyle={st.wrap}>
       <Rise><Image source={UI_ART.logo} style={st.logo} resizeMode="contain" accessibilityLabel="Mempire" /></Rise>
       <Rise delay={60}>
         <View style={st.fan}>
-          {HERO.map((t, i) => (
+          {fan && HERO.map((t, i) => (
             <LinearGradient
               key={t}
               colors={[`hsl(${BY_TICKER.get(t)?.hue ?? 220},70%,55%)`, `hsl(${BY_TICKER.get(t)?.hue ?? 220},60%,22%)`]}

@@ -211,6 +211,16 @@ there is no new hosted service.
     Support).
   - Old saves with hidden cards drop them on load (the existing roster filter).
 
+**Hidden fighters, audit (1.4.1).** The decision is to migrate them **out**. A hidden card is dropped from a saved collection on load. Each deck slot that held one gets the player's highest-level visible spare (`migrateDeck`), then a starter; the rest of the deck the player built is kept. Before 1.4.1, the whole deck reset to the starter. Hidden fighters cannot appear in these places, and `app/tests/hidden-fighters.test.ts` asserts it:
+
+- the roster, `BY_TICKER`, starters, rival decks (Blue Chips and Whale Court are crypto majors) and chest drops (2,000 rolls);
+- the Connect hero, the Intro slide (`mobile/src/data/showcase.ts`) and Season War;
+- Season Pass rewards (no fighters).
+
+The Shop sells no fighters. The share card and Coach use the player's own visible deck. The web arena only draws the decks the app sends it. The empty **Stocks** filter tab is gone from Cards.
+
+**Connect hero showing the wrong art (1.4.0, iOS):** this was not caused by the roster. On iOS, React Native 0.86 recycles image views by default (`enableViewRecyclingForImage`). Signing out unmounts Home and mounts Connect in the same commit, and a recycled image view kept Home's art. It was reproduced on the iPhone 17 simulator: the $SOL card showed a Golden Chest and stayed that way. The fix mounts the hero fan one beat later (`Connect.tsx`), and two sign-out cycles plus a cold start then showed the right five fighters (`season-pass/16`). It was not seen on Android, which does not use this iOS image view.
+
 **Verified on the iPhone 17 simulator** against a local validator with the
 program deployed (`bash chain/pass/scripts/validator.sh`, then
 `npx tsx scripts/setup.ts --fund <dev wallet>`; the JS was bundled with
