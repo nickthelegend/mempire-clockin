@@ -2,11 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Image, Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { UI_ART } from '../data/art';
-import { CHESTS, CHEST_SLOTS, QUESTS, QUEST_BONUS, RIVALS, WEEK, dayKey, msToUtcMidnight, rolloverLabel, streakState } from '../game/rules';
+import { CHESTS, QUESTS, QUEST_BONUS, RIVALS, WEEK, dayKey, msToUtcMidnight, rolloverLabel, streakState } from '../game/rules';
 import { challengeMessage, claimQuest, doClockIn, openChest, prepareMatch, startUnlock } from '../game/actions';
 import { explorerTx, short } from '../chain/solana';
 import { SKR_LABEL, SKR_LIVE } from '../chain/skr';
-import { useGame, avgDeckLevel } from '../state/game';
+import { useGame, avgDeckLevel, slotsOf } from '../state/game';
+import { SEASON, claimable, tierFor, tierProgress } from '../game/season';
+import { hasPremium, usePassChain } from '../chain/pass';
+import { SeasonWarBanner } from './Board';
 import { useUi } from '../state/ui';
 import { C, F, R } from '../theme';
 import { Body, Btn, ChestArt, Display, Panel, PressScale, Progress, Rise, Tag, TierGlow, Well } from '../ui/kit';
@@ -194,10 +197,11 @@ function Waiting() {
 
 function Chests() {
   const chests = useGame((s) => s.chests);
+  const nSlots = useGame(slotsOf);
   const say = useUi((s) => s.say);
   const now = useNow();
   const busy = chests.some((c) => c.unlockAt !== null && c.unlockAt > now);
-  const slots = Array.from({ length: CHEST_SLOTS }, (_, i) => chests[i] ?? null);
+  const slots = Array.from({ length: nSlots }, (_, i) => chests[i] ?? null);
   return (
     <View style={st.chestRow}>
       {slots.map((c, i) => {
@@ -363,6 +367,31 @@ function Battle() {
   );
 }
 
+function PassTeaser() {
+  const setPass = useUi((s) => s.setPass);
+  const pass = useGame((s) => s.pass);
+  const status = usePassChain((s) => s.status);
+  const held = usePassChain((s) => s.held);
+  const premium = hasPremium({ status, held });
+  const ready = claimable(pass, premium).length;
+  const tier = tierFor(pass.xp);
+  return (
+    <Pressable onPress={() => { haptic.tap(); setPass(true); }} accessibilityRole="button" accessibilityLabel={`Season Pass, tier ${tier} of ${SEASON.tiers}${ready ? `, ${ready} rewards to claim` : ''}`} style={({ pressed }) => pressed && st.pressed}>
+      <LinearGradient colors={premium ? ['#7a4a22', '#c8890b'] : ['#14418f', '#2b1a5e']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.coach}>
+        <View style={{ flex: 1, gap: 4 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Display size={20}>Season Pass</Display>
+            <Tag text={premium ? 'PREMIUM · ON-CHAIN' : status === 'preview' ? 'PREVIEW' : 'FREE TRACK'} color={premium ? C.gold : C.teal} />
+          </View>
+          <Body size={12} color={C.dim}>Tier {tier} / {SEASON.tiers} · {pass.xp} XP{ready ? ` · ${ready} to claim` : ''}</Body>
+          <Progress value={tierProgress(pass.xp)} color={C.gold} height={8} />
+        </View>
+        {ready ? <View style={st.passDot}><Body size={12} bold color={C.ink}>{ready}</Body></View> : <Display size={30} color={C.gold}>›</Display>}
+      </LinearGradient>
+    </Pressable>
+  );
+}
+
 function CoachTeaser() {
   const setCoach = useUi((s) => s.setCoach);
   const runs = useGame((s) => s.coachRuns);
@@ -389,6 +418,7 @@ export function HomeScreen() {
   return (
     <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false}>
       <Rise><Image source={UI_ART.logo} style={st.logo} resizeMode="contain" accessibilityLabel="Mempire" /></Rise>
+      <Rise delay={20}><SeasonWarBanner /></Rise>
       <Rise delay={40}><ClockIn /></Rise>
       <Rise delay={60}><Quests /></Rise>
       <Rise delay={80}>
@@ -401,6 +431,7 @@ export function HomeScreen() {
           <Waiting />
         </Well>
       </Rise>
+      <Rise delay={100}><PassTeaser /></Rise>
       <Rise delay={120}><Battle /></Rise>
       <Rise delay={160}><CoachTeaser /></Rise>
     </ScrollView>
@@ -410,6 +441,10 @@ export function HomeScreen() {
 const st = StyleSheet.create({
   scroll: { padding: 14, gap: 14, paddingBottom: 120 },
   logo: { width: '70%', height: 84, alignSelf: 'center' },
+  passDot: {
+    minWidth: 30, height: 30, borderRadius: 15, backgroundColor: C.teal, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   streakNum: { fontFamily: F.display, fontSize: 30, color: C.gold },
   streakLbl: { fontFamily: F.uiBold, fontSize: 10, color: '#fff' },

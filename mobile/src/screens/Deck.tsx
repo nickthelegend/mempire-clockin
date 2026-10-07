@@ -5,7 +5,63 @@ import { useGame, avgDeckLevel } from '../state/game';
 import { useUi } from '../state/ui';
 import { haptic } from '../notify';
 import { ARCH_NAMES, C } from '../theme';
-import { ArchIcon, Body, Btn, CardTile, Display, Panel, Rise, Well } from '../ui/kit';
+import { ArchIcon, Body, Btn, CardTile, Display, Panel, Rise, Tag, Well } from '../ui/kit';
+import { ARENA_SKINS, FRAME_SKINS, ownsSkin, usePassChain } from '../chain/pass';
+import { useFrameColors } from '../game/cosmetics';
+import { EMOTES, PASS_FRAMES } from '../game/season';
+import { SkinPreview } from './Shop';
+
+/**
+ * Wardrobe: equip what you own. On-chain skins show as owned only while the
+ * chain says so; pass frames and emotes are unlocked on the pass.
+ */
+function Wardrobe() {
+  const pc = usePassChain();
+  const equipped = useGame((s) => s.equipped);
+  const unlocked = useGame((s) => s.cosmetics);
+  const equip = useGame((s) => s.equip);
+  const setTab = useUi((s) => s.setTab);
+  const opt = (key: string, label: string, on: boolean, owned: boolean, onPress: () => void, preview?: React.ReactNode) => (
+    <Pressable
+      key={key}
+      onPress={owned ? onPress : undefined}
+      disabled={!owned}
+      accessibilityRole="button"
+      accessibilityState={{ selected: on, disabled: !owned }}
+      accessibilityLabel={`${label}${on ? ', equipped' : owned ? '' : ', not owned'}`}
+      style={[st.opt, on && st.optOn, !owned && { opacity: 0.4 }]}
+    >
+      {preview}
+      <Body size={11} color="#fff" bold numberOfLines={1}>{label}</Body>
+      <Body size={9} color={on ? C.gold : C.dim} bold>{on ? 'EQUIPPED' : owned ? 'TAP' : '🔒'}</Body>
+    </Pressable>
+  );
+  return (
+    <Well style={{ gap: 8 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Display size={18}>Wardrobe</Display>
+        <Tag text={pc.status === 'live' ? 'OWNERSHIP FROM CHAIN' : pc.status === 'preview' ? 'PREVIEW MODE' : 'CHECKING CHAIN'} color={pc.status === 'live' ? C.teal : C.dim} />
+      </View>
+      <Body size={11} color={C.dim}>Arena skin (native 3D arena; the web compat arena shows the default)</Body>
+      <View style={st.opts}>
+        {opt('a-default', 'Classic', equipped.arena === 'default', true, () => equip({ arena: 'default' }))}
+        {ARENA_SKINS.map((s) => opt(`a-${s.key}`, s.name, equipped.arena === s.key, ownsSkin(pc, s.id), () => equip({ arena: s.key }), <SkinPreview skin={s} kind="arena" size={40} />))}
+      </View>
+      <Body size={11} color={C.dim}>Card frame</Body>
+      <View style={st.opts}>
+        {opt('f-default', 'Classic', equipped.frame === 'default', true, () => equip({ frame: 'default' }))}
+        {FRAME_SKINS.map((s) => opt(`f-${s.key}`, s.name, equipped.frame === s.key, ownsSkin(pc, s.id), () => equip({ frame: s.key }), <SkinPreview skin={s} kind="frame" size={40} />))}
+        {Object.entries(PASS_FRAMES).map(([k, f]) => opt(`p-${k}`, f.name, equipped.frame === k, unlocked.frames.includes(k), () => equip({ frame: k }),
+          <SkinPreview skin={{ id: 0, key: k, name: f.name, symbol: '', price: 0, colors: f.colors }} kind="frame" size={40} />))}
+      </View>
+      <Body size={11} color={C.dim}>Emote (shown on your result card)</Body>
+      <View style={st.opts}>
+        {Object.entries(EMOTES).map(([k, e]) => opt(`e-${k}`, `${e.glyph} ${e.label}`, equipped.emote === k, unlocked.emotes.includes(k), () => equip({ emote: k })))}
+      </View>
+      <Btn label="GET SKINS IN THE SHOP" tone="ghost" size="sm" onPress={() => setTab('shop')} />
+    </Well>
+  );
+}
 import { ARCHETYPES } from '../../../app/src/sim/archetypes';
 
 export function DeckScreen() {
@@ -13,6 +69,7 @@ export function DeckScreen() {
   const cards = useGame((s) => s.cards);
   const setDeckSlot = useGame((s) => s.setDeckSlot);
   const setCoach = useUi((s) => s.setCoach);
+  const frame = useFrameColors();
   const [slot, setSlot] = useState<number | null>(null);
   const { width } = useWindowDimensions();
   const tile = Math.floor((Math.min(width, 520) - 28 - 3 * 10) / 4);
@@ -38,7 +95,7 @@ export function DeckScreen() {
         <Panel>
           <View style={st.grid}>
             {deck.map((t, i) => (
-              <CardTile key={`${t}-${i}`} ticker={t} owned={cards[t]} width={tile - 6} selected={slot === i} onPress={() => setSlot(i)} />
+              <CardTile key={`${t}-${i}`} ticker={t} owned={cards[t]} width={tile - 6} selected={slot === i} frame={frame} onPress={() => setSlot(i)} />
             ))}
           </View>
           <Body size={12} color={C.dimOnWood} style={{ marginTop: 8 }}>Tap a card to swap it out.</Body>
@@ -57,6 +114,7 @@ export function DeckScreen() {
           </View>
         </Well>
       </Rise>
+      <Rise delay={100}><Wardrobe /></Rise>
       <Rise delay={120}>
         <Btn label="ASK THE AI COACH" sub="simulates your deck vs every rival, on this phone" tone="blue" onPress={() => setCoach(true)} />
       </Rise>
@@ -92,5 +150,11 @@ export function DeckScreen() {
 const st = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' },
   arch: { flexDirection: 'row', alignItems: 'center', gap: 4, width: '30%' },
+  opts: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  opt: {
+    width: 84, minHeight: 72, alignItems: 'center', justifyContent: 'center', gap: 3, padding: 6, borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.45)',
+  },
+  optOn: { borderColor: C.gold, borderWidth: 2.5 },
   sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 12, paddingBottom: 30 },
 });

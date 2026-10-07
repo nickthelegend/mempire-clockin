@@ -34,6 +34,9 @@ import { CardsScreen } from './src/screens/Cards';
 import { DeckScreen } from './src/screens/Deck';
 import { ShopScreen } from './src/screens/Shop';
 import { CoachSheet } from './src/screens/Coach';
+import { SeasonPassSheet } from './src/screens/SeasonPass';
+import { BoardSheet } from './src/screens/Board';
+import { usePassChain } from './src/chain/pass';
 import { NativeArena } from './src/arena/NativeArena';
 import { ArenaHost } from './src/screens/Arena';
 import { ResultSheet, RevealSheet, Toast, WalletSheet } from './src/screens/Overlays';
@@ -201,6 +204,8 @@ function Game() {
   // (home-screen shortcuts, notifications, and scripted demo capture).
   useEffect(() => {
     const open = (url: string | null) => {
+      if (url === 'mempire://pass') { useUi.getState().setPass(true); return; }
+      if (url === 'mempire://board') { useUi.getState().setBoard(true); return; }
       const hit = url && /^mempire:\/\/battle(?:\?(.*))?$/.exec(url);
       if (!hit) return;
       const q = new URLSearchParams(hit[1] ?? '');
@@ -226,6 +231,8 @@ function Game() {
       <Screens />
       <TabBar />
       <CoachSheet />
+      <SeasonPassSheet />
+      <BoardSheet />
       <NativeArena />
       <ArenaHost />
       <ResultSheet />
@@ -283,6 +290,15 @@ function Root() {
     return () => clearInterval(t);
   }, [address, loadedFor, readLedger, setChainLedger]);
 
+  // Season Pass and skins: what the chain says this wallet holds, re-read on
+  // resume and every 60 s. Ownership is never cached on the device.
+  useEffect(() => {
+    void usePassChain.getState().refresh(address);
+    if (!address) return undefined;
+    const t = setInterval(() => void usePassChain.getState().refresh(address), 60_000);
+    return () => clearInterval(t);
+  }, [address]);
+
   // Seeker perks are a mainnet *read* for a real wallet; a dev key never has one.
   useEffect(() => {
     if (!address) return;
@@ -294,7 +310,10 @@ function Root() {
   // Coming back to the app is when balances and chest timers matter.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => {
-      if (s === 'active') { void refresh(); void useNet.getState().check(); useGame.getState().refreshQuests(); readLedger(); }
+      if (s === 'active') {
+        void refresh(); void useNet.getState().check(); useGame.getState().refreshQuests(); readLedger();
+        void usePassChain.getState().refresh(useWallet.getState().address);
+      }
     });
     return () => sub.remove();
   }, [refresh, readLedger]);

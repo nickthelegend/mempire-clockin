@@ -186,9 +186,11 @@ export function ArchIcon({ arch, size = 18 }: { arch: number; size?: number }) {
 
 /** A fighter card: art, level, archetype, copy progress. */
 export function CardTile({
-  ticker, owned, width = 100, onPress, selected, dim,
+  ticker, owned, width = 100, onPress, selected, dim, frame,
 }: {
   ticker: string; owned?: OwnedCard; width?: number; onPress?: () => void; selected?: boolean; dim?: boolean;
+  /** An equipped card frame's two colours (cosmetic). */
+  frame?: [string, string] | null;
 }) {
   const f = BY_TICKER.get(ticker);
   if (!f) return null;
@@ -209,6 +211,17 @@ export function CardTile({
         <View style={s.cardTop}>
           <ArchIcon arch={f.archetype} size={18} />
         </View>
+        {frame && !selected ? (
+          <LinearGradient
+            colors={frame}
+            pointerEvents="none"
+            style={[StyleSheet.absoluteFill, { borderRadius: R.card, opacity: 0.9, padding: 3 }]}
+          >
+            <View style={{ flex: 1, borderRadius: R.card - 3, overflow: 'hidden' }}>
+              <Image source={CARD_ART[ticker]} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+            </View>
+          </LinearGradient>
+        ) : null}
         {owned ? (
           <View style={s.cardLevel}><Text maxFontSizeMultiplier={1.2} style={{ fontFamily: F.display, fontSize: 12, color: '#fff' }}>Lv {owned.level}</Text></View>
         ) : null}
