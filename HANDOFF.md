@@ -1,6 +1,6 @@
 # HANDOFF — Mempire for Seeker (Solana Mobile CLOCK IN)
 
-Status as of 2026-10-08, 00:05 IST (1.3.0). This file records only what was run and seen.
+Status as of 2026-10-08, 01:20 IST (1.3.1). This file records only what was run and seen.
 
 ## What was verified, and how
 
@@ -36,9 +36,9 @@ Also verified: the shared battle sim is deterministic (`npx tsx app/scripts/sim-
 ## APK
 
 - `/Volumes/Extreme SSD/Projects/clockin/apks/mempire-clockin.apk`
-- sha256 `e7a05f6fdca1105434980baf2230c342f03ace6de46657baace48e0d46f2dd2f`
-- 70,383,013 bytes (67.1 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 7 (1.3.0)
-- Built from `main` at the 1.3.0 merge (`692118c`): Season Pass & skins, Season War, share card, unlicensed marks hidden, on top of 1.2.2's bug-hunt fixes. `aapt2` shows versionCode 7 / 1.3.0 and no `RECORD_AUDIO`; the certificate digest is unchanged (same key). The JS bundle points at devnet only (no localnet URL) and contains the `mempire_pass` program id; the 30 skin textures are packaged as drawables. The file was re-downloaded from the release and its sha256 matches.
+- sha256 `b6f501fa73d78f6dd6c777878a756d828ae008569777bd1dcacba47fea3aecf8`
+- 70,733,909 bytes (67.5 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 8 (1.3.1)
+- Built from `main` at `bd845a3`: 1.3.0 (Season Pass & skins, Season War, share card, unlicensed marks hidden) plus 1.3.1's re-themed arena skins in both arenas and the Shop skin previews. `aapt2` shows versionCode 7 / 1.3.0 and no `RECORD_AUDIO`; the certificate digest is unchanged (same key). The JS bundle points at devnet only (no localnet URL) and contains the `mempire_pass` program id; the 30 skin textures are packaged as drawables. The file was re-downloaded from the release and its sha256 matches.
 - Signed with a **new dedicated release key**. The keystore and its password
   are **outside the repo** at
   `/Volumes/Extreme SSD/Projects/clockin/keys/mempire-release.keystore` and
