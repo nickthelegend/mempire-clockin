@@ -85,13 +85,14 @@ simulator.
 **On the slide:**
 - Native React Native screens for the whole loop: haptics, notifications,
   animated transitions.
-- The 3D arena (React Three Fiber) ships inside the APK and works offline from
-  file://.
+- The 3D battle renders natively: the game's React Three Fiber scene on expo-gl, under a native HUD with drag-to-deploy.
+- If a phone's GPU can't keep up, the same match continues in a bundled web arena automatically.
 - Standard (3:00) and Rush (0:30) modes.
 
-**Notes:** The battle stays in WebGL because a second, native implementation
-of the simulation would desync against the web game. Everything around the
-battle is native.
+**Notes:** The simulation is shared code, not a port, so the native arena
+and the web game cannot disagree about a match. A committed test plays the
+same scripted match through both and checks that the end states are
+identical.
 
 ## 8. Where it goes next
 

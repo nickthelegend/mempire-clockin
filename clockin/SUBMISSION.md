@@ -21,9 +21,10 @@ reason to open the app tomorrow.
 ## Solution
 
 Mempire is a Clash-style real-time battler with a 64-fighter roster made from
-memecoins, majors and tokenised stocks. The Seeker app is native React Native
-for the whole loop. The 3D arena ships inside the APK and opens full-screen
-only for the length of a match.
+memecoins, majors and tokenised stocks. The Seeker app is native throughout. The
+3D battle is the game's own React Three Fiber scene, rendered natively on
+expo-gl under a native HUD. A bundled web arena is kept only as an automatic
+fallback (see *Native 3D arena* below).
 
 - **Daily Clock-In.** One tap. A 7-day ladder of chests and SKR, with a
   Legendary chest on day 7. You get a streak and a best streak, plus a reminder
@@ -35,6 +36,26 @@ only for the length of a match.
   fixed-point simulation.
 - **AI Coach.** Described below.
 - **Haptics everywhere**, plus animated transitions and chest reveals.
+
+### Native 3D arena
+
+- **Rendering.** `@react-three/fiber/native` on `expo-gl` draws the same scene
+  as the web game. Its procedural textures are baked to PNG by a deterministic
+  script.
+- **Controls.** The HUD is native, with PanResponder drag-to-deploy, a ground
+  raycast, and haptics on deploys and crowns.
+- **Logic parity.** A committed test plays scripted Rush and Standard matches
+  through both the native match store and the web match store from the same
+  seed. Both stores must reach the same final tick, the same tower HP, the
+  same winner and the same state hash.
+- **Safety net.** In Auto mode, if the native scene can't start, throws, or
+  stays under 20 fps for 5 s in the first 15 s, the *same* match (same seed,
+  decks and rival) moves to the bundled web arena. The result screen shows
+  which renderer ran. Settings offer Auto / Native 3D / Web (compat).
+- **What was measured.** I verified the native arena on the iOS simulator,
+  where OpenGL ES is software-rendered and the scene ran at about 4 fps; full
+  matches still played to a result. Frame rate on real GPU hardware has not
+  been measured.
 
 ## Why Seeker users come back daily
 

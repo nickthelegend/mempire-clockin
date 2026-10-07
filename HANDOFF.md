@@ -15,7 +15,7 @@ are in `clockin/screens/`.
 | Connect → **dev wallet** | Works. A devnet keypair is generated and stored in the keystore (SecureStore). |
 | **Daily Clock-In** | Works. The streak went 0→1, the Day 1 reward was paid (Silver chest + 5 SKR), and the toast and "Clocked in" state appeared. The wallet had **0 devnet SOL**, so the card correctly says "Not on-chain: no devnet SOL for the network fee" and the SKR went to the *simulated* balance. **The on-chain memo path has not been executed yet** (see *Devnet SOL* below). |
 | Chest timer → open | Works. A 3-minute silver chest unlocked, then opened with the reveal animation, giving 2 new fighters and +1 copy. |
-| **3D battle** from the native app | Works. The bundled arena loads from `file://` in WKWebView, cards can be dragged and played, and the AI rival plays back. A **Rush** match ran to the end and the native **DEFEAT** result sheet appeared with crowns and trophies. |
+| **3D battle** (web arena, now the fallback/compat renderer) | Works. The bundled arena loads from `file://` in WKWebView, cards can be dragged and played, and the AI rival plays back. A **Rush** match ran to the end and the native **DEFEAT** result sheet appeared with crowns and trophies. |
 | **AI Coach** | Works. It ran 24 simulated matches in 1.3 s on the simulator, then the swap search suggested $BTC → $NVDA. (Since then the coach uses 4 seeds and like-for-like seeds for the swap comparison.) |
 | Chain ledger read | Works. On load, the app read the dev wallet's signature history from **devnet** and showed "no signed Clock-Ins yet". So devnet RPC is reachable from the app, and the restore-streak-from-chain path runs. |
 | Fighters / Shop screens | Render correctly. SKR shows as **SIMULATED** because the stand-in mint is not deployed. |
@@ -45,6 +45,42 @@ Also verified: the shared battle sim is deterministic (`npx tsx app/scripts/sim-
   `mempire-release.env`. **Back both up.** Every future update, including the
   dApp Store, must be signed with this key.
 - `apksigner` certificate: CN=Mempire, O=Mempire, C=IN; cert SHA-256 510a32d604173681a92bd6cb9c9b3809c4042c7d59a3fbbaf02316769fc3d943
+
+## Native 3D arena (Oct 7, merged to main)
+
+The battle is no longer a WebView by default. `mobile/src/arena/NativeArena.tsx`
+renders the web game's own scene (`app/src/three/SceneContents`) with
+`@react-three/fiber/native` on `expo-gl`. It adds a native HUD (timer, crowns,
+elixir, hand, next card), PanResponder drag-to-deploy with a raycast through
+the scene camera, and haptics. `mobile/src/arena/match.ts` steps the shared
+deterministic sim and bot at 20 Hz.
+
+How the shared code works:
+- The scene reads the match through `app/src/three/arenaStore.ts`, which each
+  host binds to its own store.
+- Canvas textures go through `canvasTex.ts`. On native, the `.native.ts` twin
+  returns PNGs baked by `mobile/scripts/bake-textures.ts`, which runs the same
+  generators in Node; the output is byte-identical across runs.
+- Unit sprites are PNG, not WebP, because expo-gl decodes images with
+  stb_image, which has no WebP support. A WebP texture crashed the GL thread.
+- Metro pins `three` to one CJS copy. Two copies crashed the app on
+  `document.createElementNS`.
+
+| Check | Result |
+|---|---|
+| Logic parity | `cd app && npx vitest run`. `tests/arena-parity.test.ts` plays a scripted Rush (seed c10c4) and Standard (seed 5eed1) match through **both** the native store and the web store under fake timers, and asserts identical tick, tower HP, winner and state hash. **Pass**: Rush ends with winner 1 at 601 ticks; Standard with winner 1 at 3069 ticks and two towers down. |
+| Input mapping | `tests/arena-raycast.test.ts`: screen → NDC → ground round-trips through the real seat-0 camera, and the accept/forgive/refuse placement rules hold. **Pass.** |
+| Renders natively | iPhone 17 simulator: full textured scene, towers, crowd, units walking, a drop ring while dragging. Screenshots and a full Standard-match recording are in `clockin/screens/native-arena/`. |
+| Plays to a result | A full Standard match played natively: a tower fell (crowns 0-1) and the native result sheet showed "Native 3D arena". A Rush match accepted five back-to-back drags. **No native win was captured on the simulator**: at about 4 fps I could not out-play the bot. The win path is the same code the parity test covers, and wins were captured in the web arena. |
+| Fallback | Auto mode with native forced (`mempire://battle?...&renderer=native`) on the simulator: the watchdog saw under 20 fps for 5 s and restarted the same match (same hand) in the web arena. The result read "Web arena (switched from native)". |
+| Performance | **Simulator only: about 4 fps**, because iOS Simulator GLES is a software renderer (Apple's LLVM pipeline, one CPU core). The sim uses a lite path: Lambert materials, no fog/shadows/MSAA, and half-resolution rendering. **Hardware fps is unmeasured**, since no Android device or emulator could be used. A phone's GPU runs expo-gl in hardware, and if it can't hold 20 fps the watchdog moves the match to the web arena. |
+
+Renderer selection is in the wallet sheet under Arena renderer, persisted:
+- **Auto** (default): native on a physical device, web arena on a simulator.
+- **Native 3D**: forces native. Use it to see native on a sim.
+- **Web (compat)**.
+
+For fast iteration on JS-only changes: `bash mobile/scripts/ios-js-update.sh`. It re-embeds the JS bundle and the web arena into the built simulator app, with no Xcode build.
 
 ## Android audit (round 2, Oct 7)
 
@@ -136,9 +172,10 @@ the build falls back to the debug key and prints a warning.
 
 ## Decisions made (autonomously)
 
-- **Native loop, WebView arena.** The CLOCK IN rules penalise web wrappers, so
-  every screen outside the battle is native React Native. The 3D battle stays
-  in WebGL, **bundled into the binary** (`vite build --mode native`: relative
+- **Native loop and native arena, with a WebView safety net.** The CLOCK IN
+  rules penalise web wrappers, so every screen is native React Native, and
+  since Oct 7 so is the 3D battle (see *Native 3D arena*). The web arena is
+  kept only as an automatic fallback. It is **bundled into the binary** (`vite build --mode native`: relative
   base, one classic IIFE script because file:// rejects ES modules). It is not
   loaded from play.mempire.fun, so the APK needs no hosted site and picks up
   this repo's code.

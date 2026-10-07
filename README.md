@@ -5,13 +5,14 @@ A 3D real-time Clash Royale-style card battler on Solana where the roster is the
 market itself — memecoins, majors and tokenised stocks, each one a card with its
 own art, archetype and stats. This repository is Mempire's entry to the
 **Solana Mobile CLOCK IN** hackathon: a native Android (Seeker) and iOS app built
-around a daily Clock-In loop, with the 3D arena carried inside the binary.
+around a daily Clock-In loop. The whole app is native, including the 3D battle.
 
 ## Mempire for Seeker (CLOCK IN)
 
-`mobile/` is an Expo 57 / React Native 0.86 app. The whole daily loop is native;
-the battle itself is the game's React Three Fiber arena, bundled into the APK and
-opened full-screen only for the length of a match.
+`mobile/` is an Expo 57 / React Native 0.86 app, and it is native end to end.
+The 3D battle is the web game's own React Three Fiber scene, rendered natively
+with `@react-three/fiber/native` on `expo-gl`. It sits under a native HUD, with
+drag-to-deploy, the shared deterministic simulation, and the same AI rival.
 
 | | What it does | Where |
 |---|---|---|
@@ -20,7 +21,9 @@ opened full-screen only for the length of a match.
 | **SKR** | Earned by clocking in and winning; spent on **Streak Shields** (miss a day, keep the streak), a **Seeker Chest**, and **Rush Unlock**. Never on power. On devnet it is a labelled stand-in mint with real SKR's shape (classic SPL, 6 decimals, `transferChecked`), paid out by the public `spl-token-faucet` program so no key ships in the app. **Seeker Genesis Token** holders earn double SKR (read-only mainnet check). | `mobile/src/chain/skr.ts`, `mobile/src/chain/seeker.ts` |
 | **AI Coach (on-device)** | Runs the game's real deterministic battle engine headless on the phone: your deck vs every rival, both seats, fixed seeds — then searches for the single swap from your collection that wins more, and shows the numbers behind it. No server, no LLM, nothing leaves the device. | `mobile/src/game/coach.ts` |
 | **Collection, deck, chests** | 64 fighters, levels from duplicates, chest timers with local notifications, haptics throughout. | `mobile/src/screens/` |
-| **3D arena** | The same sim the web game and the on-chain match log use, opened from the native app with the deck and rival chosen natively; the result comes back over the bridge. Standard (3 min) or Rush (30 s). | `app/src/native/NativeHost.tsx` |
+| **Native 3D arena** | The web game's scene (`app/src/three`) runs in an expo-gl GL view. Its canvas-drawn textures are baked to PNG by a deterministic script. The native HUD has hand, elixir, timer and crowns, plus PanResponder drag-to-deploy with a ground raycast and haptics on deploys and crowns. It uses the same deterministic sim and bot as the web client. **Safety net:** if the native scene fails to start, throws, or holds under 20 fps for 5 s early in a match, the *same* match (same seed, decks and rival) restarts in the bundled web arena, and the result records which renderer ran. Settings offer Auto / Native 3D / Web (compat). Parity is proven by a test: both match stores play identical scripted matches to identical end states (`app/tests`). | `mobile/src/arena/` |
+
+**Honest status of the native arena:** I verified it on the iOS simulator. There, OpenGL ES is a software renderer and the scene draws at about 4 fps; full matches still play to a result. Frame rate on real GPU hardware has not been measured, because no Android device or emulator was available. That is exactly why the automatic fallback exists. Auto mode uses the web arena on simulators.
 
 Build and run (details in [HANDOFF.md](HANDOFF.md)): from `mobile/`, `npm run ios:sim`
 (iOS simulator), `npm run apk` (signed release APK). Submission material is in
