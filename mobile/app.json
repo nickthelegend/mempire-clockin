@@ -2,7 +2,7 @@
   "expo": {
     "name": "Mempire",
     "slug": "mempire",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "mempire",
@@ -12,7 +12,7 @@
     "newArchEnabled": true,
     "android": {
       "package": "fun.mempire.app",
-      "versionCode": 4,
+      "versionCode": 5,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
@@ -66,7 +66,13 @@
       "expo-secure-store",
       "expo-font",
       "expo-asset",
-      "expo-audio"
+      [
+        "expo-audio",
+        {
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false
+        }
+      ]
     ],
     "extra": {
       "eas": {

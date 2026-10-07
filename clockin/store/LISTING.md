@@ -52,7 +52,9 @@ Be aware: this is a devnet build and no real funds move. SKR is simulated on you
 • Chest-ready and streak reminders.
 ```
 
-### 1.2.0 (versionCode 4, current `main`)
+### 1.2.1 (versionCode 5, current `main`) — same notes as 1.2.0, plus: no microphone permission
+
+### 1.2.0 (versionCode 4)
 
 ```
 • First-run intro and a guided first battle.
@@ -63,8 +65,8 @@ Be aware: this is a devnet build and no real funds move. SKR is simulated on you
 • Larger text support, bigger touch targets, clearer offline and empty states.
 • New app icon and splash.
 ```
-The last bullet holds only for a build made after the store-kit merge. The 1.2.0 APK built at 13:39 on Oct 7
-still has the old icon. See `PUBLISH.md` step 3.
+The last bullet holds for 1.2.1 (the 1.2.0 APK built at 13:39 on Oct 7 still had the old icon); the 1.2.1 APK's
+launcher foreground, background, monochrome and splash resources match the store-kit art.
 
 Short form for `dapp-store --whats-new` (one line):
 ```

@@ -2,7 +2,7 @@
 
 > **Draft for the publisher. Fill in every `<…>`, have it read by someone qualified for your jurisdiction, and
 > host it at a public URL before you submit. The planned URL, https://mempire.fun/privacy, returns 404 today.**
-> I wrote it from the source code of `mobile/` at the commit that adds this file: Mempire 1.2.0,
+> I wrote it from the source code of `mobile/` (Mempire 1.2.1, versionCode 5),
 > `fun.mempire.app`. Re-check it whenever the app adds a server, analytics, push notifications or accounts.
 > The items marked ⚠ are things the app does today that you may want to change before publishing.
 > They are not promises.
@@ -57,11 +57,10 @@ Chest-ready and streak reminders are **local notifications**, scheduled on your 
 - **Internet**: required, to reach Solana.
 - **Notifications**: optional, for the reminders described above.
 - **Vibrate**: for haptic feedback.
-- **Wake lock**, **foreground media playback**, **boot completed**, **network state**: added by the notification and audio libraries. They keep reminders and sounds working.
+- **Wake lock**, **boot completed**, **network state**: added by the notification library. They keep reminders working.
 
-Mempire **does not use** your camera, location, contacts, photos or files.
+Mempire **does not use** your camera, microphone, location, contacts, photos or files. The Android app does not request the microphone permission.
 
-⚠ **Microphone:** the 1.2.0 Android build lists `RECORD_AUDIO` in its manifest. The `expo-audio` library, which plays the game's sounds, adds it by default. The app never asks for it at runtime and never records. *Block it before publishing* (see `PUBLISH.md`), then delete this paragraph.
 
 ## No analytics, ads or tracking
 

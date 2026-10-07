@@ -36,9 +36,9 @@ Also verified: the shared battle sim is deterministic (`npx tsx app/scripts/sim-
 ## APK
 
 - `/Volumes/Extreme SSD/Projects/clockin/apks/mempire-clockin.apk`
-- sha256 `4a2d5465cd5ce68058e13430f2ac886a126033efd31f4abef32e8f841e84200f`
-- 69,219,841 bytes (66.0 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 4 (1.2.0)
-- Built from commit `7a6ea28` (polish round + native 3D arena + round-2 Android hardening).
+- sha256 `b072467821b9362e36b2e7898e2a43bd744ea839732fee3a3084ca9ea673dcec`
+- 69,799,473 bytes (66.6 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 5 (1.2.1)
+- Built from commit `9ef943c` plus the 1.2.1 changes (no microphone permission, no fps readout in release, store-kit icon and splash).
 - Signed with a **new dedicated release key**. The keystore and its password
   are **outside the repo** at
   `/Volumes/Extreme SSD/Projects/clockin/keys/mempire-release.keystore` and
@@ -110,6 +110,7 @@ was re-verified afterwards on the iPhone 17 simulator.
 | # | Check | Result |
 |---|---|---|
 | 1 | Package / version | `fun.mempire.app`, **versionCode 2 / 1.0.1** (was 1 / 1.0.0). minSdk 24, targetSdk 36, compileSdk 36. |
+| 1 | Permissions (1.2.1) | `aapt2 dump permissions` lists no `RECORD_AUDIO` and no `FOREGROUND_SERVICE*`, and the manifest has no media-playback service. expo-audio is configured with `recordAudioAndroid: false, enableBackgroundPlayback: false`; playback never needed either. |
 | 1 | Permissions | INTERNET, POST_NOTIFICATIONS, VIBRATE, WAKE_LOCK and RECEIVE_BOOT_COMPLETED (rescheduling local notifications) remain. **Fixed:** `SYSTEM_ALERT_WINDOW`, READ/WRITE_EXTERNAL_STORAGE and USE_BIOMETRIC/USE_FINGERPRINT were pulled in by libraries and are now blocked (`android.blockedPermissions`). Launcher-badge and FCM permissions from expo-notifications remain; they are harmless. |
 | 1 | Cleartext | `usesCleartextTraffic=false`. All traffic is HTTPS to devnet and mainnet RPC. |
 | 1 | `<queries>` | The merged manifest has `<intent>` VIEW/BROWSABLE `solana-wallet` (from the MWA library), so MWA can see wallets on Android 11+. |

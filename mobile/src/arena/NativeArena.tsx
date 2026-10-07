@@ -149,6 +149,8 @@ const ON_DEVICE = Device.isDevice;
  * keeps everything else — same geometry, same textures, same match.
  */
 const LITE = !ON_DEVICE;
+/** The fps readout is a development aid; release builds keep only the watchdog. */
+const SHOW_FPS = __DEV__;
 const GL = { ...SCENE_GL, antialias: ON_DEVICE && SCENE_GL.antialias };
 
 const fmtClock = (ticks: number) => {
@@ -496,7 +498,7 @@ export function NativeArena() {
             <Text style={st.prepSub}>Preparing the arena…</Text>
           </View>
         ) : null}
-        {lastFps ? <Text pointerEvents="none" style={[st.fps, { top: insets.top + 96 }]}>{lastFps} fps</Text> : null}
+        {SHOW_FPS && lastFps ? <Text pointerEvents="none" style={[st.fps, { top: insets.top + 96 }]}>{lastFps} fps</Text> : null}
       </View>
     </Modal>
   );
