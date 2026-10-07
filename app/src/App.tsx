@@ -34,6 +34,7 @@ function EmbeddedArena() {
     <HashRouter>
       <Routes>
         <Route path="/" element={<NativeHost />} />
+        <Route path="/m/*" element={<NativeHost />} />
         <Route
           path="/battle"
           element={(

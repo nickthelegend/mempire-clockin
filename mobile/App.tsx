@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import {
-  Animated, AppState, Image, Pressable, StyleSheet, View,
+  Animated, AppState, BackHandler, Image, Pressable, StyleSheet, View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -146,6 +146,16 @@ function Screens() {
 }
 
 function Game() {
+  // Android back: from any tab, go Home first; only Home exits. Sheets and the
+  // arena are Modals and get the back press through their onRequestClose.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      const ui = useUi.getState();
+      if (ui.tab !== 'home') { ui.setTab('home'); return true; }
+      return false;
+    });
+    return () => sub.remove();
+  }, []);
   return (
     <View style={{ flex: 1 }}>
       <Header />

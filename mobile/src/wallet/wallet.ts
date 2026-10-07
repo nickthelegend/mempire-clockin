@@ -52,6 +52,27 @@ function friendly(e: unknown): Error {
   return e instanceof Error ? e : new Error(msg);
 }
 
+/**
+ * Authorize, reusing the cached token (a silent reauthorize in the wallet).
+ * A wallet that no longer honours the token — revoked, reinstalled, expired —
+ * rejects it; the token is then dropped and a fresh authorize is asked for,
+ * once, instead of failing every future sign-in.
+ */
+async function authorize(wallet: Web3MobileWallet) {
+  const cached = await SecureStore.getItemAsync(MWA_TOKEN);
+  try {
+    const auth = await wallet.authorize({ chain: CHAIN, identity: APP_IDENTITY, auth_token: cached ?? undefined });
+    await SecureStore.setItemAsync(MWA_TOKEN, auth.auth_token);
+    return auth;
+  } catch (e) {
+    if (!cached || /declin|reject|cancel/i.test(e instanceof Error ? e.message : String(e))) throw e;
+    await SecureStore.deleteItemAsync(MWA_TOKEN);
+    const auth = await wallet.authorize({ chain: CHAIN, identity: APP_IDENTITY });
+    await SecureStore.setItemAsync(MWA_TOKEN, auth.auth_token);
+    return auth;
+  }
+}
+
 let devKeypair: Keypair | null = null;
 
 async function loadDevKeypair(create: boolean): Promise<Keypair | null> {
@@ -114,11 +135,7 @@ export const useWallet = create<WalletState>((set, get) => ({
   connectMwa: async () => {
     try {
       const address = await mwaTransact(async (wallet) => {
-        const cached = await SecureStore.getItemAsync(MWA_TOKEN);
-        const auth = await wallet.authorize({
-          chain: CHAIN, identity: APP_IDENTITY, auth_token: cached ?? undefined,
-        });
-        await SecureStore.setItemAsync(MWA_TOKEN, auth.auth_token);
+        const auth = await authorize(wallet);
         // MWA returns the address base64-encoded, not base58.
         return new PublicKey(Buffer.from(auth.accounts[0].address, 'base64')).toBase58();
       });
@@ -174,11 +191,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     } else {
       try {
         sig = await mwaTransact(async (wallet) => {
-          const cached = await SecureStore.getItemAsync(MWA_TOKEN);
-          const auth = await wallet.authorize({
-            chain: CHAIN, identity: APP_IDENTITY, auth_token: cached ?? undefined,
-          });
-          await SecureStore.setItemAsync(MWA_TOKEN, auth.auth_token);
+          await authorize(wallet);
           const [s] = await wallet.signAndSendTransactions({ transactions: [tx], minContextSlot });
           return s;
         });

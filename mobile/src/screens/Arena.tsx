@@ -1,7 +1,8 @@
 import { Paths } from 'expo-file-system';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, BackHandler, Modal, Platform, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Platform, StyleSheet, View } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { finishMatch } from '../game/actions';
 import { useUi } from '../state/ui';
 import { injectedBridge } from '../injected';
@@ -32,8 +33,17 @@ export function ArenaHost() {
   const say = useUi((s) => s.say);
   const [ready, setReady] = useState(false);
   const done = useRef(false);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => { done.current = false; setReady(false); }, [match]);
+
+  // The cover is opaque. If the page never reports `ready` (a WebView quirk,
+  // a slow first WebGL compile) it must still get out of the way.
+  useEffect(() => {
+    if (!match || ready) return undefined;
+    const t = setTimeout(() => setReady(true), 8000);
+    return () => clearTimeout(t);
+  }, [match, ready]);
 
   const leave = useCallback(() => {
     Alert.alert('Leave the battle?', 'The match counts as a loss.', [
@@ -52,11 +62,7 @@ export function ArenaHost() {
     ]);
   }, [match, closeBattle]);
 
-  useEffect(() => {
-    if (!match) return undefined;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => { leave(); return true; });
-    return () => sub.remove();
-  }, [match, leave]);
+  // Android hardware back arrives as the Modal's onRequestClose (-> leave).
 
   const onMessage = useCallback((e: WebViewMessageEvent) => {
     let msg: Record<string, unknown>;
@@ -82,16 +88,24 @@ export function ArenaHost() {
   }, [match, closeBattle, say]);
 
   if (!match) return null;
-  // The match spec is planted before any page script runs.
-  const inject = `window.__MEMPIRE_MATCH__ = ${JSON.stringify({
+  // The match spec travels two ways: planted before page scripts, and in the
+  // URL hash. The hash is what Android relies on — before-content-loaded
+  // injection can race a file:// page's own script there.
+  const spec = JSON.stringify({
     player: match.player, bot: match.bot, tier: match.tier, opponent: match.rival, rush: match.rush,
-  })};\n${BRIDGE}`;
+  });
+  const inject = `window.__MEMPIRE_MATCH__ = ${spec};\n${BRIDGE}`;
+  const uri = `${GAME_URL}#/m/${encodeURIComponent(spec)}`;
 
   return (
-    <Modal visible animationType="fade" onRequestClose={leave} statusBarTranslucent>
-      <View style={st.fill}>
+    <Modal visible animationType="fade" onRequestClose={leave} statusBarTranslucent navigationBarTranslucent>
+      {/* The arena is inset natively on both platforms. Android 15+ is
+          edge-to-edge and its WebView reports no safe-area env() values; on
+          iOS the page's quit button sat under the status bar, where taps
+          never reach it (seen on the iPhone 17 simulator). */}
+      <View style={[st.fill, { paddingTop: insets.top, paddingBottom: Platform.OS === 'android' ? insets.bottom : 0 }]}>
         <WebView
-          source={{ uri: GAME_URL }}
+          source={{ uri }}
           injectedJavaScriptBeforeContentLoaded={inject}
           onMessage={onMessage}
           originWhitelist={['*']}

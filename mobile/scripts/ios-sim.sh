@@ -10,6 +10,14 @@ HERE="$(cd "$(dirname "$0")/.." && pwd)"
 [ -f "/Volumes/Extreme SSD/Projects/clockin/env.sh" ] && source "/Volumes/Extreme SSD/Projects/clockin/env.sh"
 DD="${CLOCKIN_DERIVED_DATA:-$HERE/ios/build}/mempire"
 export LANG=en_US.UTF-8
+# One native build at a time across all agents on this machine (see
+# clockin/ROUND2.md): take the shared lock, always release it.
+LOCK="/Volumes/Extreme SSD/Projects/clockin/.gradle.lock"
+if [ -d "/Volumes/Extreme SSD/Projects/clockin" ]; then
+  until mkdir "$LOCK" 2>/dev/null; do sleep 30; done
+  echo "mempire $$" > "$LOCK/owner"
+  trap 'rm -rf "$LOCK"' EXIT
+fi
 [ -f "$HERE/web/www/index.html" ] || (cd "$HERE" && sh scripts/build-www.sh)
 cd "$HERE/ios"
 xcodebuild -workspace Mempire.xcworkspace -scheme Mempire -configuration Release \

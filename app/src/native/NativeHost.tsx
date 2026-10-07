@@ -34,8 +34,33 @@ declare global {
   }
 }
 
-export const isEmbedded = (): boolean =>
-  typeof window !== 'undefined' && !!window.__MEMPIRE_MATCH__ && !!window.ReactNativeWebView;
+/**
+ * The match spec, from either channel the shell provides.
+ *
+ * The shell plants `window.__MEMPIRE_MATCH__` before page scripts *and* puts
+ * the same spec in the URL hash (`#/m/<uri-encoded JSON>`). The hash is the one
+ * that cannot race: on Android, react-native-webview's before-content-loaded
+ * injection is not guaranteed to have run by the time a file:// page's script
+ * executes, and if neither were present the page would boot the whole web
+ * game inside the arena modal.
+ */
+const HASH_PREFIX = '#/m/';
+export function readSpec(): NativeMatchSpec | null {
+  if (typeof window === 'undefined') return null;
+  if (window.__MEMPIRE_MATCH__) return window.__MEMPIRE_MATCH__;
+  const h = window.location.hash;
+  if (!h.startsWith(HASH_PREFIX)) return null;
+  try {
+    return JSON.parse(decodeURIComponent(h.slice(HASH_PREFIX.length))) as NativeMatchSpec;
+  } catch {
+    return null;
+  }
+}
+
+/** Captured once at boot: the hash changes as soon as the router navigates. */
+const BOOT_SPEC = readSpec();
+
+export const isEmbedded = (): boolean => BOOT_SPEC !== null;
 
 function post(msg: Record<string, unknown>): void {
   try { window.ReactNativeWebView?.postMessage(JSON.stringify(msg)); } catch { /* not in the app */ }
@@ -55,8 +80,10 @@ export function NativeHost() {
   useEffect(() => {
     if (startedOnce) return;
     startedOnce = true;
-    const spec = window.__MEMPIRE_MATCH__;
+    const spec = BOOT_SPEC;
     if (!spec) { post({ channel: 'exit', reason: 'no match' }); return; }
+    // The page has booted and owns the screen: the shell can drop its cover.
+    post({ channel: 'ready' });
     const err = startNativeMatch(toCards(spec.player), toCards(spec.bot), {
       tier: spec.tier, opponent: spec.opponent, rush: !!spec.rush,
     });
