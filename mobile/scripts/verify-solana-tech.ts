@@ -20,6 +20,11 @@ import {
 } from '../src/chain/session';
 import { readClockIns } from '../src/chain/solana';
 import * as fair from '../src/chain/fair';
+import { DUEL_REF, MEMO_V1, challengeIxs, loadChallenge, readDuelBoard, resultIxs } from '../src/chain/duels';
+import { decodeDuel, encodeDuel, replayDuel, toCard, verifyResult, winnerCode, ghostInputs, type DuelPayload } from '../src/game/duel';
+import { createMatch, hashState, stepSim } from '../../app/src/sim/engine';
+import { decideBot } from '../../app/src/sim/bot';
+import { FORMATS, type InputEvent } from '../../app/src/sim/types';
 
 const RPC = process.env.EXPO_PUBLIC_RPC_URL!;
 const conn = new Connection(RPC, 'confirmed');
@@ -122,7 +127,69 @@ async function fairChests() {
   check(!(await fair.verifyProof(conn, { ...proof, slot: r!.slot + 1 })).ok, 'verifyProof rejects a later slot than the first block after the target');
 }
 
+/** A bot-vs-bot match in the native loop's order; returns each seat's queued inputs. */
+function playMatch(seed: number, rush: boolean, decks: [string[], string[]], script0?: InputEvent[]) {
+  const sim = createMatch(seed, [decks[0].map((t) => toCard({ ticker: t, level: 3 })), decks[1].map((t) => toCard({ ticker: t, level: 3 }))], FORMATS[rush ? 'rush' : 'standard']);
+  const pending = new Map<number, InputEvent[]>();
+  const push = (e: InputEvent) => { const l = pending.get(e.tick) ?? []; l.push(e); pending.set(e.tick, l); };
+  for (const e of script0 ?? []) push(e);
+  const rec: [InputEvent[], InputEvent[]] = [[], []];
+  while (sim.phase !== 'ended') {
+    for (const seat of (script0 ? [1] : [0, 1]) as (0 | 1)[]) {
+      const ev = decideBot(sim, seat, 'hard');
+      if (ev) { push(ev); rec[seat].push(ev); }
+    }
+    stepSim(sim, pending.get(sim.tick) ?? []);
+  }
+  return { sim, rec };
+}
+
+async function duels() {
+  console.log('\n— ghost duels —');
+  const A = ['ETH', 'WIF', 'BTC', 'DOGE', 'SOL', 'BONK', 'POPCAT', 'GOAT'];
+  const B = ['SHIB', 'PEPE', 'MEW', 'BRETT', 'DOGE', 'BONK', 'WIF', 'SOL'];
+  const seed = 0x5eed1;
+  const pay = (deck: string[], evs: InputEvent[]): DuelPayload => ({ seed, rush: false, deck: deck.map((t) => ({ ticker: t, level: 3 })), inputs: evs.map(({ tick, deckIndex, x, y }) => ({ tick, deckIndex, x, y })) });
+  const memoV1 = await conn.getAccountInfo(MEMO_V1);
+  check(!!memoV1?.executable, 'SPL Memo v1 (cheap, unlogged payload memo) is deployed');
+  const alice = Keypair.generate(); const bob = Keypair.generate();
+  await fund(alice.publicKey, 1); await fund(bob.publicKey, 1);
+
+  const orig = playMatch(seed, false, [A, B]);
+  const challenger = pay(A, orig.rec[0]);
+  const bytes = encodeDuel(challenger);
+  const cSig = await send(alice, challengeIxs(alice.publicKey, bytes, seed));
+  const raw = await conn.getTransaction(cSig, { maxSupportedTransactionVersion: 0, commitment: 'confirmed' });
+  const size = new VersionedTransaction(new TransactionMessage({ payerKey: alice.publicKey, recentBlockhash: raw!.transaction.message.recentBlockhash, instructions: challengeIxs(alice.publicKey, bytes, seed) }).compileToV0Message()).serialize().length;
+  check(size <= 1232, `challenge (3-min match, ${orig.rec[0].length} deploys) fits one transaction: ${size} bytes`);
+  const keys = raw!.transaction.message.staticAccountKeys.map((k) => k.toBase58());
+  const refIdx = keys.indexOf(DUEL_REF.toBase58());
+  check(refIdx >= raw!.transaction.message.header.numRequiredSignatures && !raw!.transaction.message.isAccountWritable(refIdx), 'duel reference is in the tx as a read-only, non-signer key');
+
+  const ch = await loadChallenge(conn, cSig);
+  check(ch.challenger === alice.publicKey.toBase58() && !!ch.payload && ch.payload.inputs.length === orig.rec[0].length, 'challenge read back from chain: challenger + payload matches its sha256 commitment');
+
+  // Bob fights the ghost (bot pilot standing in for his thumbs), then posts the result.
+  const live = playMatch(seed, false, [A, B], ghostInputs(ch.payload!, 0));
+  const opponent = pay(B, live.rec[1]);
+  const w = winnerCode(live.sim.winner as 0 | 1 | -2);
+  const rSig = await send(bob, resultIxs(bob.publicKey, cSig, w, hashState(live.sim), encodeDuel(opponent)));
+  const board = await readDuelBoard(conn);
+  const res = board.txs.find((t) => t.sig === rSig);
+  const chal = board.txs.find((t) => t.sig === cSig);
+  check(!!res && !!chal && res.signer === bob.publicKey.toBase58(), `duel board (getSignaturesForAddress on the reference) lists the challenge and the result (${board.txs.length} txs)`);
+  if (res && res.memo.kind === 'result' && res.memo.data) {
+    const v = verifyResult(ch.payload!, decodeDuel(Buffer.from(res.memo.data.replace(/-/g, '+').replace(/_/g, '/'), 'base64')), res.memo);
+    check(v.ok, `result matches replay: winner ${res.memo.winner}, state hash ${res.memo.stateHash.toString(16)} == ${v.replay.stateHash.toString(16)}`);
+  } else check(false, 'result memo parsed');
+  const liar = await send(alice, resultIxs(alice.publicKey, cSig, w === 'c' ? 'o' : 'c', hashState(live.sim), encodeDuel(opponent)));
+  const lie = (await readDuelBoard(conn)).txs.find((t) => t.sig === liar);
+  if (lie && lie.memo.kind === 'result') check(!verifyResult(ch.payload!, opponent, lie.memo).ok, 'a posted result with the wrong winner fails the replay check');
+  check(replayDuel(ch.payload!, opponent).stateHash === (hashState(live.sim) >>> 0), 'replay hash == live hash');
+}
+
 (async () => {
+  await duels();
   await sessionKeys();
   await fairChests();
   console.log(failures ? `\n${failures} FAILED` : '\nALL CHECKS PASSED');
