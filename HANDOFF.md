@@ -36,9 +36,9 @@ Also verified: the shared battle sim is deterministic (`npx tsx app/scripts/sim-
 ## APK
 
 - `/Volumes/Extreme SSD/Projects/clockin/apks/mempire-clockin.apk`
-- sha256 `32aed1f9fc222754f0b9a3b324cd7ee78332890cc3f85b1199eaa5215cfa5da3`
-- 63,903,832 bytes (60.9 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 3 (1.1.0)
-- Built from commit `5af44b8` (native 3D arena + round-2 Android hardening).
+- sha256 `4a2d5465cd5ce68058e13430f2ac886a126033efd31f4abef32e8f841e84200f`
+- 69,219,841 bytes (66.0 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 4 (1.2.0)
+- Built from commit `7a6ea28` (polish round + native 3D arena + round-2 Android hardening).
 - Signed with a **new dedicated release key**. The keystore and its password
   are **outside the repo** at
   `/Volumes/Extreme SSD/Projects/clockin/keys/mempire-release.keystore` and
