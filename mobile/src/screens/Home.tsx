@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { UI_ART } from '../data/art';
 import { CHESTS, QUESTS, QUEST_BONUS, RIVALS, WEEK, dayKey, msToUtcMidnight, rolloverLabel, streakState } from '../game/rules';
 import { challengeMessage, claimQuest, doClockIn, openChest, prepareMatch, startUnlock } from '../game/actions';
-import { explorerTx, short } from '../chain/solana';
+import { CLUSTER_LABEL, explorerTx, short } from '../chain/solana';
 import { SKR_LABEL, SKR_LIVE } from '../chain/skr';
 import { useGame, avgDeckLevel, slotsOf } from '../state/game';
 import { SEASON, claimable, tierFor, tierProgress } from '../game/season';
@@ -16,6 +16,7 @@ import { Body, Btn, ChestArt, Display, Panel, PressScale, Progress, Rise, Tag, T
 import { EASE_OUT, reduceMotion, useCountUp } from '../motion';
 import { sfx } from '../sound';
 import { haptic } from '../notify';
+import { SessionCard } from './SessionCard';
 
 function useNow(ms = 1000) {
   const [now, setNow] = useState(Date.now());
@@ -79,7 +80,7 @@ function ClockIn() {
       const bits = [`Day ${r.streak}`, `+${r.skr} SKR`];
       if (r.chestTier) bits.push(r.chestQueued ? `${CHESTS[r.chestTier as keyof typeof CHESTS].name} waiting for a free slot` : `${CHESTS[r.chestTier as keyof typeof CHESTS].name}`);
       if (r.shieldsUsed) bits.push(`${r.shieldsUsed} shield used`);
-      say(`${bits.join(' · ')}${r.sig ? ' · proof on devnet' : ''}`, 'ok');
+      say(`${bits.join(' · ')}${r.sig ? (r.via === 'session' ? ' · signed by your session key, no prompt' : ` · proof on ${CLUSTER_LABEL}`) : ''}`, 'ok');
     } catch (e) {
       say(e instanceof Error ? e.message : String(e), 'err');
     } finally {
@@ -144,9 +145,10 @@ function ClockIn() {
           : ledger === null
           ? 'Chain ledger: could not reach devnet.'
           : ledger.length
-            ? `Chain ledger: ${ledger.length} signed Clock-In${ledger.length === 1 ? '' : 's'} on devnet · latest day ${ledger[0].streak}`
+            ? `Chain ledger: ${ledger.length} signed Clock-In${ledger.length === 1 ? '' : 's'} on ${CLUSTER_LABEL}${ledger.some((l) => l.via === 'session') ? ` (${ledger.filter((l) => l.via === 'session').length} by session key)` : ''} · latest day ${ledger[0].streak}`
             : 'Chain ledger: no signed Clock-Ins yet — they appear once the wallet has devnet SOL.'}
       </Body>
+      <SessionCard />
       {last?.day === dayKey() && last.offlineReason ? (
         <Body size={11} color={C.dimOnWood} style={{ marginTop: 4 }}>
           Not on-chain: {last.offlineReason}. Your streak and chest are kept{SKR_LIVE ? '; the SKR is owed — claim it in the Shop once you have devnet SOL.' : `; ${SKR_LABEL} was credited.`}

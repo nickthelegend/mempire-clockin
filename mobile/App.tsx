@@ -14,6 +14,7 @@ import {
 import { UI_ART } from './src/data/art';
 import { useWallet } from './src/wallet/wallet';
 import { useDisplayName } from './src/state/identity';
+import { readFullLedger, useSession } from './src/wallet/sessionKey';
 import { useGame } from './src/state/game';
 import { ftueDone, loadRendererPref, useUi, type Tab } from './src/state/ui';
 import { useNet } from './src/state/net';
@@ -269,6 +270,8 @@ function Root() {
   useEffect(() => {
     if (address && loadedFor !== address) void load(address);
   }, [address, loadedFor, load]);
+  // This wallet's session key (approve once, play all week), if one is linked.
+  useEffect(() => { void useSession.getState().load(address); }, [address]);
 
   // The streak lives on chain too: if this device is behind (reinstall, new
   // phone), adopt the latest signed Clock-In memo.
@@ -277,7 +280,7 @@ function Root() {
   const readLedger = useCallback(() => {
     if (!address || useGame.getState().address !== address) return;
     if (Array.isArray(useUi.getState().chainLedger)) return; // read once per session
-    void readClockIns(address).then((list) => {
+    void readFullLedger(address).then((list) => {
       if (useWallet.getState().address !== address) return;
       setChainLedger(list);
       if (list[0] && adoptChainStreak(list[0])) {

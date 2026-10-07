@@ -1,6 +1,9 @@
 import { PublicKey } from '@solana/web3.js';
-import { clockInMemo, explorerTx, getSol, readClockIns } from '../chain/solana';
-import { SKR_LIVE, earnIxs, payIxs } from '../chain/skr';
+import { clockInMemo, connection, explorerTx, getSol } from '../chain/solana';
+import { sessionClockInIx } from '../chain/session';
+import { readFullLedger, useSession } from '../wallet/sessionKey';
+import { getAssociatedTokenAddressSync } from '@solana/spl-token';
+import { SKR_LIVE, SKR_MINT, earnIxs, payIxs } from '../chain/skr';
 import { askPermission, cancel, chestNotificationId, chestReminder, ensureStreakReminder, haptic } from '../notify';
 import { sfx } from '../sound';
 import { useGame, avgDeckLevel, type Grant } from '../state/game';
@@ -77,6 +80,8 @@ export interface ClockInResult {
   /** Slots were full: the chest is waiting in the inbox. */
   chestQueued: boolean;
   sig?: string;
+  /** Who signed it: the wallet (approval) or the session key (no prompt). */
+  via?: 'wallet' | 'session';
   offlineReason?: string;
   shieldsUsed: number;
   broke: boolean;
@@ -93,7 +98,7 @@ async function syncChainStreak(): Promise<void> {
   if (!address || Array.isArray(ledger)) return; // already read this session
   try {
     const list = await Promise.race([
-      readClockIns(address),
+      readFullLedger(address),
       new Promise<never>((_, rej) => setTimeout(() => rej(new Error('timeout')), 6000)),
     ]);
     useUi.getState().setChainLedger(list);
@@ -102,6 +107,7 @@ async function syncChainStreak(): Promise<void> {
 }
 
 export async function doClockIn(seeker: boolean): Promise<ClockInResult | null> {
+  let skrOwedFromSession = false;
   await syncChainStreak();
   const game = useGame.getState();
   const preview = game.previewClockIn(seeker);
@@ -111,15 +117,37 @@ export async function doClockIn(seeker: boolean): Promise<ClockInResult | null> 
 
   let sig: string | undefined;
   let offlineReason: string | undefined;
-  const fees = await feeCheck();
-  if (!address) offlineReason = 'no wallet connected';
+  let via: 'wallet' | 'session' | undefined;
+  const streakN = preview.outcome.streak.count;
+  const war = warMemo(useGame.getState().warSide);
+  // Approve once, play all week: a live session key signs (and pays for)
+  // today's Clock-In with no wallet prompt. Any failure falls back to the
+  // wallet below, so a Clock-In is never lost to the session.
+  const session = useSession.getState();
+  if (address && session.usable()) {
+    try {
+      const owner = new PublicKey(address);
+      const ixs = [sessionClockInIx(new PublicKey(session.cur!.session), owner, day, streakN, war)];
+      // SKR rides along only if the player's token account exists: creating
+      // it would cost the float more than a week of fees.
+      if (SKR_LIVE && SKR_MINT && await connection.getAccountInfo(getAssociatedTokenAddressSync(SKR_MINT, owner)).catch(() => null)) {
+        ixs.push(earnIxs(owner, preview.reward.skr)[1]);
+      }
+      sig = await session.sendAsSession(ixs);
+      via = 'session';
+      if (ixs.length < 2) skrOwedFromSession = true;
+    } catch { sig = undefined; }
+  }
+  const fees = sig ? 'yes' : await feeCheck();
+  if (sig) { /* signed by the session key */ } else if (!address) offlineReason = 'no wallet connected';
   else if (fees === 'no') offlineReason = 'no devnet SOL for the network fee';
   else {
     try {
       const owner = new PublicKey(address);
       // One transaction: the signed memo that *is* the Clock-In, plus the
       // day's stand-in SKR minted straight to the player by the public faucet.
-      sig = await send([clockInMemo(owner, day, preview.outcome.streak.count, warMemo(useGame.getState().warSide)), ...earnIxs(owner, preview.reward.skr)]);
+      sig = await send([clockInMemo(owner, day, streakN, war), ...earnIxs(owner, preview.reward.skr)]);
+      via = 'wallet';
     } catch (e) {
       offlineReason = errText(e);
     }
@@ -129,11 +157,11 @@ export async function doClockIn(seeker: boolean): Promise<ClockInResult | null> 
   if (done) useGame.getState().progressQuest('clockin');
   if (sig && done) {
     const ledger = useUi.getState().chainLedger ?? [];
-    useUi.getState().setChainLedger([{ day, streak: done.outcome.streak.count, sig }, ...ledger]);
+    useUi.getState().setChainLedger([{ day, streak: done.outcome.streak.count, sig, via }, ...ledger]);
   }
   if (!done) return null;
   // SKR minted in the same transaction when it went through; otherwise owed.
-  if (!sig || !SKR_LIVE) useGame.getState().addSkrSim(done.reward.skr);
+  if (!sig || !SKR_LIVE || skrOwedFromSession) useGame.getState().addSkrSim(done.reward.skr);
   haptic.success();
   sfx('reward');
   // Asked here, not at launch: the first Clock-In is when a reminder means something.
@@ -145,6 +173,7 @@ export async function doClockIn(seeker: boolean): Promise<ClockInResult | null> 
     chestStored: !!done.chest?.chest || !done.reward.chest,
     chestQueued: !!done.chest?.queued,
     sig,
+    via,
     offlineReason,
     shieldsUsed: done.outcome.shieldsUsed,
     broke: done.outcome.broke,

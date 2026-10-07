@@ -75,6 +75,9 @@ export async function readClockIns(address: string, limit = 60): Promise<ChainCl
   const out: ChainClockIn[] = [];
   for (const s of sigs) {
     if (s.err || !s.memo) continue;
+    // A session-signed Clock-In names its owner and is only valid with a live
+    // session link: chain/session.ts validates those, never this shortcut.
+    if (/:owner=/.test(s.memo)) continue;
     const m = /mempire:clockin:v1:day=(\d{8}):streak=(\d+)/.exec(s.memo);
     if (m) out.push({ day: Number(m[1]), streak: Number(m[2]), sig: s.signature });
   }
