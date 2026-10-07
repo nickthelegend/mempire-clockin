@@ -1,4 +1,5 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber/native';
+import { setArenaSkin, type ArenaSkinId } from '../../../app/src/three/skin';
 import { Component, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Alert, Animated, AppState, Image, Modal, PanResponder, Pressable, StyleSheet, Text, View,
@@ -237,6 +238,9 @@ export function NativeArena() {
   useEffect(() => {
     setMountGl(false);
     if (!match) return undefined;
+    // The equipped arena skin (checked against the chain at battle start) is
+    // read by the scene's textures and lights when the Canvas mounts.
+    setArenaSkin((match.skin ?? 'default') as ArenaSkinId);
     const t = setTimeout(() => setMountGl(true), 1200);
     return () => clearTimeout(t);
   }, [match]);

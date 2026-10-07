@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { BAKED } from '../../../mobile/src/arena/baked';
+import { arenaSkin } from './skin';
 
 /**
  * Native twin of canvasTex.ts (Metro picks this file on iOS/Android).
@@ -50,7 +51,10 @@ export function reportTextureError(what: string, e: unknown): void {
 }
 
 export function toTexture(c: HTMLCanvasElement): THREE.Texture {
-  const name = (c as unknown as Inert).__baked;
+  const base = (c as unknown as Inert).__baked;
+  // An equipped arena skin swaps in its baked variant when there is one.
+  const skin = arenaSkin();
+  const name = skin !== 'default' && BAKED[`${base}__${skin}`] !== undefined ? `${base}__${skin}` : base;
   const asset = BAKED[name];
   if (asset === undefined) throw new Error(`no baked texture "${name}" — run mobile/scripts/bake-textures.ts`);
   return loader.load(asset as unknown as string, undefined, undefined, (e) => reportTextureError(`texture ${name}`, e));
