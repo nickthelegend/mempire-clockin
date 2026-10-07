@@ -125,9 +125,11 @@ interface GameState extends Save {
   grant: (tier: ChestTier, source: Chest['source']) => Grant;
   startUnlock: (id: string) => Chest | null;
   finishUnlock: (id: string) => void;
-  openChest: (id: string) => Drop[] | null;
+  openChest: (id: string, rand?: () => number) => Drop[] | null;
+  /** Attach the fair-roll commit (target slot) to a chest in the rail. */
+  setChestCommit: (id: string, commit: import('../chain/fair').ChestCommit) => void;
   /** Roll and apply a chest's contents without it ever sitting in a slot. */
-  openNow: (tier: ChestTier) => Drop[];
+  openNow: (tier: ChestTier, rand?: () => number) => Drop[];
   upgrade: (ticker: string) => boolean;
   setDeckSlot: (slot: number, ticker: string) => void;
 
@@ -271,11 +273,15 @@ export const useGame = create<GameState>((set, get) => {
       chests: get().chests.map((c) => (c.id === id ? { ...c, unlockAt: Date.now() } : c)),
     }),
 
-    openChest: (id) => {
+    setChestCommit: (id, commit) => put({
+      chests: get().chests.map((c) => (c.id === id && !c.commit ? { ...c, commit } : c)),
+    }),
+
+    openChest: (id, rand) => {
       const s = get();
       const c = s.chests.find((x) => x.id === id);
       if (!c || c.unlockAt === null || c.unlockAt > Date.now()) return null;
-      const drops = rollChest(c.tier, s.cards);
+      const drops = rollChest(c.tier, s.cards, rand);
       // The freed slot goes to the oldest chest waiting in the inbox.
       const { rail, delivered } = drainPending({
         chests: s.chests.filter((x) => x.id !== id), pending: s.pending, nextChestId: s.nextChestId,
@@ -284,8 +290,8 @@ export const useGame = create<GameState>((set, get) => {
       return drops;
     },
 
-    openNow: (tier) => {
-      const drops = rollChest(tier, get().cards);
+    openNow: (tier, rand) => {
+      const drops = rollChest(tier, get().cards, rand);
       put({ cards: applyDrops(get().cards, drops) });
       return drops;
     },

@@ -1,6 +1,7 @@
 import { PublicKey } from '@solana/web3.js';
 import { clockInMemo, connection, explorerTx, getSol } from '../chain/solana';
 import { sessionClockInIx } from '../chain/session';
+import { commitChest, resolveChest, rollSeed, seededRand, toHex, type ChestCommit, type ChestProof } from '../chain/fair';
 import { readFullLedger, useSession } from '../wallet/sessionKey';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { SKR_LIVE, SKR_MINT, earnIxs, payIxs } from '../chain/skr';
@@ -11,7 +12,7 @@ import * as Device from 'expo-device';
 import { markFtue, useUi, type PendingMatch, type Renderer } from '../state/ui';
 import { useWallet } from '../wallet/wallet';
 import {
-  BY_TICKER, CHESTS, RIVALS, SHOP, dayKey, rivalDeck, type QuestId, type ShopItemId,
+  BY_TICKER, CHESTS, RIVALS, SHOP, dayKey, rivalDeck, type ChestTier, type Drop, type QuestId, type ShopItemId,
 } from './rules';
 import { buyPassIx, buySkinIx, hasPremium, usePassChain } from '../chain/pass';
 import { activeArenaSkin } from './cosmetics';
@@ -220,8 +221,10 @@ export async function buy(id: ShopItemId): Promise<{ sig?: string }> {
     cancel(chestNotificationId(useGame.getState().address, unlocking.id));
   }
   if (id === 'seeker-chest') {
-    const drops = useGame.getState().openNow('magic');
-    useUi.getState().showReveal({ title: 'Seeker Chest', tier: 'magic', drops });
+    // Bought and opened at once: commit now, reveal when the slot lands (~13 s).
+    const chestId = `shop_${Date.now()}`;
+    const commit = await commitChest(connection, chestId);
+    void revealFair({ title: 'Seeker Chest', tier: 'magic', chestId, commit, apply: (rand) => useGame.getState().openNow('magic', rand) });
   }
   haptic.success();
   return { sig };
@@ -237,12 +240,81 @@ export function startUnlock(id: string): boolean {
 
 export function openChest(id: string): void {
   const c = useGame.getState().chests.find((x) => x.id === id);
-  if (!c) return;
-  const drops = useGame.getState().openChest(id);
-  if (!drops) return;
-  cancel(chestNotificationId(useGame.getState().address, id));
+  if (!c || c.unlockAt === null || c.unlockAt > Date.now()) return;
   haptic.heavy();
-  useUi.getState().showReveal({ title: CHESTS[c.tier].name, tier: c.tier, drops });
+  void revealFair({
+    title: CHESTS[c.tier].name, tier: c.tier, chestId: id, commit: c.commit ?? null,
+    apply: (rand) => {
+      const drops = useGame.getState().openChest(id, rand);
+      if (drops) cancel(chestNotificationId(useGame.getState().address, id));
+      return drops;
+    },
+  });
+}
+
+let opening = false;
+
+/**
+ * Provably fair reveal: wait for the committed slot, roll from its
+ * blockhash, then apply. No commit (earned offline) or no chain at open
+ * time → the device CSPRNG, and the reveal says so instead of showing a proof.
+ */
+async function revealFair(o: {
+  title: string; tier: ChestTier; chestId: string; commit: ChestCommit | null;
+  apply: (rand?: () => number) => Drop[] | null;
+}): Promise<void> {
+  if (opening) return;
+  opening = true;
+  const ui = useUi.getState();
+  const owner = useWallet.getState().address;
+  try {
+    let proof: ChestProof | null = null;
+    let rand: (() => number) | undefined;
+    let fairNote: string | undefined;
+    if (o.commit && owner) {
+      ui.showReveal({ title: o.title, tier: o.tier, drops: [], sealing: { targetSlot: o.commit.targetSlot, left: 0 } });
+      const r = await resolveChest(connection, o.commit, {
+        timeoutMs: 25_000,
+        onWait: (left) => useUi.getState().showReveal({ title: o.title, tier: o.tier, drops: [], sealing: { targetSlot: o.commit!.targetSlot, left } }),
+      });
+      if (r) {
+        const seed = rollSeed(r.blockhash, o.chestId, owner);
+        rand = seededRand(seed);
+        proof = {
+          chestId: o.chestId, owner, targetSlot: o.commit.targetSlot, slot: r.slot, blockhash: r.blockhash,
+          seedHex: toHex(seed), owned: Object.keys(useGame.getState().cards).sort(),
+        };
+      } else fairNote = 'The chain did not answer in time, so this chest was rolled on the device.';
+    } else {
+      fairNote = 'This chest was earned offline (no slot committed), so it was rolled on the device.';
+    }
+    const drops = o.apply(rand);
+    if (!drops) { useUi.getState().showReveal(null); return; }
+    useUi.getState().showReveal({ title: o.title, tier: o.tier, drops, proof, fairNote });
+  } finally {
+    opening = false;
+  }
+}
+
+const committing = new Set<string>();
+/**
+ * Commit every chest in the rail that has no target slot yet. Called when the
+ * rail changes: a chest is committed as soon as it is earned (or, if it waited
+ * in the inbox, as soon as it reaches a slot) — always before it can be opened.
+ */
+export async function commitPendingChests(): Promise<void> {
+  const g = useGame.getState();
+  if (!g.address) return;
+  for (const c of g.chests) {
+    if (c.commit || committing.has(c.id)) continue;
+    committing.add(c.id);
+    try {
+      const commit = await commitChest(connection, c.id);
+      if (commit && useGame.getState().address === g.address) useGame.getState().setChestCommit(c.id, commit);
+    } finally {
+      committing.delete(c.id);
+    }
+  }
 }
 
 /**

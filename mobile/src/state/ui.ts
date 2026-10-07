@@ -53,6 +53,12 @@ export interface Reveal {
   title: string;
   tier: ChestTier;
   drops: Drop[];
+  /** Waiting for the committed slot's blockhash (provably fair chests). */
+  sealing?: { targetSlot: number; left: number } | null;
+  /** How to recompute this roll; null = rolled on the device (offline). */
+  proof?: import('../chain/fair').ChestProof | null;
+  /** Why there is no proof, when there is none. */
+  fairNote?: string;
 }
 
 interface UiState {

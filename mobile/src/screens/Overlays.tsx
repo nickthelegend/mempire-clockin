@@ -1,15 +1,17 @@
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { CHESTS } from '../game/rules';
+import { CHESTS, rollChest } from '../game/rules';
 import { WIN_SKR } from '../game/actions';
 import { sfx, useSound } from '../sound';
 import { EASE_IN_OUT, reduceMotion } from '../motion';
 import { markFtue } from '../state/ui';
-import { airdrop, explorerAddr, explorerTx, short } from '../chain/solana';
+import { airdrop, connection, explorerAddr, explorerBlock, explorerTx, short } from '../chain/solana';
+import { FAIR_LABEL, FORMULA, seededRand, verifyProof } from '../chain/fair';
+import { Buffer } from 'buffer';
 import { SKR_LABEL, SKR_LIVE } from '../chain/skr';
 import { useGame } from '../state/game';
-import { useUi } from '../state/ui';
+import { useUi, type Reveal } from '../state/ui';
 import { lookupSkrOwner, useDisplayName, useIdentity } from '../state/identity';
 import { recheckProof, signInLabel, useWallet, walletLabel } from '../wallet/wallet';
 import { cancelChestReminders, haptic } from '../notify';
@@ -26,8 +28,10 @@ export function RevealSheet() {
   const [opened, setOpened] = useState(false);
   const [shown, setShown] = useState(0);
 
+  const sealing = !!reveal?.sealing;
+  const dropsKey = reveal && !reveal.sealing ? reveal.drops : null;
   useEffect(() => {
-    if (!reveal) return undefined;
+    if (!reveal || reveal.sealing) return undefined;
     setOpened(false); setShown(0);
     shake.setValue(0);
     Animated.sequence([
@@ -36,7 +40,8 @@ export function RevealSheet() {
       Animated.timing(shake, { toValue: 1, duration: reduceMotion() ? 120 : 720, easing: EASE_IN_OUT, useNativeDriver: true }),
     ]).start(() => { setOpened(true); haptic.heavy(); sfx('chest'); });
     return undefined;
-  }, [reveal, shake]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dropsKey, shake]);
 
   useEffect(() => {
     if (!opened || !reveal || shown >= reveal.drops.length) return undefined;
@@ -53,7 +58,16 @@ export function RevealSheet() {
     <Modal visible transparent animationType="fade" onRequestClose={() => show(null)}>
       <View style={st.center}>
         <Display size={28} color={glowA}>{reveal.title}</Display>
-        {!opened ? (
+        {sealing ? (
+          <View style={{ alignItems: 'center', gap: 10 }}>
+            <ChestArt tier={reveal.tier} size={180} />
+            <Body size={14} bold color="#fff">Sealing with Solana slot #{reveal.sealing!.targetSlot}</Body>
+            <Body size={12} color={C.dim} style={{ textAlign: 'center', maxWidth: 300 }}>
+              {reveal.sealing!.left > 0 ? `${reveal.sealing!.left} slots to go (~${Math.ceil(reveal.sealing!.left * 0.4)} s). ` : ''}
+              This chest was committed to a slot that had not happened yet; its blockhash decides the drops.
+            </Body>
+          </View>
+        ) : !opened ? (
           <Animated.View style={{ transform: [{ rotate: rot }, { scale: shake.interpolate({ inputRange: [0, 1], outputRange: [1, 1.15] }) }] }}>
             <ChestArt tier={reveal.tier} size={180} />
           </Animated.View>
@@ -67,11 +81,64 @@ export function RevealSheet() {
             ))}
           </View>
         )}
-        {opened && shown >= reveal.drops.length ? (
-          <Btn label="COLLECT" size="lg" style={{ width: 240, marginTop: 20 }} onPress={() => show(null)} />
+        {opened && !sealing && shown >= reveal.drops.length ? (
+          <>
+            <FairPanel reveal={reveal} />
+            <Btn label="COLLECT" size="lg" style={{ width: 240, marginTop: 14 }} onPress={() => show(null)} />
+          </>
         ) : null}
       </View>
     </Modal>
+  );
+}
+
+/** "Verify": the slot, blockhash, formula, and a recompute from chain. */
+function FairPanel({ reveal }: { reveal: Reveal }) {
+  const [open, setOpen] = useState(false);
+  const [check, setCheck] = useState<{ state: 'idle' | 'busy' | 'ok' | 'bad'; text?: string }>({ state: 'idle' });
+  const p = reveal.proof;
+  if (!p) {
+    return <Body size={11} color={C.dim} style={{ marginTop: 12, textAlign: 'center', maxWidth: 320 }}>{reveal.fairNote ?? 'Rolled on the device.'}</Body>;
+  }
+  const recompute = async () => {
+    setCheck({ state: 'busy' });
+    try {
+      const v = await verifyProof(connection, p);
+      if (!v.ok || !v.seedHex) { setCheck({ state: 'bad', text: v.blockhash ? 'Blockhash or seed differs from the chain.' : 'Could not fetch that slot right now.' }); return; }
+      const owned = Object.fromEntries(p.owned.map((t) => [t, { level: 1, copies: 0 }]));
+      const again = rollChest(reveal.tier, owned, seededRand(Uint8Array.from(Buffer.from(v.seedHex, 'hex'))));
+      const same = JSON.stringify(again) === JSON.stringify(reveal.drops);
+      setCheck(same
+        ? { state: 'ok', text: `Recomputed from chain: blockhash of slot ${p.slot} → same seed → the same ${again.length} fighters.` }
+        : { state: 'bad', text: 'The recomputed drops differ.' });
+      if (same) haptic.success(); else haptic.error();
+    } catch (e) {
+      setCheck({ state: 'bad', text: e instanceof Error ? e.message : String(e) });
+    }
+  };
+  return (
+    <View style={{ width: '92%', marginTop: 12, gap: 6 }}>
+      <Btn label={open ? 'HIDE PROOF' : 'VERIFY'} sub={FAIR_LABEL} tone="ghost" size="sm" onPress={() => setOpen(!open)} />
+      {open ? (
+        <Well style={{ gap: 4 }}>
+          <View style={st.row}><Body size={11} color={C.dim}>Chest</Body><Body size={11} color="#fff" bold>{p.chestId}</Body></View>
+          <View style={st.row}><Body size={11} color={C.dim}>Committed to slot</Body><Body size={11} color="#fff" bold>{p.targetSlot}</Body></View>
+          <View style={st.row}>
+            <Body size={11} color={C.dim}>Block used</Body>
+            <Pressable onPress={() => void Linking.openURL(explorerBlock(p.slot))} hitSlop={10} accessibilityRole="link">
+              <Tag text={`slot ${p.slot} ↗`} color={C.teal} />
+            </Pressable>
+          </View>
+          <Body size={11} color={C.dim}>Blockhash</Body>
+          <Text selectable style={st.mono}>{p.blockhash}</Text>
+          <Body size={11} color={C.dim}>Seed</Body>
+          <Text selectable style={st.mono}>{p.seedHex}</Text>
+          <Text selectable style={[st.mono, { color: C.dim }]}>{FORMULA}; drops = the standard chest table fed by that stream</Text>
+          <Btn label={check.state === 'ok' ? 'MATCHES ✓' : 'RECOMPUTE'} tone="blue" size="sm" busy={check.state === 'busy'} onPress={() => void recompute()} />
+          {check.text ? <Body size={11} color={check.state === 'ok' ? C.teal : C.red}>{check.text}</Body> : null}
+        </Well>
+      ) : null}
+    </View>
   );
 }
 

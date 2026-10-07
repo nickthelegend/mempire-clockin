@@ -26,7 +26,7 @@ import { findSgtMint, mainnetSkr } from './src/chain/seeker';
 import { SKR_LIVE } from './src/chain/skr';
 import { CLUSTER_LABEL, readClockIns, short } from './src/chain/solana';
 import { COPIES_TO_LEVEL, MAX_LEVEL } from './src/game/rules';
-import { prepareMatch } from './src/game/actions';
+import { commitPendingChests, prepareMatch } from './src/game/actions';
 import { ensureChannel, ensureStreakReminder, haptic } from './src/notify';
 import { C } from './src/theme';
 import { Body, Btn, Chip, Display } from './src/ui/kit';
@@ -193,6 +193,11 @@ function Game() {
     const unsub = useGame.subscribe((s, prev) => { if (s.streak !== prev.streak) sync(); });
     const sub = AppState.addEventListener('change', (a) => { if (a === 'background') sync(); });
     return () => { unsub(); sub.remove(); };
+  }, []);
+  // Provably fair chests: every chest gets its target slot as soon as it is in the rail.
+  useEffect(() => {
+    void commitPendingChests();
+    return useGame.subscribe((s, prev) => { if (s.chests !== prev.chests) void commitPendingChests(); });
   }, []);
   // Android back: from any tab, go Home first; only Home exits. Sheets and the
   // arena are Modals and get the back press through their onRequestClose.

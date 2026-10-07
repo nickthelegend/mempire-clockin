@@ -141,9 +141,9 @@ function ClockIn() {
       </View>
       <Body size={11} color={C.dimOnWood} style={{ marginTop: 4 }}>
         {ledger === undefined
-          ? 'Chain ledger: reading devnet…'
+          ? `Chain ledger: reading ${CLUSTER_LABEL}…`
           : ledger === null
-          ? 'Chain ledger: could not reach devnet.'
+          ? `Chain ledger: could not reach ${CLUSTER_LABEL}.`
           : ledger.length
             ? `Chain ledger: ${ledger.length} signed Clock-In${ledger.length === 1 ? '' : 's'} on ${CLUSTER_LABEL}${ledger.some((l) => l.via === 'session') ? ` (${ledger.filter((l) => l.via === 'session').length} by session key)` : ''} · latest day ${ledger[0].streak}`
             : 'Chain ledger: no signed Clock-Ins yet — they appear once the wallet has devnet SOL.'}

@@ -1,13 +1,13 @@
 #!/bin/bash
 # Run scripts/verify-solana-tech.ts against a throwaway local validator on
-# ports 4150-4199 (the solana-tech range). Spends nothing. Cleans up.
+# ports 4150-4179 (websocket on 4151) (in the solana-tech range 4150-4199). Spends nothing. Cleans up.
 set -eo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 [ -f "/Volumes/Extreme SSD/Projects/clockin/env.sh" ] && source "/Volumes/Extreme SSD/Projects/clockin/env.sh"
 WORK="/private/tmp/mempire-solana-tech-$USER"
 rm -rf "$WORK"; mkdir -p "$WORK"
 solana-test-validator --reset --quiet --ledger "$WORK/ledger" \
-  --rpc-port 4150 --faucet-port 4152 --gossip-port 4153 --dynamic-port-range 4154-4180 \
+  --rpc-port 4150 --faucet-port 4152 --gossip-port 4153 --dynamic-port-range 4154-4179 \
   > "$WORK/validator.log" 2>&1 &
 VPID=$!
 trap 'kill $VPID 2>/dev/null; wait $VPID 2>/dev/null || true' EXIT

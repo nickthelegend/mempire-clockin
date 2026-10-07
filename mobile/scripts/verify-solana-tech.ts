@@ -116,6 +116,10 @@ async function fairChests() {
   const seed = fair.rollSeed(r!.blockhash, 'chest_7', owner);
   const again = await fair.fetchBlockhash(conn, r!.slot);
   check(again === r!.blockhash && fair.toHex(fair.rollSeed(again!, 'chest_7', owner)) === fair.toHex(seed), 'recompute from chain gives the same roll');
+  const proof = { chestId: 'chest_7', owner, targetSlot: commit!.targetSlot, slot: r!.slot, blockhash: r!.blockhash, seedHex: fair.toHex(seed), owned: [] };
+  check((await fair.verifyProof(conn, proof)).ok, 'verifyProof (the in-app Recompute) accepts the real proof');
+  check(!(await fair.verifyProof(conn, { ...proof, seedHex: '00'.repeat(32) })).ok, 'verifyProof rejects a doctored seed');
+  check(!(await fair.verifyProof(conn, { ...proof, slot: r!.slot + 1 })).ok, 'verifyProof rejects a later slot than the first block after the target');
 }
 
 (async () => {

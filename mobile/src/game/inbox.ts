@@ -1,4 +1,5 @@
 import { CHEST_SLOTS, type ChestTier } from './rules';
+import type { ChestCommit } from '../chain/fair';
 
 /**
  * The chest rail plus an inbox. A chest earned while all four slots are full
@@ -13,6 +14,8 @@ export interface Chest {
   /** null until the player starts the timer; then the time it opens. */
   unlockAt: number | null;
   source: ChestSource;
+  /** Provably fair: the future slot whose blockhash will roll this chest (chain/fair.ts). */
+  commit?: ChestCommit;
 }
 
 export interface PendingChest { tier: ChestTier; source: ChestSource }

@@ -19,6 +19,7 @@ export const CLUSTER_LABEL = IS_LOCAL ? 'localnet' : 'devnet';
 const clusterQs = IS_LOCAL ? `cluster=custom&customUrl=${encodeURIComponent(RPC_URL)}` : 'cluster=devnet';
 export const explorerTx = (sig: string) => `https://explorer.solana.com/tx/${sig}?${clusterQs}`;
 export const explorerAddr = (a: string) => `https://explorer.solana.com/address/${a}?${clusterQs}`;
+export const explorerBlock = (slot: number) => `https://explorer.solana.com/block/${slot}?${clusterQs}`;
 export const short = (s: string, n = 4) => (s.length > 2 * n + 1 ? `${s.slice(0, n)}…${s.slice(-n)}` : s);
 
 export async function getSol(address: string): Promise<number> {
