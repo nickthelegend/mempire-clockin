@@ -3,7 +3,8 @@ import { clockInMemo, explorerTx } from '../chain/solana';
 import { SKR_LIVE, earnIxs, payIxs } from '../chain/skr';
 import { askPermission, chestReminder, haptic, streakReminder } from '../notify';
 import { useGame, avgDeckLevel } from '../state/game';
-import { useUi, type PendingMatch } from '../state/ui';
+import * as Device from 'expo-device';
+import { useUi, type PendingMatch, type Renderer } from '../state/ui';
 import { useWallet } from '../wallet/wallet';
 import {
   BY_TICKER, CHESTS, RIVALS, SHOP, dayKey, rivalDeck, type ShopItemId,
@@ -153,6 +154,16 @@ export function openChest(id: string): void {
   useUi.getState().showReveal({ title: CHESTS[c.tier].name, tier: c.tier, drops });
 }
 
+/**
+ * Which arena renders a match. Auto = the native 3D arena on a real phone and
+ * the web arena on a simulator, where OpenGL ES is a software renderer.
+ */
+export function resolveRenderer(): Renderer {
+  const pref = useUi.getState().rendererPref;
+  if (pref === 'native' || pref === 'web') return pref;
+  return Device.isDevice ? 'native' : 'web';
+}
+
 export function prepareMatch(rivalIndex: number, rush = false): PendingMatch {
   const g = useGame.getState();
   const rival = RIVALS[rivalIndex] ?? RIVALS[0];
@@ -160,6 +171,8 @@ export function prepareMatch(rivalIndex: number, rush = false): PendingMatch {
   return {
     rival: rival.name,
     rush,
+    seed: (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0,
+    renderer: resolveRenderer(),
     tier: Math.min(3, Math.max(0, rivalIndex)),
     player: g.deck.map((t) => ({ ticker: t, mint: BY_TICKER.get(t)!.mint, level: g.cards[t]?.level ?? 1 })),
     bot: rivalDeck(rival, avg),
@@ -170,11 +183,14 @@ export const WIN_SKR = 3;
 
 /** The arena reported back: record it, pay the chest and SKR, show the result. */
 export async function finishMatch(m: PendingMatch, r: { won: boolean; draw: boolean; crowns: [number, number] }): Promise<void> {
-  const { record, chest } = useGame.getState().recordBattle({ rival: m.rival, won: r.won, draw: r.draw, crowns: r.crowns });
+  const { record, chest } = useGame.getState().recordBattle({
+    rival: m.rival, won: r.won, draw: r.draw, crowns: r.crowns, renderer: m.renderer, fellBack: !!m.fellBack,
+  });
   if (r.won) haptic.success(); else haptic.warn();
   useUi.getState().showResult({
     rival: m.rival, won: r.won, draw: r.draw, crowns: r.crowns,
     trophyDelta: record.trophyDelta, chest: chest?.tier ?? null, skr: r.won ? WIN_SKR : 0,
+    renderer: m.renderer, fellBack: m.fellBack,
   });
   if (r.won) {
     const out = await payOutSkr(WIN_SKR);

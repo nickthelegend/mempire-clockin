@@ -1,12 +1,22 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import type { Drop, ChestTier } from '../game/rules';
 
 export type Tab = 'home' | 'cards' | 'deck' | 'shop';
 
+export type RendererPref = 'auto' | 'native' | 'web';
+export type Renderer = 'native' | 'web';
+
 export interface PendingMatch {
   rival: string;
   tier: number;
   rush: boolean;
+  /** Fixed per match, so a fallback to the web arena replays the same match. */
+  seed: number;
+  /** Which arena renders this match (resolved from the setting at battle start). */
+  renderer: Renderer;
+  /** True when this match was moved here after the native arena failed. */
+  fellBack?: boolean;
   player: { mint: string; ticker: string; level: number }[];
   bot: { mint: string; ticker: string; level: number }[];
 }
@@ -18,6 +28,8 @@ export interface MatchResult {
   crowns: [number, number];
   trophyDelta: number;
   chest: ChestTier | null;
+  renderer: Renderer;
+  fellBack?: boolean;
   skr: number;
   skrSig?: string;
 }
@@ -29,6 +41,9 @@ export interface Reveal {
 }
 
 interface UiState {
+  /** Arena renderer setting: auto = native 3D on a phone, web arena on a simulator. */
+  rendererPref: RendererPref;
+  setRendererPref: (r: RendererPref) => void;
   tab: Tab;
   setTab: (t: Tab) => void;
   battle: PendingMatch | null;
@@ -57,6 +72,11 @@ interface UiState {
 let toastId = 0;
 
 export const useUi = create<UiState>((set) => ({
+  rendererPref: 'auto',
+  setRendererPref: (rendererPref) => {
+    set({ rendererPref });
+    void AsyncStorage.setItem(RENDERER_KEY, rendererPref).catch(() => {});
+  },
   tab: 'home',
   setTab: (tab) => set({ tab }),
   battle: null,
@@ -79,3 +99,10 @@ export const useUi = create<UiState>((set) => ({
   chainLedger: undefined,
   setChainLedger: (chainLedger) => set({ chainLedger }),
 }));
+
+const RENDERER_KEY = 'mempire.renderer.v1';
+/** Restore the saved renderer setting (called once at startup). */
+export async function loadRendererPref(): Promise<void> {
+  const v = await AsyncStorage.getItem(RENDERER_KEY).catch(() => null);
+  if (v === 'auto' || v === 'native' || v === 'web') useUi.setState({ rendererPref: v });
+}

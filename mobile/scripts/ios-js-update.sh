@@ -12,6 +12,8 @@ APP="${CLOCKIN_DERIVED_DATA:-$HERE/ios/build}/mempire/Build/Products/Release-iph
 cd "$HERE"
 npx expo export:embed --platform ios --dev false --entry-file index.ts \
   --bundle-output "$APP/main.jsbundle" --assets-dest "$APP" --reset-cache >/dev/null
+# and the bundled web arena (compat renderer), same as the Xcode build phase
+[ -f "$HERE/web/www/index.html" ] && rsync -a --delete "$HERE/web/www/" "$APP/www/"
 xcrun simctl terminate "$UDID" fun.mempire.app 2>/dev/null || true
 xcrun simctl install "$UDID" "$APP"
 xcrun simctl launch "$UDID" fun.mempire.app

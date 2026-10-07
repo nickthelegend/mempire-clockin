@@ -85,6 +85,9 @@ export function ResultSheet() {
           <Display size={54} color={r.won ? C.gold : r.draw ? '#fff' : C.red}>{title}</Display>
         </Animated.View>
         <Body size={15} color="#fff">vs {r.rival}</Body>
+        <Body size={11} color={C.dim}>
+          {r.renderer === 'native' ? 'Native 3D arena' : r.fellBack ? 'Web arena (switched from native)' : 'Web arena (compat)'}
+        </Body>
         <Panel style={{ width: '88%', marginTop: 18 }}>
           <View style={st.row}><Body color={C.dimOnWood}>Crowns</Body><Display size={20}>{r.crowns[0]} – {r.crowns[1]}</Display></View>
           <View style={st.row}><Body color={C.dimOnWood}>Trophies</Body><Display size={20} color={r.trophyDelta > 0 ? C.teal : r.trophyDelta < 0 ? C.red : "#fff"}>{r.trophyDelta > 0 ? '+' : ''}{r.trophyDelta}</Display></View>
@@ -156,11 +159,42 @@ export function WalletSheet() {
               }}
             />
             <Btn label="VIEW ON EXPLORER" tone="ghost" size="sm" onPress={() => void Linking.openURL(explorerAddr(address))} />
+            <RendererSetting />
             <Btn label="SIGN OUT" tone="ghost" size="sm" onPress={() => { setOpen(false); unload(); void disconnect(); }} />
           </View>
         </Panel>
       </View>
     </Modal>
+  );
+}
+
+/** Settings: which arena renders battles. Persisted. */
+function RendererSetting() {
+  const pref = useUi((s) => s.rendererPref);
+  const setPref = useUi((s) => s.setRendererPref);
+  const opts: { id: 'auto' | 'native' | 'web'; label: string }[] = [
+    { id: 'auto', label: 'Auto' }, { id: 'native', label: 'Native 3D' }, { id: 'web', label: 'Web (compat)' },
+  ];
+  return (
+    <View style={{ gap: 6, marginTop: 4 }}>
+      <Body size={12} color={C.dimOnWood} bold>ARENA RENDERER</Body>
+      <View style={{ flexDirection: 'row', gap: 6 }}>
+        {opts.map((o) => (
+          <Pressable
+            key={o.id}
+            onPress={() => { haptic.tap(); setPref(o.id); }}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: pref === o.id }}
+            style={{ flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center', backgroundColor: pref === o.id ? C.gold : 'rgba(0,0,0,0.3)' }}
+          >
+            <Body size={12} bold color={pref === o.id ? C.ink : '#fff'}>{o.label}</Body>
+          </Pressable>
+        ))}
+      </View>
+      <Body size={11} color={C.dimOnWood}>
+        Auto uses the native 3D arena on a phone and switches to the web arena if the GPU cannot keep up. Simulators use the web arena.
+      </Body>
+    </View>
   );
 }
 

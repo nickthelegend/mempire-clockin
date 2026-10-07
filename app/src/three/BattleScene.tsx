@@ -87,6 +87,19 @@ function Sun() {
   );
 }
 
+/** The camera pose CameraRig gives each seat (exported for the raycast test). */
+export function poseCamera(camera: THREE.Camera, seat: 0 | 1, home = new THREE.Vector3()): void {
+  if (seat === 0) {
+    home.set(W / 2, 38, -15);
+    camera.position.copy(home);
+    camera.lookAt(W / 2, 0, 15);
+  } else {
+    home.set(W / 2, 38, H + 15);
+    camera.position.copy(home);
+    camera.lookAt(W / 2, 0, H - 15);
+  }
+}
+
 function CameraRig({ seat }: { seat: 0 | 1 }) {
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
@@ -105,16 +118,8 @@ function CameraRig({ seat }: { seat: 0 | 1 }) {
     // Pulled back and raised so the wood frame encloses the whole board rather
     // than running off the bottom of a portrait screen. Seat 1 gets the exact
     // mirror about the river line, so both players fight "uphill".
-    if (seat === 0) {
-      home.current.set(W / 2, 38, -15);
-      camera.position.copy(home.current);
-      camera.lookAt(W / 2, 0, 15);
-    } else {
-      home.current.set(W / 2, 38, H + 15);
-      camera.position.copy(home.current);
-      camera.lookAt(W / 2, 0, H - 15);
-    }
-    camera.updateProjectionMatrix();
+    poseCamera(camera, seat, home.current);
+    (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
     // Deliberately never cleared: StrictMode double-invokes effect cleanup in
     // dev, and nulling here left deploy raycasts with no camera to project
     // through, silently swallowing every card the player dropped.
@@ -480,10 +485,12 @@ export const SCENE_CAMERA = { position: [W / 2, 33, -11.5] as [number, number, n
  * Ground hit for a point in normalised device coordinates — the native host's
  * entry point (it has no DOM element to measure; it passes NDC directly).
  */
-export function groundHitNdc(ndcX: number, ndcY: number): { x: number; z: number } | null {
-  if (!activeCamera) return null;
+export function groundHitNdc(
+  ndcX: number, ndcY: number, camera: THREE.Camera | null = activeCamera,
+): { x: number; z: number } | null {
+  if (!camera) return null;
   deployNdc.set(ndcX, ndcY);
-  deployRaycaster.setFromCamera(deployNdc, activeCamera);
+  deployRaycaster.setFromCamera(deployNdc, camera);
   return deployRaycaster.ray.intersectPlane(groundPlane, deployHit)
     ? { x: deployHit.x, z: deployHit.z }
     : null;

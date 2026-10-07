@@ -1,5 +1,5 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber/native';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Component, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Alert, Animated, AppState, Image, Modal, PanResponder, Pressable, StyleSheet, Text, View,
   type GestureResponderEvent, type LayoutChangeEvent,
@@ -15,6 +15,7 @@ import { ARCHETYPES } from '../../../app/src/sim/archetypes';
 import { FP, fp } from '../../../app/src/sim/fixed';
 import { HAND_SIZE } from '../../../app/src/sim/types';
 import { CARD_ART } from '../data/art';
+import { pageToNdc } from './screen';
 import { finishMatch } from '../game/actions';
 import { haptic } from '../notify';
 import { useUi } from '../state/ui';
@@ -31,10 +32,10 @@ import {
  * scene camera. No WebView.
  */
 
-/** Frames per second over a rolling second, logged and shown small in the HUD. */
+/** Frames per second over each second; shown small in the HUD and fed to the watchdog. */
 let lastFps = 0;
-function FpsProbe() {
-  const acc = useRef({ frames: 0, t: 0, logged: 0 });
+function FpsProbe({ onSecond }: { onSecond: (fps: number) => void }) {
+  const acc = useRef({ frames: 0, t: 0 });
   useFrame((_, dt) => {
     const a = acc.current;
     a.frames += 1;
@@ -42,12 +43,28 @@ function FpsProbe() {
     if (a.t >= 1) {
       lastFps = Math.round(a.frames / a.t);
       a.frames = 0; a.t = 0;
-      a.logged += 1;
-      if (a.logged % 5 === 0) console.log(`[arena] fps ${lastFps}`); // eslint-disable-line no-console
+      onSecond(lastFps);
     }
   });
   return null;
 }
+
+/** Any throw inside the GL scene (context, shader, texture) lands here. */
+class SceneBoundary extends Component<{ onFail: (why: string) => void; children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(e: unknown) { this.props.onFail(e instanceof Error ? e.message : String(e)); }
+  render() { return this.state.failed ? null : this.props.children; }
+}
+
+/**
+ * The watchdog's rules. Only in Auto mode — choosing Native in settings means
+ * "show me native even if it is slow" (that is how the simulator captures run).
+ */
+const WATCH_WINDOW_S = 15;
+const MIN_FPS = 20;
+const SLOW_STREAK_S = 5;
+const CONTEXT_TIMEOUT_MS = 25_000;
 
 function toLambert(m: THREE.Material): THREE.Material {
   const sm = m as THREE.MeshStandardMaterial;
@@ -168,7 +185,9 @@ function Hud({ onQuit }: { onQuit: () => void }) {
 }
 
 export function NativeArena() {
-  const match = useUi((s) => s.battle);
+  const battle = useUi((s) => s.battle);
+  const match = battle?.renderer === 'native' ? battle : null;
+  const autoMode = useUi((s) => s.rendererPref === 'auto');
   const closeBattle = useUi((s) => s.closeBattle);
   const insets = useSafeAreaInsets();
   const view = useRef<View>(null);
@@ -189,6 +208,41 @@ export function NativeArena() {
 
   useEffect(() => { if (!match) setSceneReady(false); }, [match]);
 
+  /**
+   * Fall back: abandon the native scene and replay the SAME match (same seed,
+   * decks, rival) in the web arena. Nothing has been recorded yet, so the
+   * player loses nothing but a few seconds.
+   */
+  const fellBack = useRef(false);
+  const fallBack = useCallback((why: string) => {
+    if (!match || fellBack.current || useNativeMatch.getState().result) return;
+    fellBack.current = true;
+    teardown();
+    useUi.getState().say('Switched to the compatibility arena', 'info');
+    console.warn(`[arena] native renderer fell back: ${why}`); // eslint-disable-line no-console
+    useUi.getState().openBattle({ ...match, renderer: 'web', fellBack: true });
+  }, [match]);
+  useEffect(() => { fellBack.current = false; }, [match]);
+
+  // Watchdog 1: the GL context never produced a frame.
+  useEffect(() => {
+    if (!match || sceneReady || !autoMode) return undefined;
+    const t = setTimeout(() => fallBack('no frame within 25 s'), CONTEXT_TIMEOUT_MS);
+    return () => clearTimeout(t);
+  }, [match, sceneReady, autoMode, fallBack]);
+
+  // Watchdog 2: under 20 fps for 5 straight seconds inside the first 15.
+  const watch = useRef({ seconds: 0, slow: 0 });
+  useEffect(() => { watch.current = { seconds: 0, slow: 0 }; }, [match, sceneReady]);
+  const onSecond = useCallback((fps: number) => {
+    if (!sceneReady || !autoMode) return;
+    const w = watch.current;
+    w.seconds += 1;
+    if (w.seconds > WATCH_WINDOW_S) return;
+    w.slow = fps < MIN_FPS ? w.slow + 1 : 0;
+    if (w.slow >= SLOW_STREAK_S) fallBack(`${fps} fps for ${SLOW_STREAK_S}s`);
+  }, [sceneReady, autoMode, fallBack]);
+
   // Start the match once the arena's first frame is on screen (shaders
   // compiled); tear it down when it closes.
   useEffect(() => {
@@ -200,6 +254,7 @@ export function NativeArena() {
       bot: match.bot.map(toMatchCard),
       tier: match.tier,
       rush: match.rush,
+      seed: match.seed,
       onEnd: (r) => {
         setEnded(true);
         if (r.won) haptic.success(); else haptic.warn();
@@ -248,10 +303,8 @@ export function NativeArena() {
 
   /** Screen point → world point on the ground, through the live scene camera. */
   const hitAt = useCallback((pageX: number, pageY: number) => {
-    const f = frame.current;
-    const ndcX = ((pageX - f.x) / f.w) * 2 - 1;
-    const ndcY = -(((pageY - f.y) / f.h) * 2 - 1);
-    const hit = groundHitNdc(ndcX, ndcY);
+    const ndc = pageToNdc(pageX, pageY, frame.current);
+    const hit = groundHitNdc(ndc.x, ndc.y);
     return hit ? { ...hit, legal: isLegalDrop(hit.x, hit.z) } : null;
   }, []);
 
@@ -318,6 +371,7 @@ export function NativeArena() {
           }}
         >
           <View style={st.lowres}>
+          <SceneBoundary onFail={(why) => (autoMode ? fallBack(why) : useUi.getState().say(`Arena error: ${why}`, 'err'))}>
           <Canvas
             camera={SCENE_CAMERA}
             gl={GL}
@@ -326,9 +380,10 @@ export function NativeArena() {
           >
             <SceneContents perspective={0} placing={drag !== null || selected !== null} marker={marker} />
             <RenderControl onReady={onSceneReady} />
-            <FpsProbe />
+            <FpsProbe onSecond={onSecond} />
             <DisposeOnUnmount />
           </Canvas>
+          </SceneBoundary>
           </View>
         </Animated.View>
 

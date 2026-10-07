@@ -25,6 +25,8 @@ export interface NativeMatchSpec {
   opponent: string;
   /** 30-second Rush format instead of the 3-minute standard match. */
   rush?: boolean;
+  /** Match seed chosen by the app, so a native-arena fallback replays the same match. */
+  seed?: number;
 }
 
 declare global {
@@ -85,7 +87,7 @@ export function NativeHost() {
     // The page has booted and owns the screen: the shell can drop its cover.
     post({ channel: 'ready' });
     const err = startNativeMatch(toCards(spec.player), toCards(spec.bot), {
-      tier: spec.tier, opponent: spec.opponent, rush: !!spec.rush,
+      tier: spec.tier, opponent: spec.opponent, rush: !!spec.rush, seed: spec.seed,
     });
     if (err) post({ channel: 'exit', reason: err });
   }, []);

@@ -14,7 +14,7 @@ import {
 import { UI_ART } from './src/data/art';
 import { useWallet } from './src/wallet/wallet';
 import { useGame } from './src/state/game';
-import { useUi, type Tab } from './src/state/ui';
+import { loadRendererPref, useUi, type Tab } from './src/state/ui';
 import { findSgtMint, mainnetSkr } from './src/chain/seeker';
 import { SKR_LIVE } from './src/chain/skr';
 import { readClockIns, short } from './src/chain/solana';
@@ -30,6 +30,7 @@ import { DeckScreen } from './src/screens/Deck';
 import { ShopScreen } from './src/screens/Shop';
 import { CoachSheet } from './src/screens/Coach';
 import { NativeArena } from './src/arena/NativeArena';
+import { ArenaHost } from './src/screens/Arena';
 import { ResultSheet, RevealSheet, Toast, WalletSheet } from './src/screens/Overlays';
 
 /**
@@ -157,15 +158,18 @@ function Game() {
     });
     return () => sub.remove();
   }, []);
-  // Deep link straight into a battle: mempire://battle?rival=0..3&rush=1
+  // Deep link straight into a battle: mempire://battle?rival=0..3&rush=1&renderer=native|web
   // (home-screen shortcuts, notifications, and scripted demo capture).
   useEffect(() => {
     const open = (url: string | null) => {
-      const m = url && /^mempire:\/\/battle(?:\?(.*))?$/.exec(url);
-      if (!m) return;
-      const q = new URLSearchParams(m[1] ?? '');
+      const hit = url && /^mempire:\/\/battle(?:\?(.*))?$/.exec(url);
+      if (!hit) return;
+      const q = new URLSearchParams(hit[1] ?? '');
       const rival = Math.max(0, Math.min(3, Number(q.get('rival') ?? 1) || 0));
-      if (!useUi.getState().battle) useUi.getState().openBattle(prepareMatch(rival, q.get('rush') === '1'));
+      const m = prepareMatch(rival, q.get('rush') === '1');
+      const r = q.get('renderer');
+      if (r === 'native' || r === 'web') m.renderer = r;
+      if (!useUi.getState().battle) useUi.getState().openBattle(m);
     };
     void Linking.getInitialURL().then(open);
     const sub = Linking.addEventListener('url', (e) => open(e.url));
@@ -178,6 +182,7 @@ function Game() {
       <TabBar />
       <CoachSheet />
       <NativeArena />
+      <ArenaHost />
       <ResultSheet />
       <RevealSheet />
       <WalletSheet />
@@ -197,6 +202,7 @@ function Root() {
 
   useEffect(() => {
     void restore();
+    void loadRendererPref();
     void ensureChannel();
   }, [restore]);
 

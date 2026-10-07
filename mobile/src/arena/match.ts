@@ -134,14 +134,14 @@ function stop(): void {
 }
 
 export function startNativeArena(opts: {
-  player: MatchCard[]; bot: MatchCard[]; tier: number; rush: boolean; onEnd: (r: NativeResult) => void;
+  player: MatchCard[]; bot: MatchCard[]; tier: number; rush: boolean; seed: number;
+  onEnd: (r: NativeResult) => void;
 }): void {
   stop();
   pending = new Map();
   difficulty = opts.tier <= 0 ? 'easy' : opts.tier === 1 ? 'normal' : 'hard';
   onEnd = opts.onEnd;
-  const seed = (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
-  const sim = createMatch(seed, [opts.player, opts.bot], FORMATS[opts.rush ? 'rush' : 'standard']);
+  const sim = createMatch(opts.seed >>> 0, [opts.player, opts.bot], FORMATS[opts.rush ? 'rush' : 'standard']);
   useNativeMatch.setState({
     sim, perspective: 0, playerDeck: opts.player, botDeck: opts.bot,
     version: 0, crowns: [0, 0], towerFell: null, deployed: 0, result: null, paused: false,

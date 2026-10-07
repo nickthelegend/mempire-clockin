@@ -28,7 +28,8 @@ const GAME_ROOT = GAME_URL.replace(/[^/]*$/, '');
 const BRIDGE = injectedBridge(Platform.OS === 'android' ? 'android' : 'ios');
 
 export function ArenaHost() {
-  const match = useUi((s) => s.battle);
+  const battle = useUi((s) => s.battle);
+  const match = battle?.renderer === 'web' ? battle : null;
   const closeBattle = useUi((s) => s.closeBattle);
   const say = useUi((s) => s.say);
   const [ready, setReady] = useState(false);
@@ -92,7 +93,7 @@ export function ArenaHost() {
   // URL hash. The hash is what Android relies on — before-content-loaded
   // injection can race a file:// page's own script there.
   const spec = JSON.stringify({
-    player: match.player, bot: match.bot, tier: match.tier, opponent: match.rival, rush: match.rush,
+    player: match.player, bot: match.bot, tier: match.tier, opponent: match.rival, rush: match.rush, seed: match.seed,
   });
   const inject = `window.__MEMPIRE_MATCH__ = ${spec};\n${BRIDGE}`;
   const uri = `${GAME_URL}#/m/${encodeURIComponent(spec)}`;
