@@ -41,7 +41,7 @@ function GoldBurst() {
 }
 
 function ResultOverlay() {
-  const { result, stakeSol, dismiss, practice, soloVsBot } = useMatch();
+  const { result, stakeSol, dismiss, practice, soloVsBot, nativeLabel } = useMatch();
   const escrowPhase = useEscrow((s) => s.phase);
   const nav = useNavigate();
   if (!result) return null;
@@ -100,7 +100,11 @@ function ResultOverlay() {
         {title}
       </h2>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {practice ? (
+        {nativeLabel ? (
+          <p className="fine" style={{ fontSize: 13 }}>
+            Rewards are on their way to your Empire…
+          </p>
+        ) : practice ? (
           <p className="fine" style={{ fontSize: 13 }}>
             Practice match — no stake, no rake, nothing recorded.
           </p>
@@ -724,14 +728,18 @@ export function Battle() {
             same defect as one that understates it.
           */}
           <p style={{ textAlign: 'center', fontSize: 15 }}>
-            {match.practice
+            {match.nativeLabel
+              ? 'Leave the battle? It counts as a loss. Nothing is staked.'
+              : match.practice
               ? 'Leave practice? Nothing is staked.'
               : quitEscrowed
                 ? `Forfeit the match? Your opponent takes the ${fmtSol(match.stakeSol * 2)} pot.`
                 : 'Leave the match? Nothing was escrowed, so no SOL changes hands — it counts as a loss for rating only.'}
           </p>
           <Pill danger onClick={() => { setConfirmQuit(false); match.forfeit(); }}>
-            {match.practice
+            {match.nativeLabel
+              ? 'Leave the battle'
+              : match.practice
               ? 'Leave practice'
               : quitEscrowed ? `Forfeit — lose ${fmtSol(match.stakeSol)}` : 'Leave the match'}
           </Pill>
