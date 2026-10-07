@@ -113,7 +113,9 @@ export const useSession = create<SessionState>((set, get) => ({
       await SecureStore.setItemAsync(keyFor(address), JSON.stringify(stored));
       secretCache = { session: stored.session, kp };
       const { secret: _secret, ...view } = stored;
-      set({ cur: view, lamports: FEE_FLOAT_LAMPORTS, chain: { live: { session: view.session, expiresAt, linkedAt: nowSec(), slot: 0, sig: linkSig }, accepted: get().chain?.accepted ?? 0, rejected: get().chain?.rejected ?? 0 } });
+      set({ cur: view, lamports: FEE_FLOAT_LAMPORTS });
+      // "Verified" only once the link is read back from chain, never optimistically.
+      void readFullLedger(address).catch(() => {});
       return linkSig;
     } finally {
       set({ busy: false });

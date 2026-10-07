@@ -56,7 +56,7 @@ export function rand32(): number {
   crypto.getRandomValues(a);
   return a[0];
 }
-const pick = <T,>(xs: T[]): T => xs[rand32() % xs.length];
+const pick = <T,>(xs: T[], rand: () => number): T => xs[rand() % xs.length];
 
 export interface Drop { ticker: string; copies: number; fresh: boolean }
 
@@ -64,21 +64,25 @@ export interface Drop { ticker: string; copies: number; fresh: boolean }
  * Open a chest: distinct fighters, each with a copy count in the tier's range.
  * Unowned fighters are drawn first, so a chest teaches you a new card before
  * it hands you a duplicate.
+ *
+ * `rand` is any uniform 32-bit source: the CSPRNG by default, or the stream
+ * derived from a Solana slot hash for a verifiable chest (chain/fair.ts).
+ * The table and the mapping are the same either way, so the odds are too.
  */
-export function rollChest(tier: ChestTier, owned: Record<string, OwnedCard>): Drop[] {
+export function rollChest(tier: ChestTier, owned: Record<string, OwnedCard>, rand: () => number = rand32): Drop[] {
   const def = CHESTS[tier];
   const fresh = ROSTER.filter((f) => !owned[f.ticker]);
   const known = ROSTER.filter((f) => owned[f.ticker]);
   const out: Drop[] = [];
   const used = new Set<string>();
   for (let i = 0; i < def.cards; i++) {
-    const wantFresh = fresh.length > 0 && (i === 0 || rand32() % 3 === 0);
+    const wantFresh = fresh.length > 0 && (i === 0 || rand() % 3 === 0);
     const pool = (wantFresh ? fresh : known.length ? known : fresh).filter((f) => !used.has(f.ticker));
     if (!pool.length) break;
-    const f = pick(pool);
+    const f = pick(pool, rand);
     used.add(f.ticker);
     const [lo, hi] = def.copies;
-    out.push({ ticker: f.ticker, copies: lo + (rand32() % (hi - lo + 1)), fresh: !owned[f.ticker] });
+    out.push({ ticker: f.ticker, copies: lo + (rand() % (hi - lo + 1)), fresh: !owned[f.ticker] });
   }
   return out;
 }

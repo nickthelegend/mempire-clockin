@@ -79,7 +79,7 @@ export function SessionCard() {
             <Pressable onPress={() => void Linking.openURL(explorerTx(cur.linkSig))} hitSlop={8} accessibilityRole="link">
               <Tag text={`link ${short(cur.linkSig, 4)} ↗`} color={onChain ? C.teal : C.goldHi} />
             </Pressable>
-            <Tag text={`float ${lamports === null ? '…' : (lamports / 1e9).toFixed(5)} SOL`} color={C.dim} />
+            <Tag text={`float ${lamports === null ? '…' : (lamports / 1e9).toFixed(6)} SOL`} color={C.dim} />
           </View>
           <Body size={11} color={C.dimOnWood} style={{ marginTop: 4 }}>
             {onChain ? `Ledger: link signed by your wallet, verified on chain · ${chain!.accepted} session Clock-In${chain!.accepted === 1 ? '' : 's'} accepted`
