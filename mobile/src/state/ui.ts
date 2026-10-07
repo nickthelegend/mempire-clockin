@@ -16,6 +16,8 @@ export interface PendingMatch {
   seed: number;
   /** Which arena renders this match (resolved from the setting at battle start). */
   renderer: Renderer;
+  /** Equipped arena skin, already checked against the chain (native arena only). */
+  skin?: string;
   /** True when this match was moved here after the native arena failed. */
   fellBack?: boolean;
   /** The guided first battle: coach marks on, welcome chest at the end. */
@@ -71,6 +73,10 @@ interface UiState {
   setIntro: (v: boolean) => void;
   coachOpen: boolean;
   setCoach: (v: boolean) => void;
+  passOpen: boolean;
+  setPass: (v: boolean) => void;
+  boardOpen: boolean;
+  setBoard: (v: boolean) => void;
   walletOpen: boolean;
   setWalletOpen: (v: boolean) => void;
   toast: { text: string; tone: 'ok' | 'err' | 'info'; id: number } | null;
@@ -106,6 +112,10 @@ export const useUi = create<UiState>((set) => ({
   setIntro: (introOpen) => set({ introOpen }),
   coachOpen: false,
   setCoach: (coachOpen) => set({ coachOpen }),
+  passOpen: false,
+  setPass: (passOpen) => set({ passOpen }),
+  boardOpen: false,
+  setBoard: (boardOpen) => set({ boardOpen }),
   walletOpen: false,
   setWalletOpen: (walletOpen) => set({ walletOpen }),
   toast: null,

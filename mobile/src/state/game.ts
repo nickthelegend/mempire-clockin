@@ -16,6 +16,10 @@ import {
  * the wallet store, and each Clock-In's proof is its devnet signature.
  */
 import { drainPending, placeChest, type Chest, type PendingChest } from '../game/inbox';
+import { CHEST_SLOTS } from '../game/rules';
+import {
+  addXp, claim as claimTier, rollSeason, freshPass, type PassState, type Reward, type Track, type XpSource,
+} from '../game/season';
 export type { Chest } from '../game/inbox';
 
 /** What granting a chest did: it is in a slot, or waiting in the inbox (never lost). */
@@ -64,7 +68,18 @@ interface Save {
   quests: QuestState;
   /** The welcome chest has been paid (once per player, even if the intro is replayed). */
   welcomed?: boolean;
+  /** Season Pass progress (XP and claimed tiers). Premium ownership is read from chain, never stored. */
+  pass: PassState;
+  /** Chest slots beyond the base four, earned on the pass. */
+  extraSlots: number;
+  /** Pass cosmetics unlocked on this device (shop skins are on-chain tokens instead). */
+  cosmetics: { frames: string[]; emotes: string[] };
+  /** What the player has equipped. On-chain skins only apply while the chain says they are owned. */
+  equipped: Equipped;
 }
+
+export interface Equipped { arena: string; frame: string; emote: string }
+export const DEFAULT_EQUIPPED: Equipped = { arena: 'default', frame: 'default', emote: 'gg' };
 
 const fresh = (): Save => ({
   v: 1,
@@ -83,6 +98,10 @@ const fresh = (): Save => ({
   clockIns: [],
   coachRuns: 0,
   quests: freshQuests(),
+  pass: freshPass(),
+  extraSlots: 0,
+  cosmetics: { frames: [], emotes: ['gg'] },
+  equipped: { ...DEFAULT_EQUIPPED },
 });
 
 const keyFor = (address: string) => `mempire.save.v1.${address}`;
@@ -130,7 +149,15 @@ interface GameState extends Save {
   adoptChainStreak: (latest: { day: number; streak: number }) => boolean;
   /** Ids of chests that just moved from the inbox into a slot (for a toast). */
   lastDelivered: string[];
+  /** Season Pass XP for an action. */
+  passXp: (source: XpSource, times?: number) => void;
+  /** Claim a pass tier; premium needs `premium` = the chain says the pass is held. */
+  claimPassTier: (n: number, track: Track, premium: boolean) => { reward: Reward; chest: Grant | null } | null;
+  equip: (patch: Partial<Equipped>) => void;
 }
+
+/** Total chest slots: the base four plus pass slots (capped). */
+export const slotsOf = (s: { extraSlots?: number }) => CHEST_SLOTS + Math.min(2, s.extraSlots ?? 0);
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -160,6 +187,7 @@ export const useGame = create<GameState>((set, get) => {
         streak: s.streak, skrSim: s.skrSim, trophies: s.trophies, wins: s.wins, losses: s.losses,
         draws: s.draws, history: s.history.slice(0, 50), clockIns: s.clockIns.slice(0, 120),
         coachRuns: s.coachRuns, quests: s.quests, welcomed: s.welcomed,
+        pass: s.pass, extraSlots: s.extraSlots, cosmetics: s.cosmetics, equipped: s.equipped,
       };
       void AsyncStorage.setItem(keyFor(address), JSON.stringify(save));
     }, 250);
@@ -180,6 +208,12 @@ export const useGame = create<GameState>((set, get) => {
         if (!save.quests || save.quests.day !== utcDayKey()) save.quests = freshQuests();
         if (!Array.isArray(save.pending)) save.pending = [];
         if (!Array.isArray(save.chests)) save.chests = [];
+        save.pass = rollSeason(save.pass && Array.isArray(save.pass.claimedFree) ? save.pass : undefined);
+        save.extraSlots = Number.isFinite(save.extraSlots) ? save.extraSlots : 0;
+        if (!save.cosmetics || !Array.isArray(save.cosmetics.frames) || !Array.isArray(save.cosmetics.emotes)) {
+          save.cosmetics = { frames: [], emotes: ['gg'] };
+        }
+        save.equipped = { ...DEFAULT_EQUIPPED, ...(save.equipped ?? {}) };
         // Drop anything the roster no longer has, so a stale save cannot crash a screen.
         save.cards = Object.fromEntries(Object.entries(save.cards ?? {}).filter(([t]) => BY_TICKER.has(t)));
         if (!Array.isArray(save.deck) || save.deck.length !== 8 || save.deck.some((t) => !save.cards[t])) {
@@ -189,7 +223,7 @@ export const useGame = create<GameState>((set, get) => {
       } catch {
         save = fresh(); // a malformed save must never strand the player on Loading
       }
-      const { rail } = drainPending({ chests: save.chests, pending: save.pending, nextChestId: save.nextChestId });
+      const { rail } = drainPending({ chests: save.chests, pending: save.pending, nextChestId: save.nextChestId }, slotsOf(save));
       set({ ...save, ...rail, address, loaded: true, lastDelivered: [] });
     },
 
@@ -202,7 +236,7 @@ export const useGame = create<GameState>((set, get) => {
 
     grant: (tier, source) => {
       const s = get();
-      const placed = placeChest({ chests: s.chests, pending: s.pending, nextChestId: s.nextChestId }, tier, source);
+      const placed = placeChest({ chests: s.chests, pending: s.pending, nextChestId: s.nextChestId }, tier, source, slotsOf(s));
       put({ ...placed.rail });
       return { tier, chest: placed.chest, queued: placed.queued };
     },
@@ -232,7 +266,7 @@ export const useGame = create<GameState>((set, get) => {
       // The freed slot goes to the oldest chest waiting in the inbox.
       const { rail, delivered } = drainPending({
         chests: s.chests.filter((x) => x.id !== id), pending: s.pending, nextChestId: s.nextChestId,
-      });
+      }, slotsOf(s));
       put({ ...rail, cards: applyDrops(s.cards, drops), lastDelivered: delivered.map((d) => d.id) });
       return drops;
     },
@@ -282,6 +316,7 @@ export const useGame = create<GameState>((set, get) => {
           day: today, streak: outcome.streak.count, skr: reward.skr, chest: reward.chest,
           sig: proof.sig, offlineReason: proof.offlineReason,
         }, ...get().clockIns],
+        pass: addXp(rollSeason(get().pass), 'clockin'),
       });
       const chest = reward.chest ? get().grant(reward.chest, 'clockin') : null;
       return { outcome, reward, chest };
@@ -305,6 +340,7 @@ export const useGame = create<GameState>((set, get) => {
         wins: s.wins + (b.won ? 1 : 0),
         losses: s.losses + (!b.won && !b.draw ? 1 : 0),
         draws: s.draws + (b.draw ? 1 : 0),
+        pass: addXp(rollSeason(s.pass), b.won ? 'win' : b.draw ? 'draw' : 'loss'),
       });
       const chest = b.won ? get().grant(winChestTier(), 'win') : null;
       return { record, chest };
@@ -328,7 +364,7 @@ export const useGame = create<GameState>((set, get) => {
       const q = get().quests;
       const def = QUESTS.find((x) => x.id === id)!;
       if (q.claimed[id] || q.progress[id] < def.goal) return 0;
-      put({ quests: { ...q, claimed: { ...q.claimed, [id]: true } } });
+      put({ quests: { ...q, claimed: { ...q.claimed, [id]: true } }, pass: addXp(rollSeason(get().pass), 'quest') });
       return def.skr;
     },
     grantWelcome: () => {
@@ -341,9 +377,34 @@ export const useGame = create<GameState>((set, get) => {
       const q = get().quests;
       if (q.bonusClaimed || !QUESTS.every((x) => q.claimed[x.id])) return null;
       const g = get().grant(QUEST_BONUS, 'quest');
-      put({ quests: { ...get().quests, bonusClaimed: true } });
+      put({ quests: { ...get().quests, bonusClaimed: true }, pass: addXp(rollSeason(get().pass), 'questBonus') });
       return g;
     },
+
+    passXp: (source, times = 1) => put({ pass: addXp(rollSeason(get().pass), source, times) }),
+
+    claimPassTier: (n, track, premium) => {
+      const s = get();
+      const out = claimTier(rollSeason(s.pass), n, track, premium);
+      if (!out) return null;
+      const r = out.reward;
+      const patch: Partial<GameState> = { pass: out.pass };
+      if (r.kind === 'slot') patch.extraSlots = s.extraSlots + 1;
+      if (r.kind === 'shield') patch.streak = { ...s.streak, shields: s.streak.shields + r.n };
+      if (r.kind === 'frame' && !s.cosmetics.frames.includes(r.id)) patch.cosmetics = { ...s.cosmetics, frames: [...s.cosmetics.frames, r.id] };
+      if (r.kind === 'emote' && !s.cosmetics.emotes.includes(r.id)) patch.cosmetics = { ...s.cosmetics, emotes: [...s.cosmetics.emotes, r.id] };
+      put(patch);
+      if (r.kind === 'slot') {
+        // A new slot is filled straight away from the inbox.
+        const g = get();
+        const { rail, delivered } = drainPending({ chests: g.chests, pending: g.pending, nextChestId: g.nextChestId }, slotsOf(g));
+        if (delivered.length) put({ ...rail, lastDelivered: delivered.map((d) => d.id) });
+      }
+      const chest = r.kind === 'chest' ? get().grant(r.tier, 'pass') : null;
+      return { reward: r, chest };
+    },
+
+    equip: (patch) => put({ equipped: { ...get().equipped, ...patch } }),
 
     adoptChainStreak: (latest) => {
       const merged = mergeChainStreak(get().streak, latest);

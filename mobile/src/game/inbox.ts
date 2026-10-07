@@ -5,7 +5,7 @@ import { CHEST_SLOTS, type ChestTier } from './rules';
  * is never dropped: it waits in `pending` and moves into the rail the moment
  * a slot frees (a chest is opened). Pure functions; the store persists them.
  */
-export type ChestSource = 'win' | 'clockin' | 'shop' | 'quest' | 'welcome';
+export type ChestSource = 'win' | 'clockin' | 'shop' | 'quest' | 'welcome' | 'pass';
 
 export interface Chest {
   id: string;
@@ -26,8 +26,8 @@ export interface Rail {
 export interface Placed { rail: Rail; chest: Chest | null; queued: boolean }
 
 /** Put a chest in a free slot, or in the inbox when the rail is full. */
-export function placeChest(rail: Rail, tier: ChestTier, source: ChestSource): Placed {
-  if (rail.chests.length < CHEST_SLOTS) {
+export function placeChest(rail: Rail, tier: ChestTier, source: ChestSource, slots: number = CHEST_SLOTS): Placed {
+  if (rail.chests.length < slots) {
     const chest: Chest = { id: `chest_${rail.nextChestId}`, tier, unlockAt: null, source };
     return { rail: { ...rail, chests: [...rail.chests, chest], nextChestId: rail.nextChestId + 1 }, chest, queued: false };
   }
@@ -35,12 +35,12 @@ export function placeChest(rail: Rail, tier: ChestTier, source: ChestSource): Pl
 }
 
 /** Move waiting chests into any free slots, oldest first. */
-export function drainPending(rail: Rail): { rail: Rail; delivered: Chest[] } {
+export function drainPending(rail: Rail, slots: number = CHEST_SLOTS): { rail: Rail; delivered: Chest[] } {
   let r = rail;
   const delivered: Chest[] = [];
-  while (r.pending.length && r.chests.length < CHEST_SLOTS) {
+  while (r.pending.length && r.chests.length < slots) {
     const [next, ...rest] = r.pending;
-    const placed = placeChest({ ...r, pending: rest }, next.tier, next.source);
+    const placed = placeChest({ ...r, pending: rest }, next.tier, next.source, slots);
     r = placed.rail;
     if (placed.chest) delivered.push(placed.chest);
   }

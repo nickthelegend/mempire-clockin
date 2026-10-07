@@ -13,8 +13,12 @@ if (/mainnet/i.test(RPC_URL)) throw new Error('Mempire Clock-In is devnet-only')
 
 export const connection = new Connection(RPC_URL, 'confirmed');
 
-export const explorerTx = (sig: string) => `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
-export const explorerAddr = (a: string) => `https://explorer.solana.com/address/${a}?cluster=devnet`;
+/** A local validator (development and the simulator demo); devnet otherwise. */
+export const IS_LOCAL = /127\.0\.0\.1|localhost/.test(RPC_URL);
+export const CLUSTER_LABEL = IS_LOCAL ? 'localnet' : 'devnet';
+const clusterQs = IS_LOCAL ? `cluster=custom&customUrl=${encodeURIComponent(RPC_URL)}` : 'cluster=devnet';
+export const explorerTx = (sig: string) => `https://explorer.solana.com/tx/${sig}?${clusterQs}`;
+export const explorerAddr = (a: string) => `https://explorer.solana.com/address/${a}?${clusterQs}`;
 export const short = (s: string, n = 4) => (s.length > 2 * n + 1 ? `${s.slice(0, n)}…${s.slice(-n)}` : s);
 
 export async function getSol(address: string): Promise<number> {

@@ -10,6 +10,9 @@ import { useWallet } from '../wallet/wallet';
 import {
   BY_TICKER, CHESTS, RIVALS, SHOP, dayKey, rivalDeck, type QuestId, type ShopItemId,
 } from './rules';
+import { buyPassIx, buySkinIx, hasPremium, usePassChain } from '../chain/pass';
+import { activeArenaSkin } from './cosmetics';
+import { rewardLabel, type Track } from './season';
 
 /**
  * Everything that crosses from the game into the chain, in one place.
@@ -228,6 +231,8 @@ export function prepareMatch(rivalIndex: number, rush = false, tutorial = false)
     tutorial,
     seed: (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0,
     renderer: resolveRenderer(),
+    // Only a skin the chain says this wallet holds; the web arena ignores it.
+    skin: activeArenaSkin(),
     tier: Math.min(3, Math.max(0, rivalIndex)),
     player: g.deck.map((t) => ({ ticker: t, mint: BY_TICKER.get(t)!.mint, level: g.cards[t]?.level ?? 1 })),
     bot: rivalDeck(rival, avg),
@@ -291,3 +296,49 @@ export function challengeMessage(rivalIndex: number, rush: boolean, outcome?: { 
 }
 
 export { explorerTx };
+
+// ── Season Pass and skins (mempire_pass, Token-2022) ───────────────────────
+
+/**
+ * Buy this season's soulbound pass: one transaction, one program instruction
+ * that pays SKR to the treasury vault and mints the pass to this wallet.
+ * MWA on Android (the wallet approves), the dev wallet on iOS / emulators.
+ */
+export async function buySeasonPass(): Promise<string> {
+  const { address, send } = useWallet.getState();
+  const pc = usePassChain.getState();
+  if (!address) throw new Error('Connect a wallet first');
+  if (pc.status !== 'live' || !pc.chain?.season) throw new Error('The on-chain pass is not available on this network yet');
+  if (hasPremium(pc)) throw new Error('This wallet already holds the pass');
+  if ((pc.skr ?? 0) < pc.chain.season.priceSkr) throw new Error(`You need ${pc.chain.season.priceSkr} SKR on-chain for the pass`);
+  const sig = await send([buyPassIx(new PublicKey(address), pc.chain)]);
+  haptic.success();
+  sfx('chest');
+  await usePassChain.getState().refresh(address);
+  return sig;
+}
+
+export async function buySkin(skinId: number): Promise<string> {
+  const { address, send } = useWallet.getState();
+  const pc = usePassChain.getState();
+  if (!address) throw new Error('Connect a wallet first');
+  const item = pc.chain?.skins[skinId];
+  if (pc.status !== 'live' || !pc.chain || !item) throw new Error('On-chain skins are not available on this network yet');
+  if ((pc.skr ?? 0) < item.priceSkr) throw new Error(`You need ${item.priceSkr} SKR on-chain for this skin`);
+  const sig = await send([buySkinIx(skinId, new PublicKey(address), pc.chain)]);
+  haptic.success();
+  await usePassChain.getState().refresh(address);
+  return sig;
+}
+
+/** Claim a pass tier. Premium is checked against the live chain read. */
+export function claimPassTier(n: number, track: Track): string | null {
+  const premium = hasPremium(usePassChain.getState());
+  const out = useGame.getState().claimPassTier(n, track, premium);
+  if (!out) return null;
+  haptic.success();
+  sfx('chest');
+  const label = rewardLabel(out.reward);
+  if (out.chest?.queued) return `${label}: slots full, it is waiting and moves in when you open a chest`;
+  return label;
+}
