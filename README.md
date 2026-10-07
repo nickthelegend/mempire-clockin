@@ -25,10 +25,43 @@ drag-to-deploy, the shared deterministic simulation, and the same AI rival.
 | **Season Pass (Token-2022)** | 25 tiers, free + premium, XP from clock-ins, quests and battles; rewards are chests, chest slots, Streak Shields, frames and emotes — never stats. The premium pass is a **soulbound Token-2022 token** (NonTransferable + MetadataPointer + TokenMetadata) bought for SKR from the `mempire_pass` program in one instruction; premium is whatever the chain says the wallet holds. Preview mode until the program is deployed on devnet. | `chain/pass/`, `mobile/src/chain/pass.ts`, `mobile/src/game/season.ts` |
 | **Skins & wardrobe** | 3 arena skins (Neon Night, Golden Hour, Frozen Ledger) rendered by the native 3D arena from baked texture variants, and 4 card frames — transferable Token-2022 tokens with on-chain metadata, sold for SKR, equipped in Deck → Wardrobe. | `app/src/three/skin.ts`, `mobile/src/screens/Shop.tsx` |
 | **Season War, board, share card** | BONK vs POPCAT: your side is written into each signed Clock-In memo. A per-coin board of your battles, and a result share card (image + challenge link). Unlicensed company fighters are hidden from the mobile build. | `mobile/src/game/board.ts`, `mobile/src/screens/ShareCard.tsx` |
+| **Sign In With Solana** | One tap: MWA `authorize` with a SIWS payload (domain, nonce, issuedAt, `solana:devnet`), so Seed Vault authorizes and signs in one sheet. The ed25519 signature and the signed fields are verified on the phone ("Signed in with Seed Vault"). Wallets without SIWS sign the same message via `signMessages`. On iOS the dev wallet signs it locally. | `mobile/src/chain/siws.ts`, `mobile/src/wallet/wallet.ts` |
+| **.skr names** | The player's `.skr` (AllDomains, read-only mainnet, cached, 6 s cap) replaces the address in the header, wallet sheet, share card and leaderboard row, and never blocks: the short address shows until the name arrives. **Find a Seeker** resolves `alice.skr` ↔ address. | `mobile/src/chain/skrName.ts`, `mobile/src/state/identity.ts` |
+| **Approve once, play all week** | One wallet signature links a session key (SecureStore) for 7 days, with a memo `mempire:session:v1:<key>:<expiresAt>` and a 0.001 SOL fee float. Daily Clock-Ins are then signed by that key, with no prompt, and name the owner. The ledger read-back accepts them only with an owner-signed, unexpired, unrevoked link. Revoke sweeps the float back. | `mobile/src/chain/session.ts`, `mobile/src/wallet/sessionKey.ts` |
+| **Provably fair chests** | Each chest commits to a future slot (current + 32). On open, `sha256(blockhash ‖ chestId ‖ owner)` drives the same drop table. The reveal has **Verify**: slot, blockhash, formula, explorer link and an in-app **Recompute**. Verifiable with Solana slot hashes (not VRF). | `mobile/src/chain/fair.ts` |
+| **Blinks** | Solana Actions on Vercel ([mempire-actions.vercel.app](https://mempire-actions.vercel.app)): **Challenge a friend** (a signed devnet memo plus the app deep link) and **Buy Season Pass** (the `mempire_pass` instruction; disabled until it is on devnet). **Share Blink** is in the app. | `actions/`, `mobile/src/game/blink.ts` |
 | **Collection, deck, chests** | 64 fighters, levels from duplicates, chest timers with local notifications, haptics throughout. | `mobile/src/screens/` |
 | **Native 3D arena** | The web game's scene (`app/src/three`) runs in an expo-gl GL view. Its canvas-drawn textures are baked to PNG by a deterministic script. The native HUD has hand, elixir, timer and crowns, plus PanResponder drag-to-deploy with a ground raycast and haptics on deploys and crowns. It uses the same deterministic sim and bot as the web client. **Safety net:** if the native scene fails to start, throws, or holds under 20 fps for 5 s early in a match, the *same* match (same seed, decks and rival) restarts in the bundled web arena, and the result records which renderer ran. Settings offer Auto / Native 3D / Web (compat). Parity is proven by a test: both match stores play identical scripted matches to identical end states (`app/tests`). | `mobile/src/arena/` |
 
 **Honest status of the native arena:** I verified it on the iOS simulator. There, OpenGL ES is a software renderer and the scene draws at about 4 fps; full matches still play to a result. Frame rate on real GPU hardware has not been measured, because no Android device or emulator was available. That is exactly why the automatic fallback exists. Auto mode uses the web arena on simulators.
+
+### Solana Mobile tech pack
+
+These are five Seeker-native Solana features, shown in the table above.
+Each has unit tests (`cd app && npx vitest run`, 72 tests in total) and an
+end-to-end check on a local validator:
+`bash mobile/scripts/verify-solana-tech.sh` (session key and fair chests, 19
+checks) and `bash actions/scripts/verify-local.sh` (both Blinks, including a
+Season Pass minted from the Blink transaction, 8 checks). Every one was also
+run in the app on the iOS simulator (screens in `clockin/screens/solana-tech/`).
+
+How they work:
+- **SIWS.** The sign-in is verified on the phone; nothing is sent to a server.
+- **Session key.** The key's authority is a rule anyone can recompute from
+  chain: an owner-signed link that has not expired and has not been revoked.
+  It is not an on-chain delegate.
+- **Chests.** Drops are fixed by a blockhash nobody knew when the chest was
+  earned. The commit is stored on the device, and this is not a VRF.
+
+What is not verified yet:
+- None of the five features has been run on an Android device, and MWA
+  `signIn` has not been tested with a real wallet.
+- The Season Pass Blink stays disabled until `mempire_pass` is deployed on
+  devnet.
+- dial.to was down when I tested, so the Blink was only seen through curl
+  and on a local validator.
+
+Details and exact commands are in [HANDOFF.md](HANDOFF.md#solana-mobile-tech-pack-branch-solana-tech-oct-8).
 
 **Release APK:** `mempire-clockin.apk` on the [`clockin-v1` release](https://github.com/nickthelegend/mempire-clockin/releases/tag/clockin-v1), version 1.3.1 (versionCode 8), sha256 `b6f501fa73d78f6dd6c777878a756d828ae008569777bd1dcacba47fea3aecf8`. Devnet only. It is signed with the project's release key and has not been run on an Android device yet.
 

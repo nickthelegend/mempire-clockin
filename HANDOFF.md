@@ -46,6 +46,70 @@ Also verified: the shared battle sim is deterministic (`npx tsx app/scripts/sim-
   dApp Store, must be signed with this key.
 - `apksigner` certificate: CN=Mempire, O=Mempire, C=IN; cert SHA-256 510a32d604173681a92bd6cb9c9b3809c4042c7d59a3fbbaf02316769fc3d943
 
+## Solana Mobile tech pack (branch `solana-tech`, Oct 8)
+
+Five Seeker-native Solana features, each in its own commit with unit tests.
+"Sim" means the iPhone 17 Pro simulator (`5CE49A2A-…`) running a Release build
+with the JS re-embedded (`scripts/ios-js-update.sh`); "localnet" means a local
+validator on ports 4150–4179. Screenshots: `clockin/screens/solana-tech/`.
+`cd app && npx vitest run`: **72/72** (9 files, the arena parity tests
+included). `tsc` is clean in `mobile/` and `actions/`. **No new native module**:
+the only new dependencies are `@noble/curves` and `@noble/hashes`, pure JS and
+already in the bundle through web3.js, so the 1.4.0 APK needs no native change.
+
+| Feature | How it works | Verified |
+|---|---|---|
+| **Sign In With Solana** (MWA `signIn`) | Connect is one tap: `authorize({ sign_in_payload })` with domain `mempire.fun`, a fresh nonce, `issuedAt`, `chainId: solana:devnet` and a statement. The wallet (Seed Vault on a Seeker) authorizes the app and signs the SIWS message in one sheet. The phone ed25519-verifies `sign_in_result` and refuses it unless the signed text carries our domain, nonce, chain, statement and URI, with an Issued At within 10 minutes. A wallet that ignores the payload gets the same message through `signMessages`. If that is declined too, the player is connected without a proof, and the wallet sheet says so. The wallet sheet shows "Signed in with Seed Vault" (from `looksLikeSeeker()` or the account label), the signed message, and a **Verify again** button. On iOS the dev wallet signs the same SIWS message locally and goes through the same verifier. | 9 unit tests, including byte parity with `@solana/wallet-standard-util` and rejection of a replayed nonce, another domain, another chain, a stale time, a tampered message and the wrong key. **Sim:** dev-wallet SIWS, verified and re-verified (01, 02). **Android MWA `signIn` has not been run on a device.** |
+| **.skr identity** | Reverse resolution is written against the AllDomains (ANS / TLD House) account layouts, with no `ethers`. It uses the `.skr` main domain if one is set, still owned and not expired. Otherwise it takes the owned `.skr` name records (getProgramAccounts) plus their reverse records, first alphabetically. It is read-only on mainnet, capped at 6 s, with hits cached 24 h and misses only for the session. It shows in the header, the wallet sheet, the result share card and the leaderboard's "You" row. The short address renders first and stays when there is no name. The wallet sheet also has **Find a Seeker** (name → address, then reverse back). | 8 tests over accounts captured from mainnet (`alice.skr`) plus main-domain, wrong-owner and expiry cases. **Sim:** `alice.skr → DKL92b…CDKimr · reverse lookup agrees`, live from mainnet (03). The simulator caught a real bug: RN's `buffer` polyfill makes `subarray().toString()` print byte values, so `b.skr` showed as `98.skr`; it is fixed with `toString(enc, start, end)`. The dev wallet has no `.skr`, so the header shows the fallback (04). **A Seeker wallet's own name in the header was not seen.** |
+| **Approve once, play all week** (session key) | A keypair kept in SecureStore. The wallet signs ONE transaction: the memo `mempire:session:v1:<sessionPubkey>:<expiresAt>` (7 days) plus a 0.001 SOL fee float (rent-exempt + ~20 fees). After that, Clock-Ins are signed and paid by the session key, with no prompt, as `mempire:clockin:v1:day=…:streak=…:owner=<owner>`. Any failure falls back to the wallet. The ledger read-back (`readSessionLedger`) gets the signers from each transaction. It accepts a session Clock-In only if the chain has a link **signed by the owner**, landed before it, not expired at that time, and not revoked before it. A revoke memo is signed by the session key (which also sweeps the float back to the owner, with no prompt) or by the owner. UI on the Clock-In card: the **Approve once · 7 days** toggle, the countdown, the float, the link status read from chain, and **Revoke**. | 12 unit tests. **localnet** `bash mobile/scripts/verify-solana-tech.sh` (13 session checks): one owner signature on the link; float received; 2 session Clock-Ins accepted on read-back; a forged link (an attacker referencing the owner) and its Clock-In rejected; the owner-only reader ignores session memos; Clock-In after expiry rejected; self-revoke sweeps the key to 0 and returns the float; Clock-In after the revoke rejected; earlier ones still valid. **Sim on localnet:** one dev-wallet approval → Clock-In by the session key → "link signed by your wallet, verified on chain · 1 session Clock-In accepted" → Revoke → key balance 0 (checked with the CLI) (05–07). |
+| **Provably fair chests** | Every chest in the rail is committed to `targetSlot = current + 32` as soon as it arrives. On open, the app waits for that slot ("Sealing with Solana slot #N") and takes the blockhash of the first produced block at or after it. `seed = sha256(blockhash ‖ chestId ‖ owner)` drives a counter-mode sha256 stream into the **same** `rollChest` table and mapping, so the odds are unchanged and the win-tier table is untouched. The reveal's **Verify** panel, labelled "verifiable with Solana slot hashes (not VRF)", shows the chest, the committed slot, the block used (explorer link), the blockhash, the seed and the formula, and **Recompute** re-fetches the block and re-derives the drops. A chest earned offline says it was rolled on the device. | 7 unit tests: determinism; the formula recomputed independently; the same draws as the CSPRNG path for the same stream; 4,000 rolls with uniform copies and the new-fighter-first rule; the 3/9/26/62 tier table. **localnet:** commit → reveal → recompute; `verifyProof` rejects a doctored seed and a later slot (6 checks). **Sim on localnet:** chest_1 rolled from slot 88, Recompute "MATCHES ✓", and the blockhash was checked against the CLI (08). The 13 s "sealing" wait of an instant Seeker Chest was **not filmed** (not enough simulated SKR). |
+| **Blinks / Solana Actions** | `actions/` deploys to the Vercel project **`mempire-actions`**: https://mempire-actions.vercel.app. It has `actions.json`. **Challenge a friend**: GET metadata (one button per rival), and POST returns one memo `mempire:challenge:v1:<rival>` signed by the challenger, plus a completed next action with the `mempire://battle?rival=N` deep link. **Buy Season Pass**: the `mempire_pass` `buy_pass` instruction, identical to the app's (a test checks this). `mempire_pass` is **not deployed on devnet**, so this Action returns `disabled: true` with that reason, and POST answers 422. Every response, including OPTIONS and errors, carries the CORS headers, `X-Action-Version: 2.4` and `X-Blockchain-Ids: solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1` (devnet). In the app, **SHARE BLINK** sits next to Challenge a friend, and **AS BLINK** is on the result card. | 6 unit tests. **localnet** `bash actions/scripts/verify-local.sh` (8/8): the real handlers with `mempire_pass` loaded; the challenge memo landed; the Season Pass was minted to the buyer from the Blink transaction (Token-2022 balance 1); a second purchase was refused on chain. **Production curl:** GET 200 with metadata, OPTIONS 200, POST 200 with a devnet transaction (memo and blockhash decoded), the season-pass GET is disabled, and its POST returns 422. **Sim:** the share sheet with the Blink (09, 10). **dial.to was down when I tested it** (503 `DEPLOYMENT_PAUSED`, then 403), so the Blink card was not seen rendered in dial.to. |
+
+Blink URLs:
+- Action: `https://mempire-actions.vercel.app/api/actions/challenge?rival=blue-chips` (rivals: `doggo-pack`, `blue-chips`, `degen-swarm`, `whale-court`)
+- dial.to: `https://dial.to/?action=solana-action%3Ahttps%3A%2F%2Fmempire-actions.vercel.app%2Fapi%2Factions%2Fchallenge%3Frival%3Dblue-chips&cluster=devnet`
+- Season Pass Action (disabled until devnet deploy): `https://mempire-actions.vercel.app/api/actions/season-pass`
+- `https://mempire-actions.vercel.app/actions.json`
+
+Commands:
+```bash
+cd app && npx vitest run                          # 72 tests
+cd mobile && bash scripts/verify-solana-tech.sh   # session key + fair chests on localnet (19 checks)
+cd actions && bash scripts/verify-local.sh        # both Actions on localnet; needs chain/pass/target/deploy/mempire_pass.so
+cd actions && vercel deploy --prod --yes          # redeploy (project mempire-actions, linked in actions/.vercel, gitignored)
+cd mobile && npx tsx scripts/capture-skr-fixture.ts alice.skr > ../app/tests/fixtures/skr-mainnet.json
+```
+Devnet becomes one command per feature: SIWS, `.skr`, fair chests and the
+challenge Blink already run against devnet/mainnet as built. The session key
+needs the wallet to hold about 0.0011 SOL. Once `chain/pass/scripts/deploy-devnet.sh`
+has run, the Season Pass Blink enables itself (it reads the program and config
+from devnet on every GET).
+
+Honest limits:
+- Nothing here has run on an Android device. MWA `signIn` with Seed Vault,
+  Phantom or Solflare (and the `signMessages` fallback) is untested on hardware.
+  The verifier is tested, and the dev-wallet path was seen on iOS.
+- The session key is a device key, not an on-chain delegate. Its authority
+  exists only in Mempire's ledger rules, which anyone can recompute. It can post
+  Clock-In memos for 7 days and spend its 0.001 SOL float. Session Clock-Ins do
+  not include the SKR mint unless the player's token account already exists
+  (creating one would cost more than the float); otherwise the SKR is owed, as
+  in the offline path.
+- Fair chests: the commit lives on the device. That proves the drops came from
+  a blockhash nobody knew when the chest was earned, but it is not a VRF. A
+  block producer could in theory grind that slot, and a modified client could
+  re-commit. The roll draws unowned fighters first, so the recompute uses the
+  collection snapshot taken at open. The chest *tier* is still rolled at earn
+  time by the CSPRNG, with the same table.
+- `.skr`: one name per wallet, and when there is no `.skr` main domain the
+  "primary" is the first owned name alphabetically. NFT-wrapped names are not
+  resolved. The public mainnet RPC rate-limits; a failed lookup shows the
+  address and retries next launch.
+- There is no global player leaderboard, because there is no game server. The
+  board's "You" row and the share card show the `.skr` name.
+- The Season Pass Blink stays disabled until `mempire_pass` is on devnet.
+  dial.to was unavailable when I tested, and no other renderer was tried.
+
 ## Season Pass & skins (1.3.0, Oct 7–8, branch `season-pass`, merged)
 
 Free to play, never pay-to-win: every reward is a chest, a chest slot, a Streak
@@ -331,6 +395,10 @@ WebGL performance in the Android WebView, notification delivery, and haptics.
 2. **Test on a real Android phone** (ideally a Seeker), with Phantom, Solflare
    or Seed Vault: Connect Wallet → MWA approve → Clock In (wallet sign) →
    Battle → Shop. Install with `adb install -r mempire-clockin.apk`.
+   For the tech pack, also check: **Sign in with Solana** (one Seed Vault sheet;
+   the wallet sheet should say "Signed in with Seed Vault"), your `.skr` name
+   in the header, **Approve once · 7 days** followed by a prompt-free
+   Clock-In, chest **Verify → Recompute**, and **Share Blink**.
 3. **Record the demo** on that phone using `clockin/DEMO-SCRIPT.md`, narrated
    (judges read the transcript).
 4. **Publish the APK** as a GitHub Release asset so there is a direct link:
@@ -339,7 +407,12 @@ WebGL performance in the Android WebView, notification delivery, and haptics.
    20 MB, link-viewable).
 6. Fill in and submit the portal form (`clockin/SUBMISSION.md` has the
    answers). Run the portal's security audit and AI Coach first.
-7. Optional: the web client's online features (ladder, clans, PvP relay) need
+7. **Blinks:** the Vercel project `mempire-actions` (account `niveshgajengi`,
+   team `nicolas-projects-f497bb7f`) serves https://mempire-actions.vercel.app.
+   The Season Pass Action turns itself on once `mempire_pass` is deployed on
+   devnet; no redeploy is needed. Check that dial.to is back up before
+   recording shot 6b.
+8. Optional: the web client's online features (ladder, clans, PvP relay) need
    `server/` hosted. The old Railway service
    `mempire-relay-production.up.railway.app` returns 404 "Application not
    found". **The Seeker app does not need it**, because every feature in the app
