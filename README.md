@@ -30,7 +30,7 @@ drag-to-deploy, the shared deterministic simulation, and the same AI rival.
 
 **Honest status of the native arena:** I verified it on the iOS simulator. There, OpenGL ES is a software renderer and the scene draws at about 4 fps; full matches still play to a result. Frame rate on real GPU hardware has not been measured, because no Android device or emulator was available. That is exactly why the automatic fallback exists. Auto mode uses the web arena on simulators.
 
-**Release APK:** `mempire-clockin.apk` on the [`clockin-v1` release](https://github.com/nickthelegend/mempire-clockin/releases/tag/clockin-v1), version 1.2.2 (versionCode 6), sha256 `02ffed8304cf98b814c09ef8a0a3a07b6451dc5edeb7daf87c7584dfecebf475`. Devnet only. It is signed with the project's release key and has not been run on an Android device yet.
+**Release APK:** `mempire-clockin.apk` on the [`clockin-v1` release](https://github.com/nickthelegend/mempire-clockin/releases/tag/clockin-v1), version 1.3.0 (versionCode 7), sha256 `e7a05f6fdca1105434980baf2230c342f03ace6de46657baace48e0d46f2dd2f`. Devnet only. It is signed with the project's release key and has not been run on an Android device yet.
 
 Build and run (details in [HANDOFF.md](HANDOFF.md)): from `mobile/`, `npm run ios:sim`
 (iOS simulator), `npm run apk` (signed release APK). Submission material is in

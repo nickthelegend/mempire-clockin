@@ -1,6 +1,6 @@
 # HANDOFF — Mempire for Seeker (Solana Mobile CLOCK IN)
 
-Status as of 2026-10-07, 20:55 IST (1.2.2). This file records only what was run and seen.
+Status as of 2026-10-08, 00:05 IST (1.3.0). This file records only what was run and seen.
 
 ## What was verified, and how
 
@@ -36,9 +36,9 @@ Also verified: the shared battle sim is deterministic (`npx tsx app/scripts/sim-
 ## APK
 
 - `/Volumes/Extreme SSD/Projects/clockin/apks/mempire-clockin.apk`
-- sha256 `02ffed8304cf98b814c09ef8a0a3a07b6451dc5edeb7daf87c7584dfecebf475`
-- 69,813,097 bytes (66.6 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 6 (1.2.2)
-- Built from `main` at the 1.2.2 release commit: the 1.2.1 changes (no microphone permission, no fps readout in release, store-kit icon and splash) plus the bug-hunt fixes below. `aapt2` shows versionCode 6 / 1.2.2 and no `RECORD_AUDIO`; the certificate digest is unchanged (same key). The file was re-downloaded from the release and its sha256 matches.
+- sha256 `e7a05f6fdca1105434980baf2230c342f03ace6de46657baace48e0d46f2dd2f`
+- 70,383,013 bytes (67.1 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 7 (1.3.0)
+- Built from `main` at the 1.3.0 merge (`692118c`): Season Pass & skins, Season War, share card, unlicensed marks hidden, on top of 1.2.2's bug-hunt fixes. `aapt2` shows versionCode 7 / 1.3.0 and no `RECORD_AUDIO`; the certificate digest is unchanged (same key). The JS bundle points at devnet only (no localnet URL) and contains the `mempire_pass` program id; the 30 skin textures are packaged as drawables. The file was re-downloaded from the release and its sha256 matches.
 - Signed with a **new dedicated release key**. The keystore and its password
   are **outside the repo** at
   `/Volumes/Extreme SSD/Projects/clockin/keys/mempire-release.keystore` and
