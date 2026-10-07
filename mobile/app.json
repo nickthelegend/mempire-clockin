@@ -2,7 +2,7 @@
   "expo": {
     "name": "Mempire",
     "slug": "mempire",
-    "version": "1.2.1",
+    "version": "1.2.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "mempire",
@@ -12,7 +12,7 @@
     "newArchEnabled": true,
     "android": {
       "package": "fun.mempire.app",
-      "versionCode": 5,
+      "versionCode": 6,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",

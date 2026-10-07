@@ -1,6 +1,6 @@
 # HANDOFF — Mempire for Seeker (Solana Mobile CLOCK IN)
 
-Status as of 2026-10-06, 21:50 IST. This file records only what was run and seen.
+Status as of 2026-10-07, 20:55 IST (1.2.2). This file records only what was run and seen.
 
 ## What was verified, and how
 
@@ -36,15 +36,41 @@ Also verified: the shared battle sim is deterministic (`npx tsx app/scripts/sim-
 ## APK
 
 - `/Volumes/Extreme SSD/Projects/clockin/apks/mempire-clockin.apk`
-- sha256 `b072467821b9362e36b2e7898e2a43bd744ea839732fee3a3084ca9ea673dcec`
-- 69,799,473 bytes (66.6 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 5 (1.2.1)
-- Built from commit `9ef943c` plus the 1.2.1 changes (no microphone permission, no fps readout in release, store-kit icon and splash).
+- sha256 `02ffed8304cf98b814c09ef8a0a3a07b6451dc5edeb7daf87c7584dfecebf475`
+- 69,813,097 bytes (66.6 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 6 (1.2.2)
+- Built from `main` at the 1.2.2 release commit: the 1.2.1 changes (no microphone permission, no fps readout in release, store-kit icon and splash) plus the bug-hunt fixes below. `aapt2` shows versionCode 6 / 1.2.2 and no `RECORD_AUDIO`; the certificate digest is unchanged (same key). The file was re-downloaded from the release and its sha256 matches.
 - Signed with a **new dedicated release key**. The keystore and its password
   are **outside the repo** at
   `/Volumes/Extreme SSD/Projects/clockin/keys/mempire-release.keystore` and
   `mempire-release.env`. **Back both up.** Every future update, including the
   dApp Store, must be signed with this key.
 - `apksigner` certificate: CN=Mempire, O=Mempire, C=IN; cert SHA-256 510a32d604173681a92bd6cb9c9b3809c4042c7d59a3fbbaf02316769fc3d943
+
+## Bug-hunt fixes (1.2.2, Oct 7)
+
+A read-only review (`clockin/review/MEMPIRE-BUGS.md`, outside the repo) found
+correctness bugs in 1.2.1. They are fixed on `main` in five commits
+(`c16a86d`..`c6ee366`). The pure logic is unit-tested in
+`app/tests/mobile-rules.test.ts`. `npx vitest run` gives 17/17, including the
+arena parity tests, and both `tsc` checks are clean. "Sim" means it was checked
+by hand on the iPhone 17 simulator, with screenshots in `clockin/screens/bugfix/`.
+"Code only" means it was neither run on a device nor seen on screen.
+
+| # | Bug | Fix | Verified |
+|---|---|---|---|
+| 1 | Quest-bonus chest silently lost when all 4 slots are full | Chests that don't fit wait in a `pending` queue (`mobile/src/game/inbox.ts`) and move in when a chest is opened. Home shows "N waiting · slots full", and the result sheet says WAITING. The welcome and bonus flags are set only after the chest is granted. | Unit test + **sim** (01, 02): the bonus showed "1 waiting · slots full", and opening a chest moved it in |
+| 2 | Native arena frozen after background → foreground | The arena pauses on background and shows a **Paused** card with RESUME and Leave battle. The quit-alert pause and the background pause are tracked separately. | **Sim** (04): after resuming, the timer ran again (2:47 → 2:44) |
+| 3 | Leave does nothing while "Preparing"; a pre-first-frame scene error has no exit | With no match running yet, Leave/Cancel closes the battle and records nothing. The Preparing cover has a Cancel button. The watchdog and the scene error boundary fall back to the web arena in every renderer mode. The GL view mounts 1.2 s after the cover, so the first shader compile can't swallow the tap. | **Sim** (03, 06): Cancel on "Preparing the arena…" returned to Home. Checked with a temporary 8 s mount delay so the tap could be timed, then reverted. ✕ during texture load gave the Leave dialog. The pre-first-frame *error* path is code only. |
+| 4 | Clock-In goes off-chain when the balance is unknown | `feeCheck()` returns yes / no / unknown. It refetches the balance with a 6 s timeout, and only a known zero takes the offline path. Unknown sends the transaction. | Code only (needs devnet SOL) |
+| 5 | Chain streak restore loses to an early Clock-In and is never retried | The ledger read is retried (every 45 s and on app resume) until it succeeds, and it is re-read before a Clock-In. `mergeChainStreak` never replaces a higher chain streak with 1. A clock rollback can't advance the streak. | Unit test |
+| 6 | Chest notifications never cancelled | Per-wallet ids `chest:<address>:<id>`, cancelled on Rush, on open and on sign-out | Code only |
+| 7 | Quest day (UTC) vs Clock-In day (local) disagree | One game day, **UTC**, for the streak, quests and memo. The UI shows the rollover in local time ("Next day starts at 05:30" in IST), and the streak reminder fires before it. | Unit test + **sim** (05) |
+| 8 | Landed tx whose confirmation failed recorded as off-chain | If confirmation throws, `getSignatureStatuses` decides. A landed signature counts as on-chain. | Code only |
+| 9 | Any "not found" error shown as "no MWA wallet" | The regex matches only the MWA no-wallet errors | Code only |
+| 10 | Seeker ×2 missed when clocking in before the SGT check | Clock-In waits up to 5 s for the Seeker check | Code only |
+| 11 | Web arena fast-forwards after background | On `visibilitychange` / `mempire-resumed`, the bot clock is rebased (`rebaseBotClock`) | Code only |
+| 12 | Stale CLOCKED IN at midnight; stale tab dot; memo/commit day mismatch; cold-start deep link replay; web `exit` always a loss; save into the wrong wallet; corrupt save hangs Loading; two unhandled rejections; coach keeps running; streak reminder after 21:30 | Every item listed here is fixed. The Clock-In card ticks every 30 s and the tab dot every 15 s. The preview's `day` is passed to the commit. The initial URL is consumed once. Only an explicit leave is a loss. `persist` snapshots the state and the timer is cleared on load and unload. Normalisation has try/catch → fresh save. `restore` and `connectDev` have catches. Coach uses a run id. `reminderTime()` handles evening and late-night cases (unit-tested). | Unit test (reminder, rollback) + code only |
+| 12 (perf) | Whole native arena re-renders at 20 Hz | **Not done.** Moving the subscription into the HUD touches the renderer, and the change would be unverifiable without an Android GPU. | — |
 
 ## Polish round (Oct 7, branch `polish`, merged)
 
