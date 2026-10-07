@@ -325,33 +325,51 @@ export function NativeArena() {
     return false;
   }, [hitAt]);
 
-  // One responder per hand slot, rebuilt when the hand rotates.
-  const responders = useMemo(() => hand.map((deckIndex, handIndex) => PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    onPanResponderGrant: (e: GestureResponderEvent) => {
-      haptic.tap();
-      setDrag({ handIndex, deckIndex, x: e.nativeEvent.pageX, y: e.nativeEvent.pageY });
-    },
-    onPanResponderMove: (e) => {
-      const { pageX, pageY } = e.nativeEvent;
-      setDrag({ handIndex, deckIndex, x: pageX, y: pageY });
-      setMarker(pageY < frame.current.y + frame.current.h ? hitAt(pageX, pageY) : null);
-    },
-    onPanResponderRelease: (e, g) => {
-      setDrag(null);
-      setMarker(null);
-      if (Math.hypot(g.dx, g.dy) < 10) {
-        // A tap arms the card; the next tap on the arena deploys it.
-        setSelected((s) => (s === handIndex ? null : handIndex));
-        return;
-      }
-      deploy(deckIndex, e.nativeEvent.pageX, e.nativeEvent.pageY);
-      setSelected(null);
-    },
-    onPanResponderTerminate: () => { setDrag(null); setMarker(null); },
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  })), [hand.join(','), deploy, hitAt]);
+  /*
+   * One responder per hand SLOT, created once. They read the live hand through
+   * a ref and remember the card picked up at grant time. Keying responders (or
+   * the slot views) by card instead meant a hand rotation mid-drag — your
+   * previous play landing — unmounted the view under the finger, the release
+   * never arrived, and the hand stayed stuck in "dragging" for the rest of the
+   * match (caught in the simulator recording).
+   */
+  const handRef = useRef(hand);
+  handRef.current = hand;
+  const responders = useMemo(() => [0, 1, 2, 3].map((handIndex) => {
+    let picked = -1;
+    return PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (e: GestureResponderEvent) => {
+        picked = handRef.current[handIndex] ?? -1;
+        if (picked < 0) return;
+        haptic.tap();
+        setDrag({ handIndex, deckIndex: picked, x: e.nativeEvent.pageX, y: e.nativeEvent.pageY });
+      },
+      onPanResponderMove: (e) => {
+        if (picked < 0) return;
+        const { pageX, pageY } = e.nativeEvent;
+        setDrag({ handIndex, deckIndex: picked, x: pageX, y: pageY });
+        setMarker(pageY < frame.current.y + frame.current.h ? hitAt(pageX, pageY) : null);
+      },
+      onPanResponderRelease: (e, g) => {
+        setDrag(null);
+        setMarker(null);
+        const deckIndex = picked;
+        picked = -1;
+        if (deckIndex < 0) return;
+        if (Math.hypot(g.dx, g.dy) < 10) {
+          // A tap arms the card; the next tap on the arena deploys it.
+          setSelected((cur) => (cur === handIndex ? null : handIndex));
+          return;
+        }
+        deploy(deckIndex, e.nativeEvent.pageX, e.nativeEvent.pageY);
+        setSelected(null);
+      },
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderTerminate: () => { picked = -1; setDrag(null); setMarker(null); },
+    });
+  }), [deploy, hitAt]);
 
   if (!match) return null;
   const shakeX = shake.interpolate({ inputRange: [0, 0.25, 0.5, 0.75, 1], outputRange: [0, -6, 5, -3, 0] });
@@ -408,7 +426,7 @@ export function NativeArena() {
               const lifted = drag?.handIndex === i;
               return (
                 <View
-                  key={`${deckIndex}-${i}`}
+                  key={`slot-${i}`}
                   {...responders[i]?.panHandlers}
                   style={[st.card, !ok && { opacity: 0.5 }, selected === i && st.cardSel, lifted && { opacity: 0.35 }]}
                   accessibilityLabel={`${card?.name} costs ${cost}`}
