@@ -1,0 +1,19 @@
+{
+  "name": "mempire-actions",
+  "private": true,
+  "description": "Solana Actions (Blinks) for Mempire, devnet only: Challenge a friend, Buy Season Pass.",
+  "engines": {
+    "node": "24.x"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.98.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.1",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3"
+  },
+  "overrides": {
+    "rpc-websockets": "9.3.0"
+  }
+}

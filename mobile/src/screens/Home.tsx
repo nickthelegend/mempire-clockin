@@ -17,6 +17,7 @@ import { EASE_OUT, reduceMotion, useCountUp } from '../motion';
 import { sfx } from '../sound';
 import { haptic } from '../notify';
 import { SessionCard } from './SessionCard';
+import { blinkMessage } from '../game/blink';
 
 function useNow(ms = 1000) {
   const [now, setNow] = useState(Date.now());
@@ -358,13 +359,22 @@ function Battle() {
         tone="blue"
         onPress={() => openBattle(prepareMatch(rival, rush))}
       />
-      <Btn
-        label="CHALLENGE A FRIEND"
-        tone="ghost"
-        size="sm"
-        style={{ marginTop: 10 }}
-        onPress={() => { void Share.share({ message: challengeMessage(rival, rush) }).catch(() => {}); }}
-      />
+      <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+        <Btn
+          label="CHALLENGE A FRIEND"
+          tone="ghost"
+          size="sm"
+          style={{ flex: 1.3 }}
+          onPress={() => { void Share.share({ message: challengeMessage(rival, rush) }).catch(() => {}); }}
+        />
+        <Btn
+          label="SHARE BLINK"
+          tone="blue"
+          size="sm"
+          style={{ flex: 1 }}
+          onPress={() => { haptic.tap(); void Share.share({ message: blinkMessage(rival) }).catch(() => {}); }}
+        />
+      </View>
     </Panel>
   );
 }

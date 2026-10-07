@@ -6,6 +6,7 @@ import { Image, Platform, Share, StyleSheet, View } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import { CARD_ART, UI_ART } from '../data/art';
 import { challengeMessage } from '../game/actions';
+import { blinkMessage } from '../game/blink';
 import { useFrameColors } from '../game/cosmetics';
 import { EMOTES } from '../game/season';
 import { useGame } from '../state/game';
@@ -85,7 +86,10 @@ export function ShareCardButton({ r }: { r: MatchResult }) {
           </LinearGradient>
         </LinearGradient>
       </View>
-      <Btn label="SHARE CARD" sub="image + challenge link" tone="gold" size="sm" busy={busy} onPress={() => void share()} />
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <Btn label="SHARE CARD" sub="image + challenge link" tone="gold" size="sm" busy={busy} style={{ flex: 1 }} onPress={() => void share()} />
+        <Btn label="AS BLINK" sub="Solana Action" tone="blue" size="sm" style={{ flex: 0.8 }} onPress={() => { void Share.share({ message: blinkMessage(r.rivalIndex) }).catch(() => {}); }} />
+      </View>
     </View>
   );
 }

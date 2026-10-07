@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mempire Actions</title>
+<style>
+:root{--bg:#0d2a5c;--card:#14418f;--ink:#fff;--dim:#b9c8ea;--gold:#ffc422}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--bg:#eef3ff;--card:#fff;--ink:#0d2a5c;--dim:#4a5d86;--gold:#b98100}}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif}
+main{max-width:640px;margin:0 auto;padding:32px 16px}
+.card{background:var(--card);border-radius:16px;padding:16px;margin:12px 0}
+h1{margin:.2em 0}a{color:var(--gold)}code{font-size:13px;word-break:break-all;color:var(--dim)}
+img{width:72px;height:72px;border-radius:16px}
+</style>
+</head>
+<body><main>
+<img src="/icon.png" alt="">
+<h1>Mempire Solana Actions</h1>
+<p>Blinks for <b>Mempire</b>, the Seeker card battler. <b>Devnet only.</b> Open them in any Blink-aware client.</p>
+<div class="card"><h2>Challenge a friend</h2>
+<p>Signs a memo <code>mempire:challenge:v1:&lt;rival&gt;</code> on devnet, then hands back the app deep link <code>mempire://battle?rival=N</code>.</p>
+<p><a href="https://dial.to/?action=solana-action%3Ahttps%3A%2F%2Fmempire-actions.vercel.app%2Fapi%2Factions%2Fchallenge%3Frival%3Dblue-chips&amp;cluster=devnet">Open on dial.to</a> · <a href="/api/actions/challenge?rival=blue-chips">GET metadata</a></p></div>
+<div class="card"><h2>Buy Season Pass</h2>
+<p>The <code>mempire_pass</code> buy_pass instruction (soulbound Token-2022 pass, paid in the SKR devnet stand-in). Disabled until the program is deployed on devnet.</p>
+<p><a href="/api/actions/season-pass">GET metadata</a></p></div>
+<p><a href="/actions.json">actions.json</a> · source: <a href="https://github.com/nickthelegend/mempire-clockin/tree/main/actions">github</a></p>
+</main></body></html>
