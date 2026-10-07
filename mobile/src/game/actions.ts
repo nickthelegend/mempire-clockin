@@ -1,9 +1,9 @@
 import { PublicKey } from '@solana/web3.js';
-import { clockInMemo, explorerTx } from '../chain/solana';
+import { clockInMemo, explorerTx, getSol, readClockIns } from '../chain/solana';
 import { SKR_LIVE, earnIxs, payIxs } from '../chain/skr';
-import { askPermission, chestReminder, haptic, streakReminder } from '../notify';
+import { askPermission, cancel, chestNotificationId, chestReminder, ensureStreakReminder, haptic } from '../notify';
 import { sfx } from '../sound';
-import { useGame, avgDeckLevel, type Chest } from '../state/game';
+import { useGame, avgDeckLevel, type Grant } from '../state/game';
 import * as Device from 'expo-device';
 import { markFtue, useUi, type PendingMatch, type Renderer } from '../state/ui';
 import { useWallet } from '../wallet/wallet';
@@ -21,9 +21,31 @@ import {
  */
 const FEE_FLOOR_SOL = 0.00002;
 
+/**
+ * Can the wallet pay a network fee? 'unknown' is not 'no': the balance may
+ * not have loaded yet, or the balance RPC failed. Unknown → fetch it now (6 s
+ * cap), and if it is still unknown, try the transaction anyway and let the
+ * chain answer — a Clock-In is once a day, its proof must not be lost to a
+ * slow balance read.
+ */
+async function feeCheck(): Promise<'yes' | 'no' | 'unknown'> {
+  const { sol, address } = useWallet.getState();
+  if (!address) return 'no';
+  if (sol !== null) return sol >= FEE_FLOOR_SOL ? 'yes' : 'no';
+  try {
+    const fresh = await Promise.race([
+      getSol(address),
+      new Promise<never>((_, rej) => setTimeout(() => rej(new Error('timeout')), 6000)),
+    ]);
+    useWallet.setState({ sol: fresh });
+    return fresh >= FEE_FLOOR_SOL ? 'yes' : 'no';
+  } catch {
+    return 'unknown';
+  }
+}
 const canPayFees = () => {
   const { sol, address } = useWallet.getState();
-  return !!address && (sol ?? 0) >= FEE_FLOOR_SOL;
+  return !!address && sol !== null && sol >= FEE_FLOOR_SOL;
 };
 
 function errText(e: unknown) {
@@ -48,13 +70,35 @@ export interface ClockInResult {
   skr: number;
   chestTier: string | null;
   chestStored: boolean;
+  /** Slots were full: the chest is waiting in the inbox. */
+  chestQueued: boolean;
   sig?: string;
   offlineReason?: string;
   shieldsUsed: number;
   broke: boolean;
 }
 
+/**
+ * Make sure the chain's view of the streak has been read and merged before a
+ * Clock-In is committed: clocking in first would restart the count at 1 (and,
+ * with SOL, sign streak=1 over the public record). Bounded wait.
+ */
+async function syncChainStreak(): Promise<void> {
+  const { address } = useWallet.getState();
+  const ledger = useUi.getState().chainLedger;
+  if (!address || Array.isArray(ledger)) return; // already read this session
+  try {
+    const list = await Promise.race([
+      readClockIns(address),
+      new Promise<never>((_, rej) => setTimeout(() => rej(new Error('timeout')), 6000)),
+    ]);
+    useUi.getState().setChainLedger(list);
+    if (list[0]) useGame.getState().adoptChainStreak(list[0]);
+  } catch { /* chain unreachable: the device record stands, retried on next resume */ }
+}
+
 export async function doClockIn(seeker: boolean): Promise<ClockInResult | null> {
+  await syncChainStreak();
   const game = useGame.getState();
   const preview = game.previewClockIn(seeker);
   if (!preview) return null;
@@ -63,8 +107,9 @@ export async function doClockIn(seeker: boolean): Promise<ClockInResult | null> 
 
   let sig: string | undefined;
   let offlineReason: string | undefined;
+  const fees = await feeCheck();
   if (!address) offlineReason = 'no wallet connected';
-  else if (!canPayFees()) offlineReason = 'no devnet SOL for the network fee';
+  else if (fees === 'no') offlineReason = 'no devnet SOL for the network fee';
   else {
     try {
       const owner = new PublicKey(address);
@@ -76,7 +121,7 @@ export async function doClockIn(seeker: boolean): Promise<ClockInResult | null> 
     }
   }
 
-  const done = game.commitClockIn(seeker, { sig, offlineReason });
+  const done = useGame.getState().commitClockIn(seeker, { sig, offlineReason }, day);
   if (done) useGame.getState().progressQuest('clockin');
   if (sig && done) {
     const ledger = useUi.getState().chainLedger ?? [];
@@ -88,12 +133,13 @@ export async function doClockIn(seeker: boolean): Promise<ClockInResult | null> 
   haptic.success();
   sfx('reward');
   // Asked here, not at launch: the first Clock-In is when a reminder means something.
-  void askPermission().then((ok) => { if (ok) void streakReminder(done.outcome.streak.count); });
+  void askPermission().then((ok) => { if (ok) ensureStreakReminder('done', done.outcome.streak.count); });
   return {
     streak: done.outcome.streak.count,
     skr: done.reward.skr,
     chestTier: done.reward.chest,
-    chestStored: !!done.chest || !done.reward.chest,
+    chestStored: !!done.chest?.chest || !done.reward.chest,
+    chestQueued: !!done.chest?.queued,
     sig,
     offlineReason,
     shieldsUsed: done.outcome.shieldsUsed,
@@ -131,7 +177,10 @@ export async function buy(id: ShopItemId): Promise<{ sig?: string }> {
   }
 
   if (id === 'shield') useGame.getState().addShield();
-  if (id === 'rush' && unlocking) useGame.getState().finishUnlock(unlocking.id);
+  if (id === 'rush' && unlocking) {
+    useGame.getState().finishUnlock(unlocking.id);
+    cancel(chestNotificationId(useGame.getState().address, unlocking.id));
+  }
   if (id === 'seeker-chest') {
     const drops = useGame.getState().openNow('magic');
     useUi.getState().showReveal({ title: 'Seeker Chest', tier: 'magic', drops });
@@ -143,7 +192,7 @@ export async function buy(id: ShopItemId): Promise<{ sig?: string }> {
 export function startUnlock(id: string): boolean {
   const c = useGame.getState().startUnlock(id);
   if (!c || c.unlockAt === null) return false;
-  void chestReminder(c.id, CHESTS[c.tier].name, c.unlockAt);
+  void chestReminder(chestNotificationId(useGame.getState().address, c.id), CHESTS[c.tier].name, c.unlockAt);
   haptic.light();
   return true;
 }
@@ -153,6 +202,7 @@ export function openChest(id: string): void {
   if (!c) return;
   const drops = useGame.getState().openChest(id);
   if (!drops) return;
+  cancel(chestNotificationId(useGame.getState().address, id));
   haptic.heavy();
   useUi.getState().showReveal({ title: CHESTS[c.tier].name, tier: c.tier, drops });
 }
@@ -198,7 +248,7 @@ export async function finishMatch(
   g.progressQuest('deploy', r.plays ?? 0);
   if (r.won) g.progressQuest('win');
   // The guided first battle pays a Golden welcome chest, win or lose.
-  let welcome: Chest | null = null;
+  let welcome: Grant | null = null;
   if (m.tutorial) {
     welcome = g.grantWelcome();
     markFtue(true);
@@ -206,9 +256,10 @@ export async function finishMatch(
   if (r.won) { haptic.success(); sfx('victory'); } else { haptic.warn(); sfx('defeat'); }
   useUi.getState().showResult({
     rival: m.rival, won: r.won, draw: r.draw, crowns: r.crowns,
-    trophyDelta: record.trophyDelta, chest: chest?.tier ?? null, skr: r.won ? WIN_SKR : 0,
+    trophyDelta: record.trophyDelta, chest: chest?.tier ?? null, chestQueued: !!chest?.queued, skr: r.won ? WIN_SKR : 0,
     renderer: m.renderer, fellBack: m.fellBack, plays: r.plays ?? 0,
-    tutorial: m.tutorial, welcomeChest: welcome?.tier ?? null, rivalIndex: m.rivalIndex, rush: m.rush,
+    tutorial: m.tutorial, welcomeChest: welcome?.tier ?? null, welcomeQueued: !!welcome?.queued,
+    rivalIndex: m.rivalIndex, rush: m.rush,
   });
   if (r.won) {
     const out = await payOutSkr(WIN_SKR);
@@ -218,7 +269,7 @@ export async function finishMatch(
 }
 
 /** Claim a finished daily quest; the SKR goes on-chain when the wallet can pay the fee. */
-export async function claimQuest(id: QuestId): Promise<{ skr: number; sig?: string; bonus: Chest | null }> {
+export async function claimQuest(id: QuestId): Promise<{ skr: number; sig?: string; bonus: Grant | null }> {
   const skr = useGame.getState().claimQuest(id);
   if (!skr) return { skr: 0, bonus: null };
   haptic.success();

@@ -45,7 +45,9 @@ function mwaTransact<T>(cb: (w: Web3MobileWallet) => Promise<T>): Promise<T> {
 
 function friendly(e: unknown): Error {
   const msg = e instanceof Error ? e.message : String(e);
-  if (/no installed wallet|ERROR_WALLET_NOT_FOUND|not found/i.test(msg)) {
+  // Only the MWA error itself — not any message containing "not found" (e.g. a
+  // wallet's "Blockhash not found" after a slow approval).
+  if (/no installed wallet|ERROR_WALLET_NOT_FOUND|Found no installed wallet/i.test(msg)) {
     return new Error('No Mobile Wallet Adapter wallet found on this device. Install Phantom or Solflare (or use Seed Vault on a Seeker), or continue with the dev wallet.');
   }
   if (/declin|reject|cancel/i.test(msg)) return new Error('You declined the request in your wallet.');
@@ -70,6 +72,18 @@ async function authorize(wallet: Web3MobileWallet) {
     const auth = await wallet.authorize({ chain: CHAIN, identity: APP_IDENTITY });
     await SecureStore.setItemAsync(MWA_TOKEN, auth.auth_token);
     return auth;
+  }
+}
+
+/** Did this signature land without error? One status read after a short wait. */
+async function landed(sig: string): Promise<boolean> {
+  try {
+    await new Promise((r) => setTimeout(r, 1500));
+    const { value } = await connection.getSignatureStatuses([sig], { searchTransactionHistory: true });
+    const st = value[0];
+    return !!st && !st.err && (st.confirmationStatus === 'confirmed' || st.confirmationStatus === 'finalized');
+  } catch {
+    return false;
   }
 }
 
@@ -126,6 +140,7 @@ export const useWallet = create<WalletState>((set, get) => ({
         const addr = await SecureStore.getItemAsync(MWA_ADDR);
         if (addr) set({ kind: 'mwa', address: addr });
       }
+    } catch { /* keystore unreadable: start signed out rather than crash */
     } finally {
       set({ restoring: false });
     }
@@ -199,8 +214,14 @@ export const useWallet = create<WalletState>((set, get) => ({
         throw friendly(e);
       }
     }
-    const res = await connection.confirmTransaction({ signature: sig, ...bh }, 'confirmed');
-    if (res.value.err) throw new Error(`Transaction failed: ${JSON.stringify(res.value.err)}`);
+    try {
+      const res = await connection.confirmTransaction({ signature: sig, ...bh }, 'confirmed');
+      if (res.value.err) throw new Error(`Transaction failed: ${JSON.stringify(res.value.err)}`);
+    } catch (e) {
+      // Confirmation can fail (429, timeout, block height) for a transaction
+      // that landed. Ask the chain once before calling it a failure.
+      if (!(await landed(sig))) throw e;
+    }
     void get().refresh();
     return sig;
   },
