@@ -16,11 +16,23 @@ export interface Fighter {
   archetype: number;
 }
 
-export const ROSTER: Fighter[] = (rosterJson as Omit<Fighter, 'archetype'>[]).map((f) => ({
+const FULL_ROSTER: Fighter[] = (rosterJson as Omit<Fighter, 'archetype'>[]).map((f) => ({
   ...f,
   kind: (f.kind as Fighter['kind']) ?? 'meme',
   archetype: archetypeForMint(f.mint),
 }));
+
+/**
+ * The tokenised-stock fighters carry real companies' names and marks (Apple,
+ * NVIDIA, Tesla, Disney…) that Mempire has no licence for. The mobile build
+ * hides them from the roster, chests, rivals and shop; crypto tickers stay.
+ * They come back only for licensed partners (see the positioning doc).
+ */
+export const HIDE_UNLICENSED_MARKS = true;
+export const HIDDEN_TICKERS: string[] = HIDE_UNLICENSED_MARKS
+  ? FULL_ROSTER.filter((f) => f.kind === 'stock').map((f) => f.ticker)
+  : [];
+export const ROSTER: Fighter[] = FULL_ROSTER.filter((f) => !HIDDEN_TICKERS.includes(f.ticker));
 export const BY_TICKER = new Map(ROSTER.map((f) => [f.ticker, f]));
 
 export const MAX_LEVEL = 10;
@@ -207,9 +219,9 @@ export interface RivalDef { name: string; tickers: string[]; levelDelta: number 
 
 export const RIVALS: RivalDef[] = [
   { name: 'Doggo Pack (AI)', tickers: ['DOGE', 'SHIB', 'BONK', 'WIF', 'FWOG', 'PNUT', 'MOODENG', 'CATS'], levelDelta: -1 },
-  { name: 'Blue Chips (AI)', tickers: ['BTC', 'ETH', 'SOL', 'NVDA', 'META', 'MSTR', 'V', 'AAPL'], levelDelta: 0 },
+  { name: 'Blue Chips (AI)', tickers: ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'AVAX', 'LINK'], levelDelta: 0 },
   { name: 'Degen Swarm (AI)', tickers: ['POPCAT', 'MEW', 'PEPE', 'BRETT', 'MOG', 'PONKE', 'GIGA', 'GOAT'], levelDelta: 0 },
-  { name: 'Whale Court (AI)', tickers: ['BTC', 'SOL', 'MSTR', 'COIN', 'HOOD', 'TSLA', 'SPY', 'JPM'], levelDelta: 1 },
+  { name: 'Whale Court (AI)', tickers: ['BTC', 'SOL', 'ETH', 'BNB', 'DOT', 'TRX', 'LTC', 'UNI'], levelDelta: 1 },
 ];
 
 /** A rival's deck at a level relative to the player's average, filling gaps from the roster. */
@@ -228,7 +240,7 @@ export function rivalDeck(r: RivalDef, avgLevel: number): { ticker: string; mint
 }
 
 /** Twelve fighters every new player starts with: two of each archetype. */
-export const STARTER_POOL = ['ETH', 'NVDA', 'WIF', 'GOAT', 'BTC', 'POPCAT', 'DOGE', 'SHIB', 'SOL', 'MSTR', 'BONK', 'PEPE'];
+export const STARTER_POOL = ['ETH', 'DOT', 'WIF', 'GOAT', 'BTC', 'POPCAT', 'DOGE', 'SHIB', 'SOL', 'APT', 'BONK', 'PEPE'];
 /** The opening eight: one tank, swarm, ranged, splash, support and spell, plus two. */
 export const STARTER_DECK = ['ETH', 'WIF', 'BTC', 'DOGE', 'SOL', 'BONK', 'POPCAT', 'GOAT'];
 

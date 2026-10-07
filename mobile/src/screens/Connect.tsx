@@ -8,7 +8,7 @@ import { MWA_AVAILABLE, useWallet } from '../wallet/wallet';
 import { C } from '../theme';
 import { Body, Btn, Display, Rise, Tag, Well } from '../ui/kit';
 
-const HERO = ['BTC', 'BONK', 'SOL', 'WIF', 'NVDA'];
+const HERO = ['BTC', 'BONK', 'SOL', 'WIF', 'POPCAT'];
 
 export function ConnectScreen() {
   const connectMwa = useWallet((s) => s.connectMwa);
