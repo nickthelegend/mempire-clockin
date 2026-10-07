@@ -58,11 +58,12 @@ const PREFIX = 'mempire:clockin:v1';
  * can rebuild from the chain — not a number in our database. `readStreak`
  * does exactly that.
  */
-export function clockInMemo(signer: PublicKey, day: number, streak: number): TransactionInstruction {
+export function clockInMemo(signer: PublicKey, day: number, streak: number, suffix = ''): TransactionInstruction {
   return new TransactionInstruction({
     programId: MEMO_PROGRAM,
     keys: [{ pubkey: signer, isSigner: true, isWritable: false }],
-    data: Buffer.from(`${PREFIX}:day=${day}:streak=${streak}`, 'utf8'),
+    // `suffix` is the Season War pledge (`:war=1:side=BONK`), when one is set.
+    data: Buffer.from(`${PREFIX}:day=${day}:streak=${streak}${suffix}`, 'utf8'),
   });
 }
 

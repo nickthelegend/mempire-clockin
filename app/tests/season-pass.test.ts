@@ -104,3 +104,30 @@ describe('arena skins', () => {
     expect(b).toBeGreaterThan(150);
   });
 });
+
+import { SEASON_WAR, assetBoard, warMemo, warPoints } from '../../mobile/src/game/board';
+
+describe('per-coin board and Season War', () => {
+  const h = [
+    { won: true, draw: false, deck: ['BONK', 'SOL'] },
+    { won: false, draw: true, deck: ['BONK', 'POPCAT'] },
+    { won: false, draw: false, deck: ['POPCAT'] },
+    { won: true, draw: false }, // an old record without a deck counts for nothing
+  ];
+  it('scores 3 per win and 1 per draw, per coin in the deck', () => {
+    const b = assetBoard(h);
+    expect(b[0]).toEqual({ ticker: 'BONK', battles: 2, wins: 1, score: 4 });
+    expect(b.find((r) => r.ticker === 'POPCAT')).toEqual({ ticker: 'POPCAT', battles: 2, wins: 0, score: 1 });
+  });
+  it('war points add 2 per pledged (signed) Clock-In', () => {
+    expect(warPoints(h, 'BONK', 3)).toBe(4 + 6);
+    expect(warPoints([], 'POPCAT', 0)).toBe(0);
+  });
+  it('the pledge rides in the Clock-In memo and the ledger regex still reads it', () => {
+    const memo = `mempire:clockin:v1:day=20261008:streak=3${warMemo('BONK')}`;
+    expect(memo).toBe(`mempire:clockin:v1:day=20261008:streak=3:war=${SEASON_WAR.id}:side=BONK`);
+    const m = /mempire:clockin:v1:day=(\d{8}):streak=(\d+)/.exec(memo)!;
+    expect([m[1], m[2]]).toEqual(['20261008', '3']);
+    expect(warMemo(null)).toBe('');
+  });
+});

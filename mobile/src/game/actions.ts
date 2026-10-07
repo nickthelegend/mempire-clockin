@@ -13,6 +13,7 @@ import {
 import { buyPassIx, buySkinIx, hasPremium, usePassChain } from '../chain/pass';
 import { activeArenaSkin } from './cosmetics';
 import { rewardLabel, type Track } from './season';
+import { warMemo } from './board';
 
 /**
  * Everything that crosses from the game into the chain, in one place.
@@ -118,7 +119,7 @@ export async function doClockIn(seeker: boolean): Promise<ClockInResult | null> 
       const owner = new PublicKey(address);
       // One transaction: the signed memo that *is* the Clock-In, plus the
       // day's stand-in SKR minted straight to the player by the public faucet.
-      sig = await send([clockInMemo(owner, day, preview.outcome.streak.count), ...earnIxs(owner, preview.reward.skr)]);
+      sig = await send([clockInMemo(owner, day, preview.outcome.streak.count, warMemo(useGame.getState().warSide)), ...earnIxs(owner, preview.reward.skr)]);
     } catch (e) {
       offlineReason = errText(e);
     }
@@ -249,6 +250,7 @@ export async function finishMatch(
   const g = useGame.getState();
   const { record, chest } = g.recordBattle({
     rival: m.rival, won: r.won, draw: r.draw, crowns: r.crowns, renderer: m.renderer, fellBack: !!m.fellBack,
+    deck: m.player.map((p) => p.ticker),
   });
   g.progressQuest('deploy', r.plays ?? 0);
   if (r.won) g.progressQuest('win');

@@ -17,6 +17,7 @@ import {
  */
 import { drainPending, placeChest, type Chest, type PendingChest } from '../game/inbox';
 import { CHEST_SLOTS } from '../game/rules';
+import { SEASON_WAR, isWarSide, type WarSide } from '../game/board';
 import {
   addXp, claim as claimTier, rollSeason, freshPass, type PassState, type Reward, type Track, type XpSource,
 } from '../game/season';
@@ -35,6 +36,8 @@ export interface BattleRecord {
   /** Which arena rendered it ('native' 3D or 'web' compat), and whether it fell back. */
   renderer?: 'native' | 'web';
   fellBack?: boolean;
+  /** The player's eight fighters (for the per-coin board). */
+  deck?: string[];
 }
 
 export interface ClockInRecord {
@@ -76,6 +79,10 @@ interface Save {
   cosmetics: { frames: string[]; emotes: string[] };
   /** What the player has equipped. On-chain skins only apply while the chain says they are owned. */
   equipped: Equipped;
+  /** Season War side; written into each Clock-In memo while set. */
+  warSide?: WarSide | null;
+  /** Clock-Ins signed with a war pledge, per war id. */
+  warPledges?: Record<string, number>;
 }
 
 export interface Equipped { arena: string; frame: string; emote: string }
@@ -98,6 +105,8 @@ const fresh = (): Save => ({
   clockIns: [],
   coachRuns: 0,
   quests: freshQuests(),
+  warSide: null,
+  warPledges: {},
   pass: freshPass(),
   extraSlots: 0,
   cosmetics: { frames: [], emotes: ['gg'] },
@@ -154,6 +163,7 @@ interface GameState extends Save {
   /** Claim a pass tier; premium needs `premium` = the chain says the pass is held. */
   claimPassTier: (n: number, track: Track, premium: boolean) => { reward: Reward; chest: Grant | null } | null;
   equip: (patch: Partial<Equipped>) => void;
+  setWarSide: (side: WarSide | null) => void;
 }
 
 /** Total chest slots: the base four plus pass slots (capped). */
@@ -188,6 +198,7 @@ export const useGame = create<GameState>((set, get) => {
         draws: s.draws, history: s.history.slice(0, 50), clockIns: s.clockIns.slice(0, 120),
         coachRuns: s.coachRuns, quests: s.quests, welcomed: s.welcomed,
         pass: s.pass, extraSlots: s.extraSlots, cosmetics: s.cosmetics, equipped: s.equipped,
+        warSide: s.warSide, warPledges: s.warPledges,
       };
       void AsyncStorage.setItem(keyFor(address), JSON.stringify(save));
     }, 250);
@@ -214,6 +225,8 @@ export const useGame = create<GameState>((set, get) => {
           save.cosmetics = { frames: [], emotes: ['gg'] };
         }
         save.equipped = { ...DEFAULT_EQUIPPED, ...(save.equipped ?? {}) };
+        if (!isWarSide(save.warSide)) save.warSide = null;
+        if (!save.warPledges || typeof save.warPledges !== 'object') save.warPledges = {};
         // Drop anything the roster no longer has, so a stale save cannot crash a screen.
         save.cards = Object.fromEntries(Object.entries(save.cards ?? {}).filter(([t]) => BY_TICKER.has(t)));
         if (!Array.isArray(save.deck) || save.deck.length !== 8 || save.deck.some((t) => !save.cards[t])) {
@@ -316,6 +329,10 @@ export const useGame = create<GameState>((set, get) => {
           day: today, streak: outcome.streak.count, skr: reward.skr, chest: reward.chest,
           sig: proof.sig, offlineReason: proof.offlineReason,
         }, ...get().clockIns],
+        // A pledge only counts when it is on chain (the signed memo carries it).
+        warPledges: proof.sig && get().warSide
+          ? { ...get().warPledges, [`${SEASON_WAR.id}:${get().warSide}`]: (get().warPledges?.[`${SEASON_WAR.id}:${get().warSide}`] ?? 0) + 1 }
+          : get().warPledges,
         pass: addXp(rollSeason(get().pass), 'clockin'),
       });
       const chest = reward.chest ? get().grant(reward.chest, 'clockin') : null;
@@ -405,6 +422,7 @@ export const useGame = create<GameState>((set, get) => {
     },
 
     equip: (patch) => put({ equipped: { ...get().equipped, ...patch } }),
+    setWarSide: (warSide) => put({ warSide }),
 
     adoptChainStreak: (latest) => {
       const merged = mergeChainStreak(get().streak, latest);
