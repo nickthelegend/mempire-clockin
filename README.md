@@ -63,7 +63,7 @@ What is not verified yet:
 
 Details and exact commands are in [HANDOFF.md](HANDOFF.md#solana-mobile-tech-pack-branch-solana-tech-oct-8).
 
-**Release APK:** `mempire-clockin.apk` on the [`clockin-v1` release](https://github.com/nickthelegend/mempire-clockin/releases/tag/clockin-v1), version 1.3.1 (versionCode 8), sha256 `b6f501fa73d78f6dd6c777878a756d828ae008569777bd1dcacba47fea3aecf8`. Devnet only. It is signed with the project's release key and has not been run on an Android device yet.
+**Release APK:** `mempire-clockin.apk` on the [`clockin-v1` release](https://github.com/nickthelegend/mempire-clockin/releases/tag/clockin-v1), version 1.4.0 (versionCode 9), sha256 `f089f3ab35898af66e700e5cd5f75d21bec5064f909d0aa5675d044b60c50534`. Devnet only. It is signed with the project's release key and has not been run on an Android device yet.
 
 Build and run (details in [HANDOFF.md](HANDOFF.md)): from `mobile/`, `npm run ios:sim`
 (iOS simulator), `npm run apk` (signed release APK). Submission material is in

@@ -1,6 +1,6 @@
 # HANDOFF — Mempire for Seeker (Solana Mobile CLOCK IN)
 
-Status as of 2026-10-08, 01:20 IST (1.3.1). This file records only what was run and seen.
+Status as of 2026-10-08, 02:05 IST (1.4.0). This file records only what was run and seen.
 
 ## What was verified, and how
 
@@ -36,9 +36,10 @@ Also verified: the shared battle sim is deterministic (`npx tsx app/scripts/sim-
 ## APK
 
 - `/Volumes/Extreme SSD/Projects/clockin/apks/mempire-clockin.apk`
-- sha256 `b6f501fa73d78f6dd6c777878a756d828ae008569777bd1dcacba47fea3aecf8`
-- 70,733,909 bytes (67.5 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 8 (1.3.1)
-- Built from `main` at `bd845a3`: 1.3.0 (Season Pass & skins, Season War, share card, unlicensed marks hidden) plus 1.3.1's re-themed arena skins in both arenas and the Shop skin previews. `aapt2` shows versionCode 7 / 1.3.0 and no `RECORD_AUDIO`; the certificate digest is unchanged (same key). The JS bundle points at devnet only (no localnet URL) and contains the `mempire_pass` program id; the 30 skin textures are packaged as drawables. The file was re-downloaded from the release and its sha256 matches.
+- sha256 `f089f3ab35898af66e700e5cd5f75d21bec5064f909d0aa5675d044b60c50534`
+- 70,848,629 bytes (67.6 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 9 (1.4.0)
+- Built from `main` at `c3d1a0b` (the Solana Mobile tech pack: SIWS, `.skr`, session key, provably fair chests, Blinks) on top of 1.3.1. `aapt2`: versionCode 9 / 1.4.0, no `RECORD_AUDIO`, same certificate. Bundle is devnet-only. Re-downloaded from the release; sha256 matches.
+- Smoke test on the iPhone 17 simulator (devnet bundle): dev-wallet sign-in shows `SIWS ✓`; a chest opened with a live devnet slot proof (slot 508573164) and **Recompute → MATCHES ✓**; the Approve-once session card renders; Season Pass shows tiers and preview mode.
 - Signed with a **new dedicated release key**. The keystore and its password
   are **outside the repo** at
   `/Volumes/Extreme SSD/Projects/clockin/keys/mempire-release.keystore` and
