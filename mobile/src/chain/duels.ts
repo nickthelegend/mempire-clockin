@@ -1,50 +1,18 @@
-import { Buffer } from 'buffer';
-import { PublicKey, SystemProgram, TransactionInstruction, type Connection } from '@solana/web3.js';
+import { PublicKey, type TransactionInstruction, type Connection } from '@solana/web3.js';
 import {
   acceptMemo, challengeMemo, dataMemo, openChallenge, parseDuelMemos, resultMemo, toB64url,
   type DuelMemo, type DuelPayload, type DuelWinner,
 } from '../game/duel';
 
+import { DUEL_REF, MEMO_PROGRAM, MEMO_V1, dataIx, memoIx, memoTexts, refIx } from './refs';
+
 /**
- * Ghost Duels on chain. Every duel transaction carries the fixed, read-only
- * **duel reference account** as a non-signer key, so the whole duel board is
- * one `getSignaturesForAddress(DUEL_REF)` away — no indexer, no server.
- *
- * The reference is a PDA (no private key exists for it). Memo v3 refuses
- * non-signer accounts and Memo v1 crashes on any account, so the key rides as
- * an extra read-only account on a 0-lamport transfer from the player to
- * themself (the System program ignores extra accounts; wallets show it as
- * "0 SOL to yourself"). Verified on a local validator.
- *
- * The bulky payload goes in a Memo v1 instruction: v1 only checks UTF-8 and
- * does not log the text, so a 700-character payload costs ~1k compute units
- * instead of ~280k through Memo v3 (which logs it). The whole transaction is
- * signed by the player either way.
+ * Ghost Duels on chain. Every duel transaction carries the duel reference
+ * account (chain/refs.ts) as a read-only key, so the whole duel board is one
+ * `getSignaturesForAddress(DUEL_REF)` away — no indexer, no server. The
+ * payload rides in a cheap Memo v1 instruction.
  */
-export const MEMO_PROGRAM = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr');
-export const MEMO_V1 = new PublicKey('Memo1UhkJRfHyvLMcVucJwxXeuD728EqVDDwQDxFMNo');
-
-export const refPda = (name: string) =>
-  PublicKey.findProgramAddressSync([Buffer.from('mempire'), Buffer.from(name), Buffer.from('v1')], MEMO_PROGRAM)[0];
-export const DUEL_REF = refPda('duels');
-
-export function memoIx(signer: PublicKey, text: string): TransactionInstruction {
-  return new TransactionInstruction({
-    programId: MEMO_PROGRAM,
-    keys: [{ pubkey: signer, isSigner: true, isWritable: false }],
-    data: Buffer.from(text, 'utf8'),
-  });
-}
-
-/** Puts `ref` in the transaction's account keys, read-only and unsigned. */
-export function refIx(payer: PublicKey, ref: PublicKey): TransactionInstruction {
-  const ix = SystemProgram.transfer({ fromPubkey: payer, toPubkey: payer, lamports: 0 });
-  ix.keys.push({ pubkey: ref, isSigner: false, isWritable: false });
-  return ix;
-}
-
-/** Unlogged, cheap memo (SPL Memo v1, no accounts) for payload text. */
-export const dataIx = (text: string) => new TransactionInstruction({ programId: MEMO_V1, keys: [], data: Buffer.from(text, 'utf8') });
+export { DUEL_REF, MEMO_PROGRAM, MEMO_V1, memoIx, memoTexts, refIx, dataIx };
 
 export function challengeIxs(owner: PublicKey, bytes: Uint8Array, seed: number): TransactionInstruction[] {
   return [memoIx(owner, challengeMemo(bytes, seed)), dataIx(dataMemo(toB64url(bytes))), refIx(owner, DUEL_REF)];
@@ -61,15 +29,6 @@ export const acceptIxs = (owner: PublicKey, challengeSig: string) => [memoIx(own
 export interface DuelTx { sig: string; slot: number; time: number; signer: string; memo: DuelMemo }
 
 type RawTx = Awaited<ReturnType<Connection['getTransaction']>>;
-
-/** The memo texts (v3 and v1) a transaction carries, decoded from its instructions (not the RPC memo field). */
-export function memoTexts(tx: NonNullable<RawTx>): string[] {
-  const msg = tx.transaction.message;
-  const keys = msg.staticAccountKeys;
-  return msg.compiledInstructions
-    .filter((ix) => keys[ix.programIdIndex]?.equals(MEMO_PROGRAM) || keys[ix.programIdIndex]?.equals(MEMO_V1))
-    .map((ix) => Buffer.from(ix.data).toString('utf8'));
-}
 
 function toDuelTx(sig: string, tx: RawTx): DuelTx | null {
   if (!tx || tx.meta?.err) return null;

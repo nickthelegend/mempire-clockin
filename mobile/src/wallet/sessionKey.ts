@@ -10,6 +10,7 @@ import {
   type SessionLink,
 } from '../chain/session';
 import { useWallet } from './wallet';
+import { WAR_REF, refIx } from '../chain/refs';
 
 /**
  * The session key on this phone: a keypair in SecureStore (the OS keystore),
@@ -105,7 +106,8 @@ export const useSession = create<SessionState>((set, get) => ({
       const kp = Keypair.generate();
       const expiresAt = nowSec() + SESSION_DAYS * 86_400;
       // The ONE approval: the wallet signs the link memo and the fee float.
-      const linkSig = await send(linkIxs(new PublicKey(address), kp.publicKey, expiresAt));
+      // WAR_REF lets the global streak board check session Clock-Ins against their link.
+      const linkSig = await send([...linkIxs(new PublicKey(address), kp.publicKey, expiresAt), refIx(new PublicKey(address), WAR_REF)]);
       const stored: Stored = {
         owner: address, session: kp.publicKey.toBase58(), secret: Buffer.from(kp.secretKey).toString('base64'),
         expiresAt, linkSig, createdAt: Date.now(),
@@ -133,9 +135,9 @@ export const useSession = create<SessionState>((set, get) => ({
       let sig: string;
       if (lamports >= 2 * TX_FEE_LAMPORTS) {
         // No wallet prompt: the session key revokes itself and returns its float.
-        sig = await get().sendAsSession(revokeIxs(new PublicKey(c.session), new PublicKey(c.session), { to: new PublicKey(address), balance: lamports }));
+        sig = await get().sendAsSession([...revokeIxs(new PublicKey(c.session), new PublicKey(c.session), { to: new PublicKey(address), balance: lamports }), refIx(new PublicKey(c.session), WAR_REF)]);
       } else {
-        sig = await send(revokeIxs(new PublicKey(address), new PublicKey(c.session)));
+        sig = await send([...revokeIxs(new PublicKey(address), new PublicKey(c.session)), refIx(new PublicKey(address), WAR_REF)]);
       }
       await SecureStore.deleteItemAsync(keyFor(address));
       secretCache = null;

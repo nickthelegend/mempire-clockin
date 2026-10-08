@@ -12,6 +12,7 @@ import * as Device from 'expo-device';
 import { markFtue, useUi, type MatchResult, type PendingMatch, type Renderer } from '../state/ui';
 import { MAX_PAYLOAD_CHARS, decodeDuel, encodeDuel, fromB64url, ghostInputs, toB64url, type DuelPayload } from './duel';
 import { challengeIxs, resultIxs } from '../chain/duels';
+import { WAR_REF, refIx } from '../chain/refs';
 import type { InputEvent } from '../../../app/src/sim/types';
 import { short as shortAddr } from '../chain/solana';
 import { useWallet } from '../wallet/wallet';
@@ -132,7 +133,9 @@ export async function doClockIn(seeker: boolean): Promise<ClockInResult | null> 
   if (address && session.usable()) {
     try {
       const owner = new PublicKey(address);
-      const ixs = [sessionClockInIx(new PublicKey(session.cur!.session), owner, day, streakN, war)];
+      const sessionKey = new PublicKey(session.cur!.session);
+      // WAR_REF: every Clock-In is indexed for the global tally and streak board.
+      const ixs = [sessionClockInIx(sessionKey, owner, day, streakN, war), refIx(sessionKey, WAR_REF)];
       // SKR rides along only if the player's token account exists: creating
       // it would cost the float more than a week of fees.
       if (SKR_LIVE && SKR_MINT && await connection.getAccountInfo(getAssociatedTokenAddressSync(SKR_MINT, owner)).catch(() => null)) {
@@ -140,7 +143,7 @@ export async function doClockIn(seeker: boolean): Promise<ClockInResult | null> 
       }
       sig = await session.sendAsSession(ixs);
       via = 'session';
-      if (ixs.length < 2) skrOwedFromSession = true;
+      if (ixs.length < 3) skrOwedFromSession = true;
     } catch { sig = undefined; }
   }
   const fees = sig ? 'yes' : await feeCheck();
@@ -151,7 +154,7 @@ export async function doClockIn(seeker: boolean): Promise<ClockInResult | null> 
       const owner = new PublicKey(address);
       // One transaction: the signed memo that *is* the Clock-In, plus the
       // day's stand-in SKR minted straight to the player by the public faucet.
-      sig = await send([clockInMemo(owner, day, streakN, war), ...earnIxs(owner, preview.reward.skr)]);
+      sig = await send([clockInMemo(owner, day, streakN, war), refIx(owner, WAR_REF), ...earnIxs(owner, preview.reward.skr)]);
       via = 'wallet';
     } catch (e) {
       offlineReason = errText(e);

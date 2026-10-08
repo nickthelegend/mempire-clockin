@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { CARD_ART } from '../data/art';
@@ -7,6 +8,8 @@ import { haptic } from '../notify';
 import { useGame } from '../state/game';
 import { useUi } from '../state/ui';
 import { useDisplayName } from '../state/identity';
+import { useWar } from '../state/war';
+import { CLUSTER_LABEL } from '../chain/solana';
 import { useWallet } from '../wallet/wallet';
 import { C, R } from '../theme';
 import { Body, Btn, Display, Panel, Tag, Well } from '../ui/kit';
@@ -41,6 +44,66 @@ export function SeasonWarBanner() {
         <Coin t={b} />
       </LinearGradient>
     </Pressable>
+  );
+}
+
+function StreakName({ wallet }: { wallet: string }) {
+  const me = useWallet((s) => s.address);
+  const { label, skr } = useDisplayName(wallet);
+  return <Body size={14} bold color={wallet === me ? C.gold : skr ? C.teal : '#fff'} style={{ flex: 1 }} numberOfLines={1}>{wallet === me ? `${label} (you)` : label}</Body>;
+}
+
+/** Global Season War tally + streak board, computed from chain on this phone. */
+function GlobalBoard() {
+  const board = useWar((s) => s.board);
+  const loading = useWar((s) => s.loading);
+  const error = useWar((s) => s.error);
+  const more = useWar((s) => s.more);
+  const n = useWar((s) => s.raw.length);
+  const refresh = useWar((s) => s.refresh);
+  const loadOlder = useWar((s) => s.loadOlder);
+  useEffect(() => { void refresh(); }, [refresh]);
+  const [a, b] = SEASON_WAR.sides;
+  const ta = board?.sides[a] ?? { wallets: 0, clockIns: 0 };
+  const tb = board?.sides[b] ?? { wallets: 0, clockIns: 0 };
+  const total = Math.max(1, ta.clockIns + tb.clockIns);
+  return (
+    <Well style={{ gap: 8 }}>
+      <View style={st.between}>
+        <Display size={18}>Global war · {CLUSTER_LABEL}</Display>
+        <Tag text="COMPUTED FROM CHAIN ON THIS PHONE" color={C.teal} />
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Coin t={a} size={36} />
+        <View style={{ flex: 1, height: 16, borderRadius: 8, overflow: 'hidden', flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.35)' }}>
+          <View style={{ flex: ta.clockIns / total, backgroundColor: '#ff7a2e' }} />
+          <View style={{ flex: tb.clockIns / total, backgroundColor: '#9945ff' }} />
+        </View>
+        <Coin t={b} size={36} />
+      </View>
+      <View style={st.between}>
+        <Body size={12} color="#fff" bold>${a}: {ta.clockIns} Clock-Ins · {ta.wallets} wallets</Body>
+        <Body size={12} color="#fff" bold>${b}: {tb.clockIns} · {tb.wallets}</Body>
+      </View>
+      <Display size={16} style={{ marginTop: 6 }}>Top streaks</Display>
+      {board && board.streaks.length ? board.streaks.slice(0, 10).map((r, i) => (
+        <View key={r.wallet} style={st.row}>
+          <Body size={14} bold color={i < 3 ? C.gold : '#fff'} style={{ width: 26 }}>{i + 1}</Body>
+          <StreakName wallet={r.wallet} />
+          {r.side ? <Coin t={r.side} size={22} /> : null}
+          <Body size={11} color={C.dim}>{r.claimed !== r.streak ? `claims ${r.claimed}` : ''}</Body>
+          <Display size={18} color={C.gold} style={{ width: 44, textAlign: 'right' }}>{r.streak}</Display>
+        </View>
+      )) : <Body size={12} color="#fff">{loading ? 'Reading Clock-Ins from chain…' : 'No Clock-Ins with the war reference yet.'}</Body>}
+      {error ? <Body size={11} color={C.red}>{error}</Body> : null}
+      <Body size={11} color={C.dim}>
+        {n} transactions read from the war reference account{board ? ` · ${board.wallets} wallets · ${board.clockIns} Clock-Ins` : ''}. A streak is the run of consecutive days visible on chain (session Clock-Ins count only with a valid owner-signed link); the number a client wrote in its memo is shown as "claims".
+      </Body>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <Btn label={loading ? '…' : 'REFRESH'} tone="ghost" size="sm" style={{ flex: 1 }} onPress={() => void refresh()} />
+        {more ? <Btn label="LOAD OLDER" tone="ghost" size="sm" style={{ flex: 1 }} onPress={() => void loadOlder()} /> : null}
+      </View>
+    </Well>
   );
 }
 
@@ -112,9 +175,11 @@ export function BoardSheet() {
               })}
             </View>
             <Body size={11} color={C.dimOnWood} style={{ marginTop: 8 }}>
-              Global tally: not computed in the app yet. The pledges are public in each wallet&apos;s signed Clock-In memos, so a season indexer can count them from chain. Points: 3 per win and 1 per draw with the coin in your deck, plus 2 per pledged Clock-In.
+              Your points: 3 per win and 1 per draw with the coin in your deck, plus 2 per pledged Clock-In.
             </Body>
           </Panel>
+
+          <GlobalBoard />
 
           <Well style={{ gap: 8 }}>
             <View style={st.between}>

@@ -21,6 +21,9 @@ import {
 import { readClockIns } from '../src/chain/solana';
 import * as fair from '../src/chain/fair';
 import { DUEL_REF, MEMO_V1, challengeIxs, loadChallenge, readDuelBoard, resultIxs } from '../src/chain/duels';
+import { WAR_REF, refIx } from '../src/chain/refs';
+import { computeBoard, readWarPage, toEvents } from '../src/chain/war';
+import { clockInMemo } from '../src/chain/solana';
 import { decodeDuel, encodeDuel, replayDuel, toCard, verifyResult, winnerCode, ghostInputs, type DuelPayload } from '../src/game/duel';
 import { createMatch, hashState, stepSim } from '../../app/src/sim/engine';
 import { decideBot } from '../../app/src/sim/bot';
@@ -188,7 +191,38 @@ async function duels() {
   check(replayDuel(ch.payload!, opponent).stateHash === (hashState(live.sim) >>> 0), 'replay hash == live hash');
 }
 
+async function war() {
+  console.log('\n— global war tally + streak board (WAR_REF) —');
+  const alice = Keypair.generate(); const bob = Keypair.generate(); const thief = Keypair.generate();
+  for (const k of [alice, bob, thief]) await fund(k.publicKey, 1);
+  // Alice clocks in with her wallet on two days (pledged BONK), exactly as doClockIn builds it.
+  await send(alice, [clockInMemo(alice.publicKey, 20261007, 1, ':war=1:side=BONK'), refIx(alice.publicKey, WAR_REF)]);
+  await send(alice, [clockInMemo(alice.publicKey, 20261008, 2, ':war=1:side=BONK'), refIx(alice.publicKey, WAR_REF)]);
+  // Bob links a session key (one approval) and clocks in through it, pledged POPCAT.
+  const s = Keypair.generate();
+  await send(bob, [...linkIxs(bob.publicKey, s.publicKey, now() + 7 * 86_400), refIx(bob.publicKey, WAR_REF)]);
+  await send(s, [sessionClockInIx(s.publicKey, bob.publicKey, 20261008, 1, ':war=1:side=POPCAT'), refIx(s.publicKey, WAR_REF)]);
+  // A thief signs a session Clock-In "for" Alice with an unlinked key, claiming streak 99.
+  await send(thief, [sessionClockInIx(thief.publicKey, alice.publicKey, 20261008, 99, ':war=1:side=POPCAT'), refIx(thief.publicKey, WAR_REF)]);
+  // Bob's session revokes itself, sweeping the float, and still carries the reference.
+  const bal = await conn.getBalance(s.publicKey);
+  await send(s, [...revokeIxs(s.publicKey, s.publicKey, { to: bob.publicKey, balance: bal }), refIx(s.publicKey, WAR_REF)]);
+  check(await conn.getBalance(s.publicKey) === 0, 'revoke + sweep + reference in one tx: session key emptied');
+
+  const page = await readWarPage(conn, { limit: 100 });
+  const evs = toEvents(page.raw);
+  const b = computeBoard(evs, 20261008, ['BONK', 'POPCAT']);
+  check(page.raw.length >= 6, `getSignaturesForAddress(WAR_REF) lists every Clock-In / link / revoke (${page.raw.length} txs)`);
+  check(b.sides.BONK.clockIns >= 2 && b.sides.POPCAT.clockIns >= 1, `tally: BONK ${b.sides.BONK.clockIns} Clock-Ins / ${b.sides.BONK.wallets} wallets, POPCAT ${b.sides.POPCAT.clockIns} / ${b.sides.POPCAT.wallets}`);
+  const a = b.streaks.find((r) => r.wallet === alice.publicKey.toBase58());
+  const bo = b.streaks.find((r) => r.wallet === bob.publicKey.toBase58());
+  check(!!a && a.streak === 2 && a.side === 'BONK', 'Alice: 2-day streak from chain, side BONK (the thief\'s POPCAT Clock-In did not count)');
+  check(!!bo && bo.streak === 1 && evs.some((e) => e.wallet === bob.publicKey.toBase58() && e.via === 'session'), 'Bob: session Clock-In counted through his owner-signed link');
+  check(!evs.some((e) => e.claimed === 99), 'the forged streak-99 session Clock-In is rejected');
+}
+
 (async () => {
+  await war();
   await duels();
   await sessionKeys();
   await fairChests();
