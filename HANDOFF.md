@@ -513,7 +513,7 @@ the build falls back to the debug key and prints a warning.
 
 Ghost Duels, the global Season War reference-account tally, and the performance probe were already committed on `solana-tech-2`. Preserved Claude's three interrupted performance edits. Completed the next performance slice: the native GL Canvas now has a memo boundary, so the parent HUD's 20 Hz state subscription does not reconcile the whole scene every simulation tick; drag/placement/watchdog props still update it. Measurement windows reset counters cleanly and retain at most five minutes. Ported the owner-signed Clock-In ledger hardening from main.
 
-Validation: app 103/103 tests (Ghost Duel replay determinism, war board/session tally, Blink routes, ledger attack cases and two new perf-window cases), app `tsc -b`, mobile `tsc --noEmit`. Native frame-rate before/after measurement has not been run, so no measured FPS improvement is claimed. Existing dirty perf files were retained. Tech pack 2 is integrated locally with main's 1.4.1 roster fixes and ledger hardening. No APK was built, deployment made or push performed by Codex.
+Validation after local integration: app 109/109 tests (Ghost Duel replay determinism, war board/session tally, Blink routes, ledger attack cases and two new perf-window cases), app `tsc -b`, mobile and Actions `tsc --noEmit`, production Vite build. Native frame-rate before/after measurement has not been run, so no measured FPS improvement is claimed. Existing dirty perf files were retained. Tech pack 2 is integrated locally with main's 1.4.1 roster fixes and ledger hardening. No APK was built, deployment made or push performed by Codex.
 
 ## Codex continuation — Oct 8 (source changes, unreleased)
 
