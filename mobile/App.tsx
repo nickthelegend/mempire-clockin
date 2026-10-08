@@ -27,6 +27,7 @@ import { SKR_LIVE } from './src/chain/skr';
 import { CLUSTER_LABEL, readClockIns, short } from './src/chain/solana';
 import { COPIES_TO_LEVEL, MAX_LEVEL } from './src/game/rules';
 import { commitPendingChests, prepareMatch } from './src/game/actions';
+import { setPerf } from './src/arena/perf';
 import { ensureChannel, ensureStreakReminder, haptic } from './src/notify';
 import { C } from './src/theme';
 import { Body, Btn, Chip, Display } from './src/ui/kit';
@@ -233,6 +234,7 @@ function Game() {
       const m = prepareMatch(rival, q.get('rush') === '1');
       const r = q.get('renderer');
       if (r === 'native' || r === 'web') m.renderer = r;
+      setPerf(q.get('perf') === '1');
       if (!useUi.getState().battle) useUi.getState().openBattle(m);
     };
     // The launch URL is consumed once per process; a sign-out/sign-in or an

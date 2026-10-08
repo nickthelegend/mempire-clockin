@@ -17,6 +17,7 @@ import { FP, fp } from '../../../app/src/sim/fixed';
 import { HAND_SIZE } from '../../../app/src/sim/types';
 import { CARD_ART } from '../data/art';
 import { pageToNdc } from './screen';
+import { countRender, perfSummary, perfEnabled } from './perf';
 import { onTextureError } from '../../../app/src/three/canvasTex.native';
 import { finishMatch } from '../game/actions';
 import { haptic } from '../notify';
@@ -178,7 +179,11 @@ function MuteButton() {
   );
 }
 
+/** Counts how often the Canvas subtree re-renders (it should not follow the sim). */
+function SceneRenderProbe() { countRender('Scene'); return null; }
+
 function Hud({ onQuit }: { onQuit: () => void }) {
+  countRender('Hud');
   const insets = useSafeAreaInsets();
   useNativeMatch((s) => s.version); // re-render at the sim's 20 Hz
   const sim = useNativeMatch((s) => s.sim);
@@ -211,6 +216,7 @@ function Hud({ onQuit }: { onQuit: () => void }) {
 }
 
 export function NativeArena() {
+  countRender('NativeArena');
   const battle = useUi((s) => s.battle);
   const match = battle?.renderer === 'native' ? battle : null;
   const autoMode = useUi((s) => s.rendererPref === 'auto');
@@ -320,6 +326,8 @@ export function NativeArena() {
       seed: match.seed,
       ghost: match.duel?.ghost,
       onEnd: (r) => {
+        // eslint-disable-next-line no-console
+        if (perfEnabled()) console.log(`[perf] summary ${perfSummary()}`);
         setEnded(true);
         stopMusic();
         if (r.won) haptic.success(); else haptic.warn();
@@ -477,6 +485,7 @@ export function NativeArena() {
             shadows={ON_DEVICE ? { type: THREE.PCFShadowMap } : false}
             style={{ flex: 1 }}
           >
+            <SceneRenderProbe />
             <SceneContents perspective={match.duel ? 1 : 0} placing={drag !== null || selected !== null} marker={marker} />
             <RenderControl onReady={onSceneReady} />
             <FpsProbe onSecond={onSecond} />

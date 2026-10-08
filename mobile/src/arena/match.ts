@@ -8,6 +8,7 @@ import {
   type InputEvent, type MatchCard, type SimState,
 } from '../../../app/src/sim/types';
 import { bindArenaStore } from '../../../app/src/three/arenaStore';
+import { countRender } from './perf';
 
 /**
  * The native arena's match: the game's deterministic sim and its bot pilot,
@@ -99,6 +100,7 @@ function finish(sim: SimState): void {
 }
 
 function stepOne(sim: SimState): void {
+  countRender('ticks');
   const towersBefore = sim.towers.map((t) => t.hp > 0);
   const unitsBefore = sim.units.length;
   const bot = botSeat === null ? null : decideBot(sim, botSeat, difficulty);
