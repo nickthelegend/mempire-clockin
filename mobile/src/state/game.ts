@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import {
   QUESTS, QUEST_BONUS, freshQuests, utcDayKey, type QuestId, type QuestState,
   BY_TICKER, CHESTS, COPIES_TO_LEVEL, MAX_LEVEL, STARTER_DECK, STARTER_POOL,
-  clockIn, dayKey, mergeChainStreak, rewardFor, rollChest, winChestTier,
+  clockIn, dayKey, mergeChainStreak, migrateDeck, rewardFor, rollChest, winChestTier,
   type ChestTier, type ClockInOutcome, type DayReward, type Drop, type OwnedCard, type Streak,
 } from '../game/rules';
 
@@ -231,9 +231,11 @@ export const useGame = create<GameState>((set, get) => {
         if (!save.warPledges || typeof save.warPledges !== 'object') save.warPledges = {};
         // Drop anything the roster no longer has, so a stale save cannot crash a screen.
         save.cards = Object.fromEntries(Object.entries(save.cards ?? {}).filter(([t]) => BY_TICKER.has(t)));
-        if (!Array.isArray(save.deck) || save.deck.length !== 8 || save.deck.some((t) => !save.cards[t])) {
-          save.deck = [...STARTER_DECK];
-          for (const t of STARTER_DECK) save.cards[t] ??= { level: 1, copies: 0 };
+        if (!Array.isArray(save.deck)) save.deck = [...STARTER_DECK];
+        if (save.deck.length !== 8 || save.deck.some((t) => !save.cards[t])) {
+          // A hidden fighter (or a corrupt slot) is replaced slot by slot.
+          save.deck = migrateDeck(save.deck, save.cards);
+          for (const t of save.deck) save.cards[t] ??= { level: 1, copies: 0 };
         }
       } catch {
         save = fresh(); // a malformed save must never strand the player on Loading

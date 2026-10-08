@@ -9,12 +9,14 @@ import { ARCH_NAMES, C, R } from '../theme';
 import { ArchIcon, Body, Btn, CardTile, Display, Panel, Rise, Tag } from '../ui/kit';
 import { ARCHETYPES } from '../../../app/src/sim/archetypes';
 
-const KINDS = [
+const ALL_KINDS = [
   { id: 'all', label: 'All' },
   { id: 'meme', label: 'Memes' },
   { id: 'crypto', label: 'Crypto' },
   { id: 'stock', label: 'Stocks' },
 ] as const;
+/** Filter tabs only for kinds the visible roster has (no empty "Stocks" tab while those are hidden). */
+const KINDS = ALL_KINDS.filter((k) => k.id === 'all' || ROSTER.some((f) => f.kind === k.id));
 
 export function CardSheet({ ticker, onClose }: { ticker: string | null; onClose: () => void }) {
   const owned = useGame((s) => (ticker ? s.cards[ticker] : undefined));

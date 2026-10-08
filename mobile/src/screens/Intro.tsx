@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Image, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CARD_ART, UI_ART } from '../data/art';
+import { INTRO_FIGHTERS } from '../data/showcase';
 import { prepareMatch } from '../game/actions';
 import { EASE_OUT, reduceMotion } from '../motion';
 import { haptic } from '../notify';
@@ -49,7 +50,7 @@ function Art({ kind }: { kind: (typeof SLIDES)[number]['art'] }) {
   if (kind === 'battle') {
     return (
       <View style={st.artRow}>
-        {['WIF', 'BTC', 'BONK'].map((t, i) => (
+        {INTRO_FIGHTERS.map((t, i) => (
           <LinearGradient key={t} colors={['#3a2a6e', '#1b2c55']} style={[st.card, { transform: [{ rotate: `${(i - 1) * 10}deg` }, { translateY: i === 1 ? -10 : 4 }] }]}>
             <Image source={CARD_ART[t]} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
           </LinearGradient>

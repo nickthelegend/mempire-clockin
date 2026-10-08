@@ -1,6 +1,6 @@
 # HANDOFF — Mempire for Seeker (Solana Mobile CLOCK IN)
 
-Status as of 2026-10-08, 02:05 IST (1.4.0). This file records only what was run and seen.
+Status as of 2026-10-08, 03:05 IST (1.4.1). This file records only what was run and seen.
 
 ## What was verified, and how
 
@@ -36,9 +36,10 @@ Also verified: the shared battle sim is deterministic (`npx tsx app/scripts/sim-
 ## APK
 
 - `/Volumes/Extreme SSD/Projects/clockin/apks/mempire-clockin.apk`
-- sha256 `f089f3ab35898af66e700e5cd5f75d21bec5064f909d0aa5675d044b60c50534`
-- 70,848,629 bytes (67.6 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 9 (1.4.0)
-- Built from `main` at `c3d1a0b` (the Solana Mobile tech pack: SIWS, `.skr`, session key, provably fair chests, Blinks) on top of 1.3.1. `aapt2`: versionCode 9 / 1.4.0, no `RECORD_AUDIO`, same certificate. Bundle is devnet-only. Re-downloaded from the release; sha256 matches.
+- sha256 `a9a8b261f7c75e1c689f9b0868038ee4278305bae36ebd79263175b4630d81aa`
+- 70,850,169 bytes (67.6 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 10 (1.4.1)
+- 1.4.1 (`94282c3`): the Connect hero after sign-out and the hidden-fighter audit (see *Season Pass & skins*). Same checks: same certificate, no `RECORD_AUDIO`, devnet-only bundle, re-downloaded hash matches.
+- 1.4.0 was built from `main` at `c3d1a0b` (the Solana Mobile tech pack: SIWS, `.skr`, session key, provably fair chests, Blinks) on top of 1.3.1. `aapt2`: versionCode 9 / 1.4.0, no `RECORD_AUDIO`, same certificate. Bundle is devnet-only. Re-downloaded from the release; sha256 matches.
 - Smoke test on the iPhone 17 simulator (devnet bundle): dev-wallet sign-in shows `SIWS ✓`; a chest opened with a live devnet slot proof (slot 508573164) and **Recompute → MATCHES ✓**; the Approve-once session card renders; Season Pass shows tiers and preview mode.
 - Signed with a **new dedicated release key**. The keystore and its password
   are **outside the repo** at
@@ -210,6 +211,16 @@ there is no new hosted service.
     pool swaps NVDA/MSTR for DOT/APT, keeping the same archetypes (Tank,
     Support).
   - Old saves with hidden cards drop them on load (the existing roster filter).
+
+**Hidden fighters, audit (1.4.1).** The decision is to migrate them **out**. A hidden card is dropped from a saved collection on load. Each deck slot that held one gets the player's highest-level visible spare (`migrateDeck`), then a starter; the rest of the deck the player built is kept. Before 1.4.1, the whole deck reset to the starter. Hidden fighters cannot appear in these places, and `app/tests/hidden-fighters.test.ts` asserts it:
+
+- the roster, `BY_TICKER`, starters, rival decks (Blue Chips and Whale Court are crypto majors) and chest drops (2,000 rolls);
+- the Connect hero, the Intro slide (`mobile/src/data/showcase.ts`) and Season War;
+- Season Pass rewards (no fighters).
+
+The Shop sells no fighters. The share card and Coach use the player's own visible deck. The web arena only draws the decks the app sends it. The empty **Stocks** filter tab is gone from Cards.
+
+**Connect hero showing the wrong art (1.4.0, iOS):** this was not caused by the roster. On iOS, React Native 0.86 recycles image views by default (`enableViewRecyclingForImage`). Signing out unmounts Home and mounts Connect in the same commit, and a recycled image view kept Home's art. It was reproduced on the iPhone 17 simulator: the $SOL card showed a Golden Chest and stayed that way. The fix mounts the hero fan one beat later (`Connect.tsx`), and two sign-out cycles plus a cold start then showed the right five fighters (`season-pass/16`). It was not seen on Android, which does not use this iOS image view.
 
 **Verified on the iPhone 17 simulator** against a local validator with the
 program deployed (`bash chain/pass/scripts/validator.sh`, then
@@ -502,4 +513,10 @@ the build falls back to the debug key and prints a warning.
 
 Ghost Duels, the global Season War reference-account tally, and the performance probe were already committed on `solana-tech-2`. Preserved Claude's three interrupted performance edits. Completed the next performance slice: the native GL Canvas now has a memo boundary, so the parent HUD's 20 Hz state subscription does not reconcile the whole scene every simulation tick; drag/placement/watchdog props still update it. Measurement windows reset counters cleanly and retain at most five minutes. Ported the owner-signed Clock-In ledger hardening from main.
 
-Validation: app 103/103 tests (Ghost Duel replay determinism, war board/session tally, Blink routes, ledger attack cases and two new perf-window cases), app `tsc -b`, mobile `tsc --noEmit`. Native frame-rate before/after measurement has not been run, so no measured FPS improvement is claimed. Existing dirty perf files were retained. Tech pack 2 remains on its separate branch and has not been merged, built into an APK, deployed or pushed by Codex.
+Validation: app 103/103 tests (Ghost Duel replay determinism, war board/session tally, Blink routes, ledger attack cases and two new perf-window cases), app `tsc -b`, mobile `tsc --noEmit`. Native frame-rate before/after measurement has not been run, so no measured FPS improvement is claimed. Existing dirty perf files were retained. Tech pack 2 is integrated locally with main's 1.4.1 roster fixes and ledger hardening. No APK was built, deployment made or push performed by Codex.
+
+## Codex continuation — Oct 8 (source changes, unreleased)
+
+Owner Clock-In restoration now reads the actual successful Memo instruction and requires the owner both to sign the transaction and to appear in that memo's accounts. Address-history memo summaries alone are no longer sufficient: an attacker can mention a wallet without its signature. Session Clock-Ins continue through their separate link/expiry/revocation validation. Invalid dates and unsupported memo suffixes are rejected.
+
+Validation: app suite 90/90 (12 new adversarial owner-ledger cases), app `tsc -b`, mobile `tsc --noEmit`. No native build, devnet write, deployment or release upload was performed for this change.
