@@ -508,3 +508,9 @@ the build falls back to the debug key and prints a warning.
 - The simulator was left with the app installed and running on the Home tab.
   While I was working, someone else played on it: a recorded Blue Chips win
   and a Rush Unlock purchase.
+
+## Codex continuation — Oct 8 (source changes, unreleased)
+
+Owner Clock-In restoration now reads the actual successful Memo instruction and requires the owner both to sign the transaction and to appear in that memo's accounts. Address-history memo summaries alone are no longer sufficient: an attacker can mention a wallet without its signature. Session Clock-Ins continue through their separate link/expiry/revocation validation. Invalid dates and unsupported memo suffixes are rejected.
+
+Validation: app suite 90/90 (12 new adversarial owner-ledger cases), app `tsc -b`, mobile `tsc --noEmit`. No native build, devnet write, deployment or release upload was performed for this change.
