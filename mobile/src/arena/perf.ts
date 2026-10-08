@@ -4,6 +4,7 @@
  * it logs how many times each instrumented component rendered and how many
  * sim ticks ran, e.g.
  *   [perf] ticks/s=20 NativeArena=20 Hud=20 Tray=20 Scene=20
+ * Or bundle with EXPO_PUBLIC_PERF=1 (measurement builds only) to count every match.
  * Read it with `xcrun simctl spawn <udid> log stream --predicate 'eventMessage CONTAINS "[perf]"'`.
  */
 let enabled = false;
@@ -18,12 +19,14 @@ export function setPerf(on: boolean): void {
   if (timer) clearInterval(timer);
   timer = null;
   history.length = 0;
+  for (const k of Object.keys(counts)) delete counts[k];
   if (!on) return;
   timer = setInterval(() => {
     const snap = { ...counts };
     for (const k of Object.keys(counts)) counts[k] = 0;
     if (!snap.ticks) return; // idle (preparing, paused)
     history.push(snap);
+    if (history.length > 300) history.shift(); // bounded even in always-on measurement builds
     // eslint-disable-next-line no-console
     console.log(`[perf] ${Object.entries(snap).map(([k, v]) => `${k}=${v}`).join(' ')}`);
   }, 1000);
@@ -40,3 +43,6 @@ export function perfSummary(): string {
   const keys = [...new Set(history.flatMap((h) => Object.keys(h)))];
   return keys.map((k) => `${k}=${(history.reduce((s, h) => s + (h[k] ?? 0), 0) / history.length).toFixed(1)}`).join(' ');
 }
+
+// Measurement builds only (EXPO_PUBLIC_PERF=1 at bundle time): always on.
+if (process.env.EXPO_PUBLIC_PERF === '1') setPerf(true);

@@ -1,4 +1,6 @@
 import { Buffer } from 'buffer';
+import { ownerClockIn, type ChainClockIn } from './clockInLedger';
+export type { ChainClockIn } from './clockInLedger';
 import {
   Connection, LAMPORTS_PER_SOL, PublicKey, TransactionInstruction,
 } from '@solana/web3.js';
@@ -68,19 +70,16 @@ export function clockInMemo(signer: PublicKey, day: number, streak: number, suff
   });
 }
 
-export interface ChainClockIn { day: number; streak: number; sig: string }
-
-/** Rebuild this wallet's Clock-In history from its recent signatures' memos. */
+/** Rebuild only successful Clock-Ins explicitly signed by this wallet. */
 export async function readClockIns(address: string, limit = 60): Promise<ChainClockIn[]> {
   const sigs = await connection.getSignaturesForAddress(new PublicKey(address), { limit });
-  const out: ChainClockIn[] = [];
-  for (const s of sigs) {
-    if (s.err || !s.memo) continue;
-    // A session-signed Clock-In names its owner and is only valid with a live
-    // session link: chain/session.ts validates those, never this shortcut.
-    if (/:owner=/.test(s.memo)) continue;
-    const m = /mempire:clockin:v1:day=(\d{8}):streak=(\d+)/.exec(s.memo);
-    if (m) out.push({ day: Number(m[1]), streak: Number(m[2]), sig: s.signature });
-  }
-  return out;
+  const candidates = sigs.filter((s) => !s.err && s.memo?.includes(PREFIX) && !/:owner=/.test(s.memo));
+  if (!candidates.length) return [];
+  const txs = await connection.getTransactions(candidates.map((s) => s.signature), {
+    maxSupportedTransactionVersion: 0, commitment: 'confirmed',
+  });
+  return candidates.flatMap((s, i) => {
+    const entry = ownerClockIn(address, s.signature, txs[i]);
+    return entry ? [entry] : [];
+  });
 }

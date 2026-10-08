@@ -234,7 +234,7 @@ function Game() {
       const m = prepareMatch(rival, q.get('rush') === '1');
       const r = q.get('renderer');
       if (r === 'native' || r === 'web') m.renderer = r;
-      setPerf(q.get('perf') === '1');
+      if (q.get('perf') === '1') setPerf(true);
       if (!useUi.getState().battle) useUi.getState().openBattle(m);
     };
     // The launch URL is consumed once per process; a sign-out/sign-in or an

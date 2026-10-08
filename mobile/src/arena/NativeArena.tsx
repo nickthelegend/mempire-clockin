@@ -1,6 +1,6 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber/native';
 import { setArenaSkin } from '../../../app/src/three/skin';
-import { Component, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Component, memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Alert, Animated, AppState, Image, Modal, PanResponder, Pressable, StyleSheet, Text, View,
   type GestureResponderEvent, type LayoutChangeEvent,
@@ -180,7 +180,33 @@ function MuteButton() {
 }
 
 /** Counts how often the Canvas subtree re-renders (it should not follow the sim). */
-function SceneRenderProbe() { countRender('Scene'); return null; }
+function SceneRenderProbe() {
+  countRender('Scene');
+  useFrame(() => countRender('frames'));
+  return null;
+}
+
+/** The GL tree changes only for interaction/watchdog props, never for each sim tick. */
+const ArenaCanvas = memo(function ArenaCanvas({ perspective, placing, marker, onReady, onSecond, onFail }: {
+  perspective: 0 | 1;
+  placing: boolean;
+  marker: { x: number; z: number; legal: boolean } | null;
+  onReady: () => void;
+  onSecond: (fps: number) => void;
+  onFail: (why: string) => void;
+}) {
+  return (
+    <SceneBoundary onFail={onFail}>
+      <Canvas camera={SCENE_CAMERA} gl={GL} shadows={ON_DEVICE ? { type: THREE.PCFShadowMap } : false} style={{ flex: 1 }}>
+        <SceneRenderProbe />
+        <SceneContents perspective={perspective} placing={placing} marker={marker} />
+        <RenderControl onReady={onReady} />
+        <FpsProbe onSecond={onSecond} />
+        <DisposeOnUnmount />
+      </Canvas>
+    </SceneBoundary>
+  );
+});
 
 function Hud({ onQuit }: { onQuit: () => void }) {
   countRender('Hud');
@@ -478,20 +504,8 @@ export function NativeArena() {
         >
           <View style={st.lowres}>
           {mountGl ? (
-          <SceneBoundary onFail={(why) => fallBack(why)}>
-          <Canvas
-            camera={SCENE_CAMERA}
-            gl={GL}
-            shadows={ON_DEVICE ? { type: THREE.PCFShadowMap } : false}
-            style={{ flex: 1 }}
-          >
-            <SceneRenderProbe />
-            <SceneContents perspective={match.duel ? 1 : 0} placing={drag !== null || selected !== null} marker={marker} />
-            <RenderControl onReady={onSceneReady} />
-            <FpsProbe onSecond={onSecond} />
-            <DisposeOnUnmount />
-          </Canvas>
-          </SceneBoundary>
+          <ArenaCanvas perspective={match.duel ? 1 : 0} placing={drag !== null || selected !== null}
+            marker={marker} onReady={onSceneReady} onSecond={onSecond} onFail={fallBack} />
           ) : null}
           </View>
         </Animated.View>
