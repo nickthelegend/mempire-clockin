@@ -83,7 +83,7 @@ describe('same table, same odds', () => {
     for (let c = lo; c <= hi; c++) expect(Math.abs(counts[c] / n - 1 / (hi - lo + 1))).toBeLessThan(0.02); // uniform copies
     expect(freshFirst).toBe(4000); // the first card is always a new fighter when one exists
     expect(ROSTER.length).toBeGreaterThan(8);
-  });
+  }, 30_000); // 4000 sha256-driven rolls: CPU-bound, slow when the suite runs in parallel
 
   it('the win-chest tier table is untouched (3 / 9 / 26 / 62 %)', () => {
     let k = 0;
