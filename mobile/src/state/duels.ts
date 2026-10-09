@@ -35,6 +35,8 @@ interface DuelsState {
   verify: (resultSig: string) => Promise<void>;
 }
 
+// A slower RPC answer must not reopen a dismissed sheet or replace a newer link.
+let openRequest = 0;
 const yieldUi = () => new Promise((r) => setTimeout(r, 30));
 
 export const useDuels = create<DuelsState>((set, get) => ({
@@ -63,6 +65,7 @@ export const useDuels = create<DuelsState>((set, get) => ({
   },
 
   openLink: async (sig, payload) => {
+    const request = ++openRequest;
     if (!sig) {
       try {
         set({ open: { sig: null, challenger: 'a friend', payload: decodeDuel(fromB64url(payload ?? '')), payloadB64: payload, source: 'link' } });
@@ -74,15 +77,18 @@ export const useDuels = create<DuelsState>((set, get) => ({
     set({ open: { sig, challenger: '…', payload: null, payloadB64: payload, source: 'chain' } });
     try {
       const c = await loadChallenge(connection, sig, payload ?? undefined);
+      if (request !== openRequest) return;
       set({ open: { sig, challenger: c.challenger, payload: c.payload, payloadB64: c.payloadB64, source: 'chain', error: c.error } });
     } catch (e) {
+      if (request !== openRequest) return;
       set({ open: { sig, challenger: '?', payload: null, payloadB64: null, source: 'chain', error: (e as Error).message } });
     }
   },
 
-  closeOpen: () => set({ open: null }),
+  closeOpen: () => { openRequest++; set({ open: null }); },
 
   verify: async (resultSig) => {
+    if (get().checks[resultSig]?.state === 'busy') return;
     const r = get().board.find((t) => t.sig === resultSig);
     if (!r || r.memo.kind !== 'result') return;
     const memo = r.memo;
