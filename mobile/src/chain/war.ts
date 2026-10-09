@@ -21,7 +21,7 @@ export interface RawEvent { sig: string; slot: number; time: number; signers: st
 
 export interface ClockInEvent { sig: string; slot: number; wallet: string; day: number; claimed: number; side: string | null; via: 'wallet' | 'session' }
 
-const CLOCKIN = /mempire:clockin:v1:day=(\d{8}):streak=(\d+)((?::[a-z]+=[A-Za-z0-9]+)*)/;
+const CLOCKIN = /^mempire:clockin:v1:day=(\d{8}):streak=(\d+)((?::[a-z]+=[A-Za-z0-9]+)*)$/;
 const sideOf = (text: string) => /:war=1:side=([A-Z0-9]+)/.exec(text)?.[1] ?? null;
 
 /** Parse raw WAR_REF transactions into validated Clock-Ins. */
@@ -71,6 +71,10 @@ export interface WarBoard {
 export function computeBoard(events: ClockInEvent[], today: number, sides: readonly string[]): WarBoard {
   const byWallet = new Map<string, ClockInEvent[]>();
   for (const e of events) {
+    const date = new Date(dayNum(e.day) * 86_400_000);
+    const reconstructed = date.getUTCFullYear() * 10000 + (date.getUTCMonth() + 1) * 100 + date.getUTCDate();
+    // A signed memo is still client input: impossible/future dates cannot keep a streak alive.
+    if (!e.wallet || reconstructed !== e.day || e.day > today || !Number.isSafeInteger(e.claimed) || e.claimed < 1) continue;
     const l = byWallet.get(e.wallet) ?? [];
     l.push(e);
     byWallet.set(e.wallet, l);

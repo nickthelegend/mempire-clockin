@@ -89,3 +89,14 @@ describe('global board', () => {
     expect(toEvents([ev([ALICE], 'mempire:challenge:v1:blue-chips'), ev([ALICE], 'hello')])).toEqual([]);
   });
 });
+
+describe('client-written calendar values', () => {
+  it('ignores impossible dates, future days and zero streak claims', () => {
+    const raw = [ci(ALICE, 20260230, 1, 'BONK'), ci(BOB, 20261009, 1, 'BONK'), ci(CARA, 20261008, 0, 'BONK')];
+    expect(computeBoard(toEvents(raw), 20261008, ['BONK'])).toEqual({ sides: { BONK: { wallets: 0, clockIns: 0 } }, streaks: [], wallets: 0, clockIns: 0 });
+  });
+  it('does not parse Clock-In text embedded in a different memo', () => {
+    const raw = [ev([ALICE], 'other-app:mempire:clockin:v1:day=20261008:streak=99')];
+    expect(toEvents(raw)).toEqual([]);
+  });
+});
