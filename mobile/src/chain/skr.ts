@@ -1,7 +1,7 @@
 import { Buffer } from 'buffer';
 import { PublicKey, TransactionInstruction } from '@solana/web3.js';
 import {
-  TOKEN_PROGRAM_ID, createAssociatedTokenAccountIdempotentInstruction,
+  TOKEN_PROGRAM_ID, getAccount, TokenAccountNotFoundError, createAssociatedTokenAccountIdempotentInstruction,
   createTransferCheckedInstruction, getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
 import cfgJson from '../data/skr-devnet.json';
@@ -47,10 +47,11 @@ export async function skrBalance(owner: string): Promise<number> {
   if (!SKR_MINT) return 0;
   const ata = getAssociatedTokenAddressSync(SKR_MINT, new PublicKey(owner));
   try {
-    const b = await connection.getTokenAccountBalance(ata);
-    return Number(b.value.amount) / UNIT;
-  } catch {
-    return 0; // no account yet = no SKR yet
+    const account = await getAccount(connection, ata, "confirmed");
+    return Number(account.amount) / UNIT;
+  } catch (error) {
+    if (error instanceof TokenAccountNotFoundError) return 0;
+    throw error; // RPC outages and malformed accounts do not prove a zero balance
   }
 }
 

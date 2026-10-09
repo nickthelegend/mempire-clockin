@@ -1,4 +1,6 @@
 import { Buffer } from 'buffer';
+import { createReceiptJournal } from './pendingReceipt';
+import bs58 from 'bs58';
 import {
   Keypair, PublicKey, TransactionInstruction, TransactionMessage, VersionedTransaction,
 } from '@solana/web3.js';
@@ -37,6 +39,12 @@ const MWA_TOKEN = 'mempire.mwa.auth.v1';
 const MWA_ADDR = 'mempire.mwa.addr.v1';
 const LAST_KIND = 'mempire.wallet.kind.v1';
 const SIWS_KEY = 'mempire.siws.v1';
+const PENDING_TX = 'mempire.pending.devnet.v1';
+const receiptJournal = createReceiptJournal({
+  get: () => SecureStore.getItemAsync(PENDING_TX),
+  set: (value) => SecureStore.setItemAsync(PENDING_TX, value),
+  clear: () => SecureStore.deleteItemAsync(PENDING_TX),
+});
 
 export const MWA_AVAILABLE = Platform.OS === 'android';
 
@@ -265,8 +273,8 @@ export const useWallet = create<WalletState>((set, get) => ({
     const a = get().address;
     if (!a) return;
     const [sol, skr] = await Promise.all([
-      getSol(a).catch(() => get().sol),
-      skrBalance(a).catch(() => get().skr),
+      getSol(a).catch(() => null),
+      skrBalance(a).catch(() => null),
     ]);
     if (get().address === a) set({ sol, skr });
   },
@@ -274,6 +282,11 @@ export const useWallet = create<WalletState>((set, get) => ({
   send: async (ixs) => {
     const { kind, address } = get();
     if (!kind || !address) throw new Error('Connect a wallet first');
+    return receiptJournal.run(connection.rpcEndpoint, address, async (signature) => {
+      const { value } = await connection.getSignatureStatuses([signature], { searchTransactionHistory: true });
+      return value[0] ?? null;
+    }, async (saveReceipt, submission) => {
+      try {
     const payer = new PublicKey(address);
     const { context: { slot: minContextSlot }, value: bh } = await connection.getLatestBlockhashAndContext();
     const message = new TransactionMessage({
@@ -286,11 +299,16 @@ export const useWallet = create<WalletState>((set, get) => ({
       const kp = await loadDevKeypair(false);
       if (!kp) throw new Error('Dev wallet key missing');
       tx.sign([kp]);
+      await saveReceipt(bs58.encode(tx.signatures[0]));
+      submission.beginBroadcast();
       sig = await connection.sendRawTransaction(tx.serialize(), { minContextSlot });
     } else {
       try {
         sig = await mwaTransact(async (wallet) => {
-          await authorize(wallet);
+          const auth = await authorize(wallet);
+          const actualAddress = new PublicKey(Buffer.from(auth.accounts[0].address, 'base64')).toBase58();
+          if (actualAddress !== address) throw new Error('The wallet switched accounts. Reconnect before signing.');
+          submission.beginBroadcast();
           const [s] = await wallet.signAndSendTransactions({ transactions: [tx], minContextSlot });
           return s;
         });
@@ -298,6 +316,9 @@ export const useWallet = create<WalletState>((set, get) => ({
         throw friendly(e);
       }
     }
+    // Persist before waiting: a timeout or app restart must not silently permit a duplicate retry.
+    if (!/^[1-9A-HJ-NP-Za-km-z]{64,90}$/.test(sig)) sig = bs58.encode(Buffer.from(sig, 'base64'));
+    await saveReceipt(sig);
     try {
       const res = await connection.confirmTransaction({ signature: sig, ...bh }, 'confirmed');
       if (res.value.err) throw new Error(`Transaction failed: ${JSON.stringify(res.value.err)}`);
@@ -308,6 +329,8 @@ export const useWallet = create<WalletState>((set, get) => ({
     }
     void get().refresh();
     return sig;
+    } catch (error) { await submission.abortBeforeBroadcast(); throw error; }
+    });
   },
 }));
 

@@ -37,8 +37,9 @@ export async function getSol(address: string): Promise<number> {
 export async function airdrop(address: string, sol = 0.5): Promise<string> {
   try {
     const sig = await connection.requestAirdrop(new PublicKey(address), Math.round(sol * LAMPORTS_PER_SOL));
-    const bh = await connection.getLatestBlockhash();
-    await connection.confirmTransaction({ signature: sig, ...bh }, 'confirmed');
+    // The faucet owns the transaction's blockhash; a later RPC blockhash is not its expiry window.
+    const result = await connection.confirmTransaction(sig, 'confirmed');
+    if (result.value.err) throw new Error(`Airdrop failed (${sig}): ${JSON.stringify(result.value.err)}`);
     return sig;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
