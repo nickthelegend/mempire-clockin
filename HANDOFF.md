@@ -36,8 +36,9 @@ Also verified: the shared battle sim is deterministic (`npx tsx app/scripts/sim-
 ## APK
 
 - `/Volumes/Extreme SSD/Projects/clockin/apks/mempire-clockin.apk`
-- sha256 `a9a8b261f7c75e1c689f9b0868038ee4278305bae36ebd79263175b4630d81aa`
-- 70,850,169 bytes (67.6 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 10 (1.4.1)
+- sha256 `cec3b673379b64653767e35ba2612524e192dcf3b215981821ed7fa0c9b96d04`
+- 70,918,157 bytes (67.6 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 11 (1.4.2)
+- 1.4.2 (`4dab00d`): Ghost Duels, the global war board and arena perf from tech pack 2, plus wallet receipt journal, duel-link race and war-date hardening. Same certificate, no `RECORD_AUDIO`, re-downloaded hash matches (see *Codex signed release*).
 - 1.4.1 (`94282c3`): the Connect hero after sign-out and the hidden-fighter audit (see *Season Pass & skins*). Same checks: same certificate, no `RECORD_AUDIO`, devnet-only bundle, re-downloaded hash matches.
 - 1.4.0 was built from `main` at `c3d1a0b` (the Solana Mobile tech pack: SIWS, `.skr`, session key, provably fair chests, Blinks) on top of 1.3.1. `aapt2`: versionCode 9 / 1.4.0, no `RECORD_AUDIO`, same certificate. Bundle is devnet-only. Re-downloaded from the release; sha256 matches.
 - Smoke test on the iPhone 17 simulator (devnet bundle): dev-wallet sign-in shows `SIWS ✓`; a chest opened with a live devnet slot proof (slot 508573164) and **Recompute → MATCHES ✓**; the Approve-once session card renders; Season Pass shows tiers and preview mode.
@@ -520,3 +521,17 @@ Validation after local integration: app 109/109 tests (Ghost Duel replay determi
 Owner Clock-In restoration now reads the actual successful Memo instruction and requires the owner both to sign the transaction and to appear in that memo's accounts. Address-history memo summaries alone are no longer sufficient: an attacker can mention a wallet without its signature. Session Clock-Ins continue through their separate link/expiry/revocation validation. Invalid dates and unsupported memo suffixes are rejected.
 
 Validation: app suite 90/90 (12 new adversarial owner-ledger cases), app `tsc -b`, mobile `tsc --noEmit`. No native build, devnet write, deployment or release upload was performed for this change.
+
+## Codex development phase 2 — Oct 8
+
+Completed Ghost Duel navigation race handling: a slow challenge read cannot reopen a dismissed sheet or replace a newer deep link; duplicate in-flight result verification is ignored. Global board computation rejects impossible/future game days and invalid streak claims, and only parses complete Clock-In memos. This does not add an on-chain once-per-day enforcement program; historical dates in client-written memos remain claims.
+
+Checks: 114 app tests; app/mobile TypeScript checks. Android Hermes production JS export succeeded (no Gradle or device involved). Native frame performance and hardware MWA remain unverified.
+
+## Codex signed release — Oct 9
+
+Built Mempire 1.4.2 (Android versionCode 11) from the current integrated source, including Ghost Duels/war/performance changes and owner-ledger restoration hardening. Native web content was rebuilt and staged before Expo prebuild; Gradle assembleRelease passed with one worker and a 3 GB JVM. The release-only signing guard refuses missing credentials.
+
+Rebuilt from the committed tree (main `4dab00d`) after the changes above were committed: `npm run apk` under the shared build lock, same release keystore. `/Volumes/Extreme SSD/Projects/clockin/apks/mempire-clockin.apk`, 70,918,157 bytes, SHA-256 `cec3b673379b64653767e35ba2612524e192dcf3b215981821ed7fa0c9b96d04`. `aapt2`: `fun.mempire.app` versionCode 11 / 1.4.2, ABIs arm64-v8a + x86_64, no RECORD_AUDIO. `apksigner` certificate SHA-256 `510a32d604173681a92bd6cb9c9b3809c4042c7d59a3fbbaf02316769fc3d943` (unchanged key). Uploaded to the `clockin-v1` release with `--clobber`; the re-downloaded asset's SHA-256 matches. (An earlier 1.4.2 upload, SHA-256 8cae1f9f…, was built before these changes were committed and is superseded.)
+
+This confirms build/signature/version/ABI packaging, not Android hardware MWA or measured frame performance. No store submission, public-chain write or source push was performed by this build step.
