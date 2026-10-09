@@ -24,9 +24,9 @@ fi
 cd android
 # cap memory: 3g heap, a single worker, no parallel project execution
 sed -i '' -E 's/^org\.gradle\.jvmargs=.*/org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=768m/' gradle.properties
-grep -q '^org.gradle.workers.max' gradle.properties || printf '\norg.gradle.workers.max=2\n' >> gradle.properties
+grep -q '^org.gradle.workers.max' gradle.properties || printf '\norg.gradle.workers.max=1\n' >> gradle.properties
 sed -i '' -E 's/^org\.gradle\.parallel=.*/org.gradle.parallel=false/' gradle.properties
-./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,x86_64 --no-daemon -Dorg.gradle.jvmargs=-Xmx3g
+./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,x86_64 --no-daemon --max-workers=1 -Dorg.gradle.parallel=false -Dorg.gradle.jvmargs=-Xmx3g
 ./gradlew --stop >/dev/null 2>&1 || true
 APK=app/build/outputs/apk/release/app-release.apk
 OUT="/Volumes/Extreme SSD/Projects/clockin/apks/mempire-clockin.apk"

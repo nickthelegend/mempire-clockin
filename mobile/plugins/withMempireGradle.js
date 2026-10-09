@@ -13,7 +13,7 @@ const { withAppBuildGradle } = require('expo/config-plugins');
  * construction rather than by someone remembering a step in DEPLOY.md.
  *
  *  1. **Release signing.** From MEMPIRE_KEYSTORE / MEMPIRE_KEYSTORE_PASSWORD
- *     (kept outside the public repo); debug key only as a labelled fallback.
+ *     (kept outside the public repo); incomplete release credentials are refused.
  *  2. **ABIs.** arm64-v8a (Seeker and any modern phone) plus x86_64 (emulators),
  *     in one APK.
  */
@@ -45,6 +45,8 @@ const ABIS = `
         ndk { abiFilters "arm64-v8a", "x86_64" }
 `;
 
+const RELEASE_GUARD = "\n// clockin-release-requires-existing-identity\ngradle.taskGraph.whenReady { graph ->\n    if (graph.allTasks.any { it.name in ['assembleRelease', 'bundleRelease', 'packageRelease'] } && !(System.getenv('MEMPIRE_KEYSTORE') && System.getenv('MEMPIRE_KEYSTORE_PASSWORD') && new File(System.getenv('MEMPIRE_KEYSTORE')).exists())) {\n        throw new GradleException('Release signing credentials are missing or incomplete; refusing a debug-signed release')\n    }\n}\n";
+
 module.exports = function withMempireGradle(config) {
   return withAppBuildGradle(config, (cfg) => {
     let src = cfg.modResults.contents;
@@ -65,6 +67,7 @@ module.exports = function withMempireGradle(config) {
     }
 
     cfg.modResults.contents = src;
+    if (!cfg.modResults.contents.includes('clockin-release-requires-existing-identity')) cfg.modResults.contents += RELEASE_GUARD;
     return cfg;
   });
 };
