@@ -36,3 +36,15 @@ export function duelMessage(sig: string | null, payload: string, rush: boolean):
     ? `${head}\n\nBlink (Solana devnet): ${duelBlinkUrl(sig)}\n\nIn the app: ${duelDeepLink(sig, payload)}`
     : `${head}\n\nIn the app: ${duelDeepLink(null, payload)}\n(not posted on chain: the result can still be replayed, but not answered on chain)`;
 }
+
+// ── Scan to duel ────────────────────────────────────────────────────────────
+
+/**
+ * Solana Pay transaction request for a ghost duel: the duel Action answers GET
+ * with { label, icon } and POST { account } with a transaction (the accept
+ * memo), which is exactly the Solana Pay transaction-request shape. The link
+ * is URL-encoded after `solana:` because it carries a query string (spec).
+ */
+export const solanaPayDuelUrl = (sig: string) => `solana:${encodeURIComponent(duelActionUrl(sig))}`;
+/** The short app link: the ghost itself is read from chain by its signature. */
+export const duelScanLink = (sig: string) => `mempire://duel?c=${sig}`;
