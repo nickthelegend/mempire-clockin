@@ -26,10 +26,7 @@ Before recording:
   needs about 0.0011 devnet SOL in the wallet for the session link and its
   fee float. Shot 6b's Blink card needs a Blink renderer; dial.to was down
   when this was written, so check https://dial.to first.
-- For shot 7b the `mempire_pass` program must be deployed
-  (`chain/pass/scripts/deploy-devnet.sh`, once funded). Without it the screen
-  honestly shows "preview mode". It has been recorded on the simulator against
-  a local validator; see `clockin/screens/season-pass/`.
+- For shot 7b, `mempire_pass` is deployed on devnet (Oct 11, see `clockin/DEVNET-EVIDENCE.md`); the wallet needs about 210 stand-in SKR (claim from the faucet by clocking in, or run the sweep).
 - Fund the wallet with a little devnet SOL, so shot 3 shows a real proof link.
   Without SOL the card honestly says "saved on device".
 - Run `node scripts/setup-skr-devnet.mjs` and rebuild, so the SKR is the

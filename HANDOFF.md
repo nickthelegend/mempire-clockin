@@ -36,8 +36,9 @@ Also verified: the shared battle sim is deterministic (`npx tsx app/scripts/sim-
 ## APK
 
 - `/Volumes/Extreme SSD/Projects/clockin/apks/mempire-clockin.apk`
-- sha256 `1f9d235bad06c18023286d81382afbf7df8bb5846ec14e88353310caedcf1577`
-- 70,936,481 bytes (67.7 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 12 (1.5.0)
+- sha256 `7f7b830a20f43416c8934c48b1ae8aa7e89343141d5390208c0aed146cf5014c`
+- 70,992,709 bytes (67.7 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 13 (1.6.0)
+- 1.6.0: devnet live (SKR stand-in config in the bundle), transaction landing, the On-chain screen, scan-to-duel. Same certificate, no `RECORD_AUDIO`, no localnet URL in the bundle, re-downloaded hash matches.
 - 1.5.0 (main after `deed93a`): the on-chain session delegate, `clock_in` PDA and on-chain chest commits (see *On-chain session delegate*). Built under the lock with the same keystore (certificate `510a32…`), no `RECORD_AUDIO`, devnet-only bundle, and the re-downloaded hash matches. `mempire_pass` is not on devnet yet, so the app falls back cleanly: on the iPhone 17 simulator with the devnet bundle, the Season Pass shows preview mode and the Clock-In ledger uses the memo path (`clockin/screens/onchain/03`).
 - 1.4.2 (`4dab00d`): Ghost Duels, the global war board and arena perf from tech pack 2, plus wallet receipt journal, duel-link race and war-date hardening. Same certificate, no `RECORD_AUDIO`, re-downloaded hash matches (see *Codex signed release*).
 - 1.4.1 (`94282c3`): the Connect hero after sign-out and the hidden-fighter audit (see *Season Pass & skins*). Same checks: same certificate, no `RECORD_AUDIO`, devnet-only bundle, re-downloaded hash matches.
@@ -50,9 +51,53 @@ Also verified: the shared battle sim is deterministic (`npx tsx app/scripts/sim-
   dApp Store, must be signed with this key.
 - `apksigner` certificate: CN=Mempire, O=Mempire, C=IN; cert SHA-256 510a32d604173681a92bd6cb9c9b3809c4042c7d59a3fbbaf02316769fc3d943
 
+## Devnet is live, plus the final Solana pack (1.6.0, Oct 11)
+
+**Devnet (`bash scripts/go-devnet.sh --no-ship`, hub `2vAPj7…` funded with 10 SOL):**
+
+- `mempire_pass` is deployed at `3aykd5NLqwjALGiaPykRiGJhv1ehJsjxqVsjQ5qGtr7G` (with `--max-len`).
+- The SKR stand-in is `AWruExU2wyLGxFBqAeDs1YtNKJtbo9ucdGKWENaXY6ez`, behind the public `spl-token-faucet`. Its config is in `mobile/src/data/skr-devnet.json`, public data only.
+- Season 1 and the 7 skins are live. The demo wallet `DP7e…CmV7` got 0.3 SOL.
+- The sweep made **13 real devnet transactions**; they are listed in `clockin/DEVNET-EVIDENCE.md`.
+- `https://mempire-actions.vercel.app/api/actions/season-pass` is enabled. It reads the chain itself, so it needed no redeploy.
+- The deployer spent **2.77 SOL**; the hub kept 7.23 SOL.
+- The public devnet RPC rate-limited this IP for a while after the sweep (HTTP 429). The CLI and web3.js retried and every step landed.
+
+**Transaction landing** (`mobile/src/chain/send.ts`) is used by every Mempire transaction: wallet sends, session-key sends and the sweep.
+
+- **Priority fee:** the median of `getRecentPrioritizationFees` over the transaction's writable accounts, clamped to 1,000–200,000 micro-lamports per compute unit.
+- **Compute limit:** a simulation sizes it (+15%, clamped 20k–1.4M). A failing simulation stops before any wallet prompt, with the program's own message (for example "Already clocked in for this day.").
+- **Packet limit:** if the compute-budget pair would push the transaction past 1232 bytes (a long ghost-duel payload), it is sent without the pair rather than not at all.
+- **Confirmation** is against `lastValidBlockHeight`.
+- **Expiry:** for silent signers (session key, scripts), up to 2 resends with a fresh blockhash. Wallet sends never resend: the receipt journal allows one signature per wallet intent, which is the duplicate-spend guard. They report "expired, nothing was charged" instead.
+- **Friendly errors** cover: no SOL, not enough SKR, already done, expired, rate-limited, declined, offline.
+- **Tests:** `app/tests/tx-landing.test.ts` (13, mocked connection). The localnet sweep passed 13/13 through the helper, and so did the devnet sweep.
+
+**On-chain screen** (Home → ON-CHAIN, Wallet & settings → ON-CHAIN STATUS, or `mempire://onchain`) lists every Solana feature with its live status and explorer links:
+
+- SIWS
+- the session key and its SessionRecord
+- the Clock-In PDA (streak / best / total)
+- the latest chest commit
+- the Season Pass and skins (Token-2022)
+- the SKR stand-in
+- duels sent / results in
+- the war tally
+- Blinks (with a live check of the Season Pass Action)
+- Seeker Genesis Token / `.skr`
+
+It is read-only and uses the existing caches. On a cluster without `mempire_pass`, the rows say "deploys at final step".
+
+**Scan to duel:** after a ghost duel is posted, the result sheet shows two QR codes.
+
+- **Solana Pay:** `solana:<url-encoded https://mempire-actions.vercel.app/api/actions/duel?c=<sig>>`. The existing duel Action already answers a Solana Pay transaction request: GET returns `label` and `icon`, POST `{account}` returns a `transaction`. This was checked live on devnet against the sweep's challenge, and the POST returned a 488-byte accept transaction. No new route or redeploy was needed.
+- **App link:** `mempire://duel?c=<sig>`; the ghost is read from chain.
+
+The QR codes come from `qrcode-generator` (pure JS) and are shown as a GIF data URL, so there is no native module. Tests: `app/tests/scan-duel.test.ts`.
+
 ## Go devnet (final step)
 
-Once the deployer `2vAPj7…` (`~/.config/solana/mempire-clockin/deployer.json`) is funded, everything that goes on devnet is one command:
+**Done on Oct 11 (see above).** It is still the command for any re-run, which is idempotent, and for shipping. Everything that goes on devnet is one command:
 
 ```bash
 bash scripts/go-devnet.sh                     # devnet: deploy, set up, sweep, ship the APK, push

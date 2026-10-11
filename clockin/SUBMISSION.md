@@ -7,7 +7,7 @@ plays your deck before you do.
 
 - **Repo:** https://github.com/nickthelegend/mempire-clockin
 - **APK:** `mempire-clockin.apk` (release, signed with a dedicated release key).
-  sha256 `1f9d235bad06c18023286d81382afbf7df8bb5846ec14e88353310caedcf1577`, 70,936,481 bytes (67.7 MiB), version 1.5.0 (versionCode 12). See *Install* below for how to download it.
+  sha256 `7f7b830a20f43416c8934c48b1ae8aa7e89343141d5390208c0aed146cf5014c`, 70,992,709 bytes (67.7 MiB), version 1.6.0 (versionCode 13). See *Install* below for how to download it.
 - **Network:** Solana **devnet** only. No real funds move.
 - **Team:** Nivesh Gajengi (@nickthelegend).
 
@@ -102,8 +102,7 @@ SKR earned from streaks buys **Streak Shields**, so the habit protects itself.
   - `anchor test` passes 10/10 on a local validator, and the full buy → premium
     → claim → skin → equip → native arena flow ran on the iOS simulator against
     it.
-  - **Not deployed on devnet yet** (no devnet SOL). The APK shows "preview
-    mode" until the one-command deploy runs.
+  - **Deployed on devnet** (Oct 11, `scripts/go-devnet.sh`). Season 1 and the 7 skins are live, priced in the SKR stand-in.
 - **Season War pledge on chain.** Picking BONK or POPCAT adds
   `:war=1:side=…` to each signed Clock-In memo, so the war can be tallied from
   chain by anyone.
@@ -114,12 +113,7 @@ SKR earned from streaks buys **Streak Shields**, so the habit protects itself.
   The web game uses these. The Seeker app's fighters use the same devnet coin
   registry mints, and archetypes come from the same hash the program uses.
 
-**Devnet transaction links: none yet, and that is the honest state.** Every
-devnet faucet request on Oct 6 returned 429, so neither the deployer nor the
-demo wallet has SOL, and no Clock-In memo or SKR transfer from the app has been
-sent. The app handles this case on screen: the Clock-In is kept on the device
-and labelled "Not on-chain: no devnet SOL for the network fee". HANDOFF.md
-lists the two funding steps that turn on the on-chain path.
+**Devnet transaction links: [`clockin/DEVNET-EVIDENCE.md`](DEVNET-EVIDENCE.md)** (Oct 11). It has 13 real devnet transactions, each made with the app's own builders: a session link (`create_session`), a session-signed `clock_in` with the war pledge, an on-chain chest commit plus a verified roll, SKR faucet claims, the Season Pass and a skin bought, a Shop payment, and a ghost-duel challenge with its replay-verified result. SIWS is verified off-chain. The Season Pass Blink is live. Without SOL the app still degrades honestly: the Clock-In is kept on the device and labelled "Not on-chain: no devnet SOL for the network fee".
 
 What *has* been executed on-chain is the same code against a local validator
 that runs the real devnet `spl-token-faucet` program (`npm run verify:local`,
