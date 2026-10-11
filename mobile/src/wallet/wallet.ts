@@ -1,5 +1,6 @@
 import { Buffer } from 'buffer';
 import { createReceiptJournal } from './pendingReceipt';
+import { confirmLanding, friendlyTxError, prepareTx } from '../chain/send';
 import bs58 from 'bs58';
 import {
   Keypair, PublicKey, TransactionInstruction, TransactionMessage, VersionedTransaction,
@@ -288,11 +289,10 @@ export const useWallet = create<WalletState>((set, get) => ({
     }, async (saveReceipt, submission) => {
       try {
     const payer = new PublicKey(address);
-    const { context: { slot: minContextSlot }, value: bh } = await connection.getLatestBlockhashAndContext();
-    const message = new TransactionMessage({
-      payerKey: payer, recentBlockhash: bh.blockhash, instructions: ixs,
-    }).compileToV0Message();
-    const tx = new VersionedTransaction(message);
+    // Priority fee + simulation-sized compute limit (chain/send.ts). A failing
+    // simulation stops here with a readable reason, before any wallet prompt.
+    const prepared = await prepareTx(connection, payer, ixs);
+    const { tx, minContextSlot } = prepared;
 
     let sig: string;
     if (kind === 'dev') {
@@ -320,12 +320,12 @@ export const useWallet = create<WalletState>((set, get) => ({
     if (!/^[1-9A-HJ-NP-Za-km-z]{64,90}$/.test(sig)) sig = bs58.encode(Buffer.from(sig, 'base64'));
     await saveReceipt(sig);
     try {
-      const res = await connection.confirmTransaction({ signature: sig, ...bh }, 'confirmed');
-      if (res.value.err) throw new Error(`Transaction failed: ${JSON.stringify(res.value.err)}`);
+      // Confirmed against lastValidBlockHeight; a landed-but-unconfirmed
+      // signature is checked once before failing. No silent resend here: the
+      // receipt journal allows exactly one signature per wallet intent.
+      await confirmLanding(connection, sig, prepared.blockhash, prepared.lastValidBlockHeight);
     } catch (e) {
-      // Confirmation can fail (429, timeout, block height) for a transaction
-      // that landed. Ask the chain once before calling it a failure.
-      if (!(await landed(sig))) throw e;
+      if (!(await landed(sig))) throw friendlyTxError(e);
     }
     void get().refresh();
     return sig;

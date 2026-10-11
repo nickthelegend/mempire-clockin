@@ -11,6 +11,7 @@ import {
 } from '../chain/session';
 import { useWallet } from './wallet';
 import { WAR_REF, refIx } from '../chain/refs';
+import { sendAndLand } from '../chain/send';
 import { createSessionIx, programLive, readClockState, readSessionRecord, revokeSessionIx, type ClockState } from '../chain/clockin';
 
 /**
@@ -172,14 +173,9 @@ export const useSession = create<SessionState>((set, get) => ({
     if (!c) throw new Error('No session key');
     const kp = await keypairFor(c.owner);
     if (!kp || kp.publicKey.toBase58() !== c.session) throw new Error('Session key missing from the keystore');
-    const { context: { slot: minContextSlot }, value: bh } = await connection.getLatestBlockhashAndContext();
-    const tx = new VersionedTransaction(new TransactionMessage({
-      payerKey: kp.publicKey, recentBlockhash: bh.blockhash, instructions: ixs,
-    }).compileToV0Message());
-    tx.sign([kp]);
-    const sig = await connection.sendRawTransaction(tx.serialize(), { minContextSlot });
-    const res = await connection.confirmTransaction({ signature: sig, ...bh }, 'confirmed');
-    if (res.value.err) throw new Error(`Transaction failed: ${JSON.stringify(res.value.err)}`);
+    // Priority fee, sized compute, block-height confirmation, and up to two
+    // silent resends with a fresh blockhash if it expires (chain/send.ts).
+    const sig = await sendAndLand(connection, kp.publicKey, ixs, (tx) => { tx.sign([kp]); return tx; });
     void get().refreshBalance();
     return sig;
   },

@@ -14,6 +14,7 @@ import {
   type TransactionInstruction,
 } from '@solana/web3.js';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { sendAndLand } from '../src/chain/send';
 import { createSessionIx, clockInIx, readClockState, WAR_CODES } from '../src/chain/clockin';
 import { linkIxs, sessionClockInIx } from '../src/chain/session';
 import { memoIx, refIx, WAR_REF } from '../src/chain/refs';
@@ -48,15 +49,9 @@ const record = (step: string, note: string, sig?: string, ok = true) => {
   console.log(`${ok ? 'OK  ' : 'FAIL'} ${step}${sig ? `  ${sig}` : ''}  ${note}`);
 };
 
-async function send(signer: Keypair, ixs: TransactionInstruction[], extra: Keypair[] = []): Promise<string> {
-  const bh = await conn.getLatestBlockhash();
-  const tx = new VersionedTransaction(new TransactionMessage({ payerKey: signer.publicKey, recentBlockhash: bh.blockhash, instructions: ixs }).compileToV0Message());
-  tx.sign([signer, ...extra]);
-  const sig = await conn.sendRawTransaction(tx.serialize());
-  const r = await conn.confirmTransaction({ signature: sig, ...bh }, 'confirmed');
-  if (r.value.err) throw new Error(`${sig}: ${JSON.stringify(r.value.err)}`);
-  return sig;
-}
+/** Every sweep transaction goes through the app's landing helper (chain/send.ts). */
+const send = (signer: Keypair, ixs: TransactionInstruction[], extra: Keypair[] = []) =>
+  sendAndLand(conn, signer.publicKey, ixs, (tx) => { tx.sign([signer, ...extra]); return tx; });
 async function step(name: string, fn: () => Promise<{ sig?: string; note: string }>) {
   try { const r = await fn(); record(name, r.note, r.sig); } catch (e) { record(name, (e instanceof Error ? e.message : String(e)).slice(0, 200), undefined, false); }
 }
