@@ -121,17 +121,20 @@ let sheetTimer: ReturnType<typeof setTimeout> | null = null;
  * opens after the old one's dismissal (iOS refuses to present mid-dismiss).
  */
 function openSheet(
-  set: (p: Partial<Record<SheetKey, boolean>>) => void,
-  get: () => Record<SheetKey, boolean>,
+  set: (p: Partial<Record<SheetKey, boolean>> & { result?: null; reveal?: null }) => void,
+  get: () => Record<SheetKey, boolean> & { result: unknown; reveal: unknown },
   key: SheetKey,
   open: boolean,
 ): void {
   if (sheetTimer) { clearTimeout(sheetTimer); sheetTimer = null; }
   if (!open) { set({ [key]: false }); return; }
   const st = get();
-  const other = (Object.keys(NO_SHEETS) as SheetKey[]).some((k) => k !== key && st[k]);
+  // The battle result and the chest reveal are full-screen modals too: a deep
+  // link that lands while one is up closes it first, or iOS never presents
+  // the sheet and every later sheet stays stuck behind it.
+  const other = (Object.keys(NO_SHEETS) as SheetKey[]).some((k) => k !== key && st[k]) || !!st.result || !!st.reveal;
   if (!other) { set({ [key]: true }); return; }
-  set({ ...NO_SHEETS });
+  set({ ...NO_SHEETS, result: null, reveal: null });
   sheetTimer = setTimeout(() => { sheetTimer = null; set({ [key]: true }); }, 450);
 }
 
