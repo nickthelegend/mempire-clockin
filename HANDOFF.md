@@ -36,8 +36,9 @@ Also verified: the shared battle sim is deterministic (`npx tsx app/scripts/sim-
 ## APK
 
 - `/Volumes/Extreme SSD/Projects/clockin/apks/mempire-clockin.apk`
-- sha256 `cec3b673379b64653767e35ba2612524e192dcf3b215981821ed7fa0c9b96d04`
-- 70,918,157 bytes (67.6 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 11 (1.4.2)
+- sha256 `1f9d235bad06c18023286d81382afbf7df8bb5846ec14e88353310caedcf1577`
+- 70,936,481 bytes (67.7 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 12 (1.5.0)
+- 1.5.0 (main after `deed93a`): the on-chain session delegate, `clock_in` PDA and on-chain chest commits (see *On-chain session delegate*). Built under the lock with the same keystore (certificate `510a32…`), no `RECORD_AUDIO`, devnet-only bundle, and the re-downloaded hash matches. `mempire_pass` is not on devnet yet, so the app falls back cleanly: on the iPhone 17 simulator with the devnet bundle, the Season Pass shows preview mode and the Clock-In ledger uses the memo path (`clockin/screens/onchain/03`).
 - 1.4.2 (`4dab00d`): Ghost Duels, the global war board and arena perf from tech pack 2, plus wallet receipt journal, duel-link race and war-date hardening. Same certificate, no `RECORD_AUDIO`, re-downloaded hash matches (see *Codex signed release*).
 - 1.4.1 (`94282c3`): the Connect hero after sign-out and the hidden-fighter audit (see *Season Pass & skins*). Same checks: same certificate, no `RECORD_AUDIO`, devnet-only bundle, re-downloaded hash matches.
 - 1.4.0 was built from `main` at `c3d1a0b` (the Solana Mobile tech pack: SIWS, `.skr`, session key, provably fair chests, Blinks) on top of 1.3.1. `aapt2`: versionCode 9 / 1.4.0, no `RECORD_AUDIO`, same certificate. Bundle is devnet-only. Re-downloaded from the release; sha256 matches.
