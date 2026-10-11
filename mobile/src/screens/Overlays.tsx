@@ -23,6 +23,7 @@ import { Body, Btn, CardTile, ChestArt, Display, Panel, Tag, Well } from '../ui/
 import { ShareCardButton } from './ShareCard';
 import { Qr } from '../ui/Qr';
 import { duelScanLink, solanaPayDuelUrl } from '../game/blink';
+import { readableError } from '../chain/send';
 
 /** Chest opening: shake, burst, then the fighters land one by one. */
 export function RevealSheet() {
@@ -119,7 +120,7 @@ function FairPanel({ reveal }: { reveal: Reveal }) {
         : { state: 'bad', text: 'The recomputed drops differ.' });
       if (same) haptic.success(); else haptic.error();
     } catch (e) {
-      setCheck({ state: 'bad', text: e instanceof Error ? e.message : String(e) });
+      setCheck({ state: 'bad', text: readableError(e) });
     }
   };
   return (
@@ -180,7 +181,7 @@ function DuelAFriend({ ghost, rush }: { ghost: string; rush: boolean }) {
             say('Ghost duel posted on chain', 'ok');
             share(s);
           } catch (e) {
-            const m = e instanceof Error ? e.message : String(e);
+            const m = readableError(e);
             Alert.alert('Not posted on chain', `${m}\n\nYou can still send the ghost as a link. It replays the same, but the result cannot be answered on chain.`, [
               { text: 'Cancel', style: 'cancel' },
               { text: 'Share link', onPress: () => share(null) },
@@ -263,7 +264,7 @@ function DuelResult({ r }: { r: MatchResult }) {
               say('Duel result posted on chain', 'ok');
               show({ ...r, duel: { ...d, posted: sig } });
               void useDuels.getState().refresh();
-            } catch (e) { say(e instanceof Error ? e.message : String(e), 'err'); } finally { setBusy(false); }
+            } catch (e) { say(readableError(e), 'err'); } finally { setBusy(false); }
           }}
         />
       ) : <Body size={11} color={C.dimOnWood}>This ghost came from a link, not a challenge on chain, so there is nothing to answer on chain.</Body>}
@@ -389,7 +390,7 @@ export function WalletSheet() {
               busy={busy}
               onPress={async () => {
                 setBusy(true);
-                try { await airdrop(address, 0.5); await refresh(); say('0.5 devnet SOL received', 'ok'); } catch (e) { say(e instanceof Error ? e.message : String(e), 'err'); } finally { setBusy(false); }
+                try { await airdrop(address, 0.5); await refresh(); say('0.5 devnet SOL received', 'ok'); } catch (e) { say(readableError(e), 'err'); } finally { setBusy(false); }
               }}
             />
             <Btn label="ON-CHAIN STATUS" sub="every Solana feature, live from the cluster" tone="blue" size="sm" onPress={() => { setOpen(false); useUi.getState().setOnchain(true); }} />

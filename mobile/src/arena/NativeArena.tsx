@@ -245,7 +245,9 @@ export function NativeArena() {
   countRender('NativeArena');
   const battle = useUi((s) => s.battle);
   const match = battle?.renderer === 'native' ? battle : null;
-  const autoMode = useUi((s) => s.rendererPref === 'auto');
+  // Automatic fallbacks (slow frames, texture errors) apply only when the
+  // renderer was left on Auto; an explicit choice gets the longer timeout only.
+  const autoMode = useUi((s) => s.rendererPref === 'auto') && !match?.forcedRenderer;
   const closeBattle = useUi((s) => s.closeBattle);
   const insets = useSafeAreaInsets();
   const view = useRef<View>(null);
@@ -305,7 +307,7 @@ export function NativeArena() {
       return;
     }
     useUi.getState().say('Switched to the compatibility arena', 'info');
-    console.warn(`[arena] native renderer fell back: ${why}`); // eslint-disable-line no-console
+    if (__DEV__ || perfEnabled()) console.warn(`[arena] native renderer fell back: ${why}`); // eslint-disable-line no-console
     useUi.getState().openBattle({ ...match, renderer: 'web', fellBack: true });
   }, [match, closeBattle]);
   useEffect(() => { fellBack.current = false; }, [match]);

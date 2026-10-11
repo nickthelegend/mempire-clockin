@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { ARENA_SKINS, FRAME_SKINS, ownsSkin, usePassChain, type SkinDef } from '../chain/pass';
 import { CLUSTER_LABEL } from '../chain/solana';
 import { buySkin } from '../game/actions';
+import { readableError } from '../chain/send';
 
 /**
  * Thumbnails of each arena skin, cropped from real renders of the native 3D
@@ -76,7 +77,7 @@ function Cosmetics() {
       equip(kind === 'arena' ? { arena: s.key } : { frame: s.key });
       say(`${s.name} minted to your wallet and equipped ✓`, 'ok');
     } catch (e) {
-      say(e instanceof Error ? e.message : String(e), 'err');
+      say(readableError(e), 'err');
     } finally {
       setBusy(null);
     }
@@ -173,7 +174,7 @@ export function ShopScreen() {
       if (r.sig) setLastSig(r.sig);
       say(r.sig ? 'Paid in SKR on devnet ✓' : 'Bought with simulated SKR', 'ok');
     } catch (e) {
-      say(e instanceof Error ? e.message : String(e), 'err');
+      say(readableError(e), 'err');
     } finally {
       setBusy(null);
     }
@@ -203,7 +204,7 @@ export function ShopScreen() {
               busy={busy === 'claim'}
               onPress={async () => {
                 setBusy('claim');
-                try { const s = await claimOwedSkr(); setLastSig(s); say('Minted to your wallet ✓', 'ok'); } catch (e) { say(e instanceof Error ? e.message : String(e), 'err'); } finally { setBusy(null); }
+                try { const s = await claimOwedSkr(); setLastSig(s); say('Minted to your wallet ✓', 'ok'); } catch (e) { say(readableError(e), 'err'); } finally { setBusy(null); }
               }}
             />
           ) : null}

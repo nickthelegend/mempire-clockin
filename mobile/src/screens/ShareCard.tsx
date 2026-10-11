@@ -15,6 +15,7 @@ import { useDisplayName } from '../state/identity';
 import { useWallet } from '../wallet/wallet';
 import { C, R } from '../theme';
 import { Body, Btn, Display } from '../ui/kit';
+import { readableError } from '../chain/send';
 
 /**
  * The result as a picture: outcome, crowns, three of your fighters, your
@@ -48,7 +49,7 @@ export function ShareCardButton({ r }: { r: MatchResult }) {
         await Share.share({ message });
       }
     } catch (e) {
-      say(e instanceof Error ? e.message : String(e), 'err');
+      say(readableError(e), 'err');
     } finally {
       setBusy(false);
     }

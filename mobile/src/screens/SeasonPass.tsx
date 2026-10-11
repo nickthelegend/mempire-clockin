@@ -13,6 +13,7 @@ import { useUi } from '../state/ui';
 import { useWallet } from '../wallet/wallet';
 import { C, R } from '../theme';
 import { Body, Btn, ChestArt, Display, Panel, Progress, Tag, Well } from '../ui/kit';
+import { readableError } from '../chain/send';
 
 function daysLeft(): number {
   return Math.max(0, Math.ceil((SEASON.endsAt * 1000 - Date.now()) / 86_400_000));
@@ -47,7 +48,7 @@ function PremiumCard() {
       setSig(s);
       say('Season Pass minted to your wallet ✓ Premium unlocked', 'ok');
     } catch (e) {
-      say(e instanceof Error ? e.message : String(e), 'err');
+      say(readableError(e), 'err');
     } finally {
       setBusy(false);
     }

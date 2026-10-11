@@ -19,6 +19,7 @@ import { haptic } from '../notify';
 import { SessionCard } from './SessionCard';
 import { useSession } from '../wallet/sessionKey';
 import { blinkMessage } from '../game/blink';
+import { readableError } from '../chain/send';
 
 function useNow(ms = 1000) {
   const [now, setNow] = useState(Date.now());
@@ -85,7 +86,7 @@ function ClockIn() {
       if (r.shieldsUsed) bits.push(`${r.shieldsUsed} shield used`);
       say(`${bits.join(' · ')}${r.sig ? (r.via === 'session' ? ' · signed by your session key, no prompt' : ` · proof on ${CLUSTER_LABEL}`) : ''}`, 'ok');
     } catch (e) {
-      say(e instanceof Error ? e.message : String(e), 'err');
+      say(readableError(e), 'err');
     } finally {
       setBusy(false);
     }

@@ -41,7 +41,8 @@ export function ArenaHost() {
   // instead of fast-forwarding (WKWebView does not always fire visibilitychange).
   useEffect(() => {
     const sub = AppState.addEventListener('change', (st) => {
-      if (st === 'active') web.current?.injectJavaScript('window.dispatchEvent(new Event("mempire-resumed")); true;');
+      const ev = st === 'active' ? 'mempire-resumed' : 'mempire-paused';
+      web.current?.injectJavaScript(`window.dispatchEvent(new Event("${ev}")); true;`);
     });
     return () => sub.remove();
   }, []);

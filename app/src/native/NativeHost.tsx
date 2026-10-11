@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { rebaseBotClock, useMatch, startNativeMatch } from '../state/match';
+import { holdBotClock, rebaseBotClock, useMatch, startNativeMatch } from '../state/match';
 import { setArenaSkin } from '../three/skin';
 import type { MatchCard } from '../sim/types';
 import { archetypeForMint } from '../sim/archetypes';
@@ -123,12 +123,21 @@ export function NativeHost() {
  */
 export function useNativeExit(): void {
   const status = useMatch((s) => s.status);
-  // Back from the background: resume at the same tick, no catch-up burst.
+  // Leaving the app holds the match at its tick; coming back resumes at that
+  // same tick (no catch-up burst). The shell also signals both explicitly,
+  // since a WebView's visibility events can lag the app's own state.
   useEffect(() => {
-    const onVis = () => { if (document.visibilityState === 'visible') rebaseBotClock(); };
+    const onVis = () => { if (document.visibilityState === 'visible') rebaseBotClock(); else holdBotClock(); };
+    const onHold = () => holdBotClock();
+    const onResume = () => rebaseBotClock();
     document.addEventListener('visibilitychange', onVis);
-    window.addEventListener('mempire-resumed', onVis);
-    return () => { document.removeEventListener('visibilitychange', onVis); window.removeEventListener('mempire-resumed', onVis); };
+    window.addEventListener('mempire-paused', onHold);
+    window.addEventListener('mempire-resumed', onResume);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('mempire-paused', onHold);
+      window.removeEventListener('mempire-resumed', onResume);
+    };
   }, []);
   const seen = useRef(false);
   const reported = useRef(false);

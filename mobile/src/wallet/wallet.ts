@@ -277,7 +277,9 @@ export const useWallet = create<WalletState>((set, get) => ({
       getSol(a).catch(() => null),
       skrBalance(a).catch(() => null),
     ]);
-    if (get().address === a) set({ sol, skr });
+    // A failed read (rate limit, offline) keeps the last value read from the
+    // chain instead of blanking it; a fresh wallet still shows "…" until known.
+    if (get().address === a) set((st) => ({ sol: sol ?? st.sol, skr: skr ?? st.skr }));
   },
 
   send: async (ixs) => {

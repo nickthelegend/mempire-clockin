@@ -951,14 +951,24 @@ let botStartAt = 0;
  * native app's embedded arena when it comes back from the background, so the
  * match resumes where it stood instead of fast-forwarding at 6x to "now".
  */
+/**
+ * The app left the screen: hold the bot match at its current tick. A WebView
+ * is not always suspended at once in the background, and a match that kept
+ * running would let the bot win while the player was away.
+ */
+let botHeld = false;
+export function holdBotClock(): void {
+  if (useMatch.getState().mode === 'bot') botHeld = true;
+}
 export function rebaseBotClock(): void {
+  botHeld = false;
   const sim = useMatch.getState().sim;
   if (sim && useMatch.getState().mode === 'bot') botStartAt = Date.now() - sim.tick * TICK_MS;
 }
 
 function tickBot(difficulty: BotDifficulty): void {
   const sim = useMatch.getState().sim;
-  if (!sim || sim.phase === 'ended') return;
+  if (!sim || sim.phase === 'ended' || botHeld) return;
   const target = Math.floor((Date.now() - botStartAt) / TICK_MS);
   let steps = 0;
   while (sim.tick < target && steps < 6) {
@@ -1161,6 +1171,7 @@ function beginBotFlow(
       startMusic();
       const difficulty: BotDifficulty = tierIdx <= 0 ? 'easy' : tierIdx === 1 ? 'normal' : 'hard';
       botStartAt = Date.now();
+      botHeld = false;
       loop = setInterval(() => tickBot(difficulty), TICK_MS / 2);
     }, 900));
   }, queueMs));

@@ -1,5 +1,6 @@
 import { Buffer } from 'buffer';
 import { ownerClockIn, type ChainClockIn } from './clockInLedger';
+import { quietRateLimitFetch } from './rpcFetch';
 export type { ChainClockIn } from './clockInLedger';
 import {
   Connection, LAMPORTS_PER_SOL, PublicKey, TransactionInstruction,
@@ -13,7 +14,9 @@ export const CLUSTER = 'devnet' as const;
 export const RPC_URL = process.env.EXPO_PUBLIC_RPC_URL || 'https://api.devnet.solana.com';
 if (/mainnet/i.test(RPC_URL)) throw new Error('Mempire Clock-In is devnet-only');
 
-export const connection = new Connection(RPC_URL, 'confirmed');
+export const connection = new Connection(RPC_URL, {
+  commitment: 'confirmed', disableRetryOnRateLimit: true, fetch: quietRateLimitFetch(),
+});
 
 /** A local validator (development and the simulator demo); devnet otherwise. */
 export const IS_LOCAL = /127\.0\.0\.1|localhost/.test(RPC_URL);

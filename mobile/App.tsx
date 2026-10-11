@@ -101,7 +101,7 @@ function Header() {
         <Chip label="SOL" value={sol === null ? '…' : sol.toFixed(2)} color={C.bluePale} onPress={() => setWalletOpen(true)} tag={CLUSTER_LABEL} />
         <Chip
           label="SKR"
-          value={String(shownSkr)}
+          value={SKR_LIVE && skr === null ? '…' : String(shownSkr)}
           color={C.skr}
           tag={SKR_LIVE ? 'stand-in' : 'sim'}
           onPress={() => setTab('shop')}
@@ -175,11 +175,12 @@ let initialUrlConsumed = false;
 function OfflineBanner() {
   const status = useNet((s) => s.status);
   const check = useNet((s) => s.check);
-  if (status !== 'down') return null;
+  if (status !== 'down' && status !== 'busy') return null;
+  const busy = status === 'busy';
   return (
-    <Pressable onPress={() => void check()} style={st.offline} accessibilityRole="button" accessibilityLabel="Devnet unreachable. Tap to retry.">
-      <Body size={12} bold color="#fff">Devnet is unreachable right now.</Body>
-      <Body size={11} color={C.dim}>Battles, chests and quests still work. On-chain actions wait. Tap to retry.</Body>
+    <Pressable onPress={() => void check()} style={st.offline} accessibilityRole="button" accessibilityLabel={busy ? 'Devnet is busy. Tap to retry.' : 'Devnet unreachable. Tap to retry.'}>
+      <Body size={12} bold color="#fff">{busy ? 'Devnet is busy (rate-limited) right now.' : 'Devnet is unreachable right now.'}</Body>
+      <Body size={11} color={C.dim}>Battles, chests and quests still work. On-chain actions {busy ? 'may be slow' : 'wait'}. Tap to retry.</Body>
     </Pressable>
   );
 }
@@ -235,7 +236,7 @@ function Game() {
       const rival = Math.max(0, Math.min(3, Number(q.get('rival') ?? 1) || 0));
       const m = prepareMatch(rival, q.get('rush') === '1');
       const r = q.get('renderer');
-      if (r === 'native' || r === 'web') m.renderer = r;
+      if (r === 'native' || r === 'web') { m.renderer = r; m.forcedRenderer = true; }
       if (q.get('perf') === '1') setPerf(true);
       if (!useUi.getState().battle) useUi.getState().openBattle(m);
     };

@@ -159,6 +159,8 @@ interface PassStore {
   refresh: (owner: string | null) => Promise<void>;
 }
 
+const STALE_LIVE_MS = 15 * 60_000;
+
 export const usePassChain = create<PassStore>((set, get) => ({
   status: 'idle',
   owner: null,
@@ -177,8 +179,13 @@ export const usePassChain = create<PassStore>((set, get) => ({
       const [held, skr] = await Promise.all([heldToken2022(owner), skrOnChain(owner, chain.skrMint)]);
       if (get().owner === owner) set({ status: 'live', chain, held, skr, checkedAt: Date.now() });
     } catch {
-      // Unreachable RPC: nothing is shown as owned. Never fake ownership.
-      if (get().owner === owner) set({ status: 'offline', held: new Set() });
+      if (get().owner !== owner) return;
+      // A failed re-check (a public-RPC 429) keeps a live read from the last
+      // 15 minutes: the pass is soulbound and the read was real. Otherwise
+      // nothing is shown as owned. Never fake ownership.
+      const last = get().checkedAt;
+      if (get().status === 'live' && last && Date.now() - last < STALE_LIVE_MS) return;
+      set({ status: 'offline', held: new Set() });
     }
   },
 }));

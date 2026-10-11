@@ -4,6 +4,7 @@ import { loadChallenge, readDuelBoard, type DuelTx } from '../chain/duels';
 import {
   decodeDuel, fromB64url, verifyResult, type DuelPayload, type Replay,
 } from '../game/duel';
+import { readableError } from '../chain/send';
 
 /**
  * The Duels tab's view of the chain: every challenge and result posted with
@@ -58,7 +59,7 @@ export const useDuels = create<DuelsState>((set, get) => ({
         if (!get().checks[t.sig]) void get().verify(t.sig);
       }
     } catch (e) {
-      set({ error: e instanceof Error ? e.message : String(e) });
+      set({ error: readableError(e) });
     } finally {
       set({ loading: false });
     }
@@ -70,7 +71,7 @@ export const useDuels = create<DuelsState>((set, get) => ({
       try {
         set({ open: { sig: null, challenger: 'a friend', payload: decodeDuel(fromB64url(payload ?? '')), payloadB64: payload, source: 'link' } });
       } catch (e) {
-        set({ open: { sig: null, challenger: 'a friend', payload: null, payloadB64: null, source: 'link', error: (e as Error).message } });
+        set({ open: { sig: null, challenger: 'a friend', payload: null, payloadB64: null, source: 'link', error: readableError(e) } });
       }
       return;
     }
@@ -81,7 +82,7 @@ export const useDuels = create<DuelsState>((set, get) => ({
       set({ open: { sig, challenger: c.challenger, payload: c.payload, payloadB64: c.payloadB64, source: 'chain', error: c.error } });
     } catch (e) {
       if (request !== openRequest) return;
-      set({ open: { sig, challenger: '?', payload: null, payloadB64: null, source: 'chain', error: (e as Error).message } });
+      set({ open: { sig, challenger: '?', payload: null, payloadB64: null, source: 'chain', error: readableError(e) } });
     }
   },
 
@@ -101,7 +102,7 @@ export const useDuels = create<DuelsState>((set, get) => ({
       const v = verifyResult(c.payload, decodeDuel(fromB64url(memo.data)), memo);
       set({ checks: { ...get().checks, [resultSig]: { state: v.ok ? 'ok' : 'bad', replay: v.replay, why: v.ok ? undefined : 'the replay disagrees with the posted result' } } });
     } catch (e) {
-      set({ checks: { ...get().checks, [resultSig]: { state: 'bad', why: (e as Error).message } } });
+      set({ checks: { ...get().checks, [resultSig]: { state: 'bad', why: readableError(e) } } });
     }
   },
 }));

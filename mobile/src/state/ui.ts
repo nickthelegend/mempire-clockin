@@ -20,6 +20,8 @@ export interface PendingMatch {
   skin?: string;
   /** True when this match was moved here after the native arena failed. */
   fellBack?: boolean;
+  /** The renderer was asked for explicitly (deep link): no automatic fallback for speed. */
+  forcedRenderer?: boolean;
   /** The guided first battle: coach marks on, welcome chest at the end. */
   tutorial?: boolean;
   player: { mint: string; ticker: string; level: number }[];

@@ -8,6 +8,7 @@ import { C } from '../theme';
 import { Body, Btn, Tag } from '../ui/kit';
 import { useSession } from '../wallet/sessionKey';
 import { useWallet } from '../wallet/wallet';
+import { readableError } from '../chain/send';
 
 const left = (sec: number) => {
   if (sec <= 0) return 'expired';
@@ -41,14 +42,14 @@ export function SessionCard() {
       await useSession.getState().enable();
       haptic.success();
       say(`Session key linked for ${SESSION_DAYS} days · Clock-Ins now sign without a wallet prompt`, 'ok');
-    } catch (e) { say(e instanceof Error ? e.message : String(e), 'err'); }
+    } catch (e) { say(readableError(e), 'err'); }
   };
   const revoke = async () => {
     try {
       await useSession.getState().revoke();
       haptic.success();
       say('Session revoked on chain · float returned', 'ok');
-    } catch (e) { say(e instanceof Error ? e.message : String(e), 'err'); }
+    } catch (e) { say(readableError(e), 'err'); }
   };
 
   return (

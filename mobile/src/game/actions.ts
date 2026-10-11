@@ -25,6 +25,7 @@ import { buyPassIx, buySkinIx, hasPremium, usePassChain } from '../chain/pass';
 import { activeArenaSkin } from './cosmetics';
 import { rewardLabel, type Track } from './season';
 import { warMemo } from './board';
+import { readableError } from '../chain/send';
 
 /**
  * Everything that crosses from the game into the chain, in one place.
@@ -64,7 +65,7 @@ const canPayFees = () => {
 };
 
 function errText(e: unknown) {
-  return e instanceof Error ? e.message : String(e);
+  return readableError(e);
 }
 
 /** SKR rewards owed to the player: minted on-chain when possible, else held as owed/simulated. */

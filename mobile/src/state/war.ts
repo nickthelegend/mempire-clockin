@@ -4,6 +4,7 @@ import { connection, CLUSTER_LABEL } from '../chain/solana';
 import { computeBoard, readWarPage, toEvents, type RawEvent, type WarBoard } from '../chain/war';
 import { SEASON_WAR } from '../game/board';
 import { dayKey } from '../game/rules';
+import { readableError } from '../chain/send';
 
 /**
  * The global war tally and streak board, built on this phone from the
@@ -64,7 +65,7 @@ export const useWar = create<WarState>((set, get) => ({
       set({ raw, newest, oldest, more, board: build(raw), updatedAt: Date.now() });
       void AsyncStorage.setItem(KEY, JSON.stringify({ raw, newest, oldest, more })).catch(() => {});
     } catch (e) {
-      set({ error: e instanceof Error ? e.message : String(e) });
+      set({ error: readableError(e) });
     } finally {
       set({ loading: false });
     }
@@ -80,7 +81,7 @@ export const useWar = create<WarState>((set, get) => ({
       set({ raw, oldest: r.oldest ?? oldest, more: r.full, board: build(raw) });
       void AsyncStorage.setItem(KEY, JSON.stringify({ raw, newest: get().newest, oldest: get().oldest, more: get().more })).catch(() => {});
     } catch (e) {
-      set({ error: e instanceof Error ? e.message : String(e) });
+      set({ error: readableError(e) });
     } finally {
       set({ loading: false });
     }

@@ -170,6 +170,13 @@ export async function sendAndLand(
 }
 
 /** Errors a player can act on. Keeps the original message as `cause`. */
+/** A message fit for a toast or alert: friendlyTxError's text, never raw RPC JSON. */
+export function readableError(e: unknown): string {
+  const m = friendlyTxError(e).message;
+  // Last resort: an unmapped JSON-RPC error body is not something to show a player.
+  return /\{"jsonrpc"|^\d{3} /.test(m) ? 'The Solana network returned an error. Try again in a moment.' : m;
+}
+
 export function friendlyTxError(e: unknown): Error {
   if (e instanceof ExpiredError) return e;
   const raw = e instanceof SimulationError ? `${e.message}` : e instanceof Error ? e.message : String(e);
