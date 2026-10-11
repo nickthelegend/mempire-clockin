@@ -6,7 +6,7 @@ import { useGame, avgDeckLevel } from '../state/game';
 import { useUi } from '../state/ui';
 import { haptic } from '../notify';
 import { C } from '../theme';
-import { Body, Btn, CardTile, Display, Panel, Progress, Tag, Well } from '../ui/kit';
+import { Body, Btn, CardTile, Display, Panel, Progress, Tag, Well, Ribbon } from '../ui/kit';
 import { CHAR_ART } from '../data/cosmeticArt';
 
 /**
@@ -78,7 +78,7 @@ export function CoachSheet() {
           <View style={st.between}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1, flexWrap: 'wrap' }}>
               <Image source={CHAR_ART.coach} style={{ width: 60, height: 60 }} resizeMode="contain" accessibilityLabel="AI Coach" />
-              <Display size={28}>AI Coach</Display>
+              <Ribbon text="AI Coach" tone="blue" size={22} />
               <Tag text="ON-DEVICE SIMULATION" color={C.teal} />
             </View>
             <Btn label="✕" tone="ghost" size="sm" onPress={close} />

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Image, Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { CHAR_ART, EMOTE_ART, REWARD_ART, UI_ICON } from '../data/cosmeticArt';
 import { CARD_ART } from '../data/art';
 import { hasPremium, passMint, usePassChain, SEASON_ID } from '../chain/pass';
-import { CLUSTER_LABEL, explorerAddr, explorerTx, short } from '../chain/solana';
+import { explorerAddr, explorerTx, short } from '../chain/solana';
 import { buySeasonPass, claimPassTier } from '../game/actions';
 import {
   EMOTES, PASS_FRAMES, SEASON, TIERS, canClaim, claimable, rewardLabel, tierFor, tierProgress,
@@ -13,8 +13,16 @@ import { useGame } from '../state/game';
 import { useUi } from '../state/ui';
 import { useWallet } from '../wallet/wallet';
 import { C, R } from '../theme';
-import { Body, Btn, ChestArt, Display, FrameOverlay, Panel, Progress, Tag, Well } from '../ui/kit';
+import { Body, Btn, ChestArt, Display, FrameOverlay, Panel, Progress, SkrIcon, Tag, Well, Ribbon } from '../ui/kit';
 import { readableError } from '../chain/send';
+import { ProofSeal } from '../ui/ProofSheet';
+import { Celebrate } from '../ui/Celebrate';
+import { haptic } from '../notify';
+
+/** A soft placeholder while the pass is read (never "loading…" text). */
+function Shimmerish() {
+  return <View style={{ height: 14, width: '70%', borderRadius: 7, backgroundColor: 'rgba(255,255,255,0.12)' }} />;
+}
 
 function daysLeft(): number {
   return Math.max(0, Math.ceil((SEASON.endsAt * 1000 - Date.now()) / 86_400_000));
@@ -46,6 +54,7 @@ function PremiumCard() {
   const say = useUi((s) => s.say);
   const [busy, setBusy] = useState(false);
   const [sig, setSig] = useState<string | null>(null);
+  const [burst, setBurst] = useState<number | null>(null);
   const premium = hasPremium(pc);
   const price = pc.chain?.season?.priceSkr ?? SEASON.priceSkr;
 
@@ -54,7 +63,9 @@ function PremiumCard() {
     try {
       const s = await buySeasonPass();
       setSig(s);
-      say('Season Pass minted to your wallet ✓ Premium unlocked', 'ok');
+      setBurst(Date.now());
+      haptic.success();
+      say('Season Pass unlocked! Premium rewards are yours', 'ok');
     } catch (e) {
       say(readableError(e), 'err');
     } finally {
@@ -63,27 +74,28 @@ function PremiumCard() {
   };
 
   return (
-    <Well style={{ gap: 8, borderColor: premium ? C.gold : 'rgba(0,0,0,0.35)', borderWidth: premium ? 2 : 1 }}>
+    <Well style={{ gap: 8, borderColor: premium ? C.gold : 'rgba(0,0,0,0.35)', borderWidth: premium ? 2 : 1, overflow: 'visible' }}>
+      <Celebrate burst={burst} size={300} />
       <View style={st.between}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 }}>
           <Image source={REWARD_ART.pass} style={{ width: 44, height: 44, opacity: premium ? 1 : 0.85 }} resizeMode="contain" accessibilityLabel="Season Pass" />
           <Display size={20} color={premium ? C.gold : '#fff'}>Premium track</Display>
         </View>
         <Tag
-          text={premium ? 'PASS HELD · ON-CHAIN' : pc.status === 'live' ? `${price} SKR` : pc.status === 'preview' ? 'PREVIEW MODE' : pc.status === 'offline' ? 'CHAIN UNREACHABLE' : 'CHECKING…'}
+          text={premium ? 'PREMIUM ✓' : pc.status === 'live' ? `${price} SKR` : pc.status === 'preview' ? 'SOON' : pc.status === 'offline' ? 'OFFLINE' : ' '}
           color={premium ? C.gold : pc.status === 'live' ? C.skr : C.dim}
         />
       </View>
       {premium ? (
         <Body size={12} color="#fff">
-          This wallet holds the Season {SEASON_ID} pass: a soulbound Token-2022 token (NonTransferable, with its name and season stored on the mint). Premium rewards are unlocked.
+          You hold the Season {SEASON_ID} pass. It is bound to your wallet for good, and every premium reward is unlocked.
         </Body>
       ) : pc.status === 'live' ? (
         <>
           <Body size={12} color="#fff">
             One transaction: {price} SKR goes to the game treasury and a soulbound pass token is minted to your wallet. Cosmetics, chest slots and Streak Shields. Never stats.
           </Body>
-          <Body size={12} color={C.skr}>Your on-chain SKR ({CLUSTER_LABEL} stand-in): {(pc.skr ?? 0).toLocaleString()}</Body>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><SkrIcon size={20} /><Display size={20} color={C.skr}>{(pc.skr ?? 0).toLocaleString()}</Display><Body size={12} color={C.dim}>in your wallet</Body></View>
           <Btn
             label={`BUY PASS · ${price} SKR`}
             tone="skr"
@@ -96,19 +108,15 @@ function PremiumCard() {
         </>
       ) : pc.status === 'preview' ? (
         <Body size={12} color="#fff">
-          On-chain pass available once deployed: preview mode. The mempire_pass program is not on {CLUSTER_LABEL} yet, so nothing can be bought and premium stays locked. The free track works now.
+          The premium pass opens soon. The free track works now.
         </Body>
       ) : pc.status === 'offline' ? (
-        <Body size={12} color="#fff">Can&apos;t reach {CLUSTER_LABEL} right now, so the pass can&apos;t be checked. Premium stays locked until it can. The free track still works.</Body>
+        <Body size={12} color="#fff">The network is busy, so your pass can&apos;t be checked right now. The free track still works.</Body>
       ) : (
-        <Body size={12} color="#fff">Reading the pass from {CLUSTER_LABEL}…</Body>
+        <Shimmerish />
       )}
-      {sig ? (
-        <Pressable onPress={() => void Linking.openURL(explorerTx(sig))}><Tag text={`tx ${short(sig)} ↗`} color={C.teal} /></Pressable>
-      ) : premium ? (
-        <Pressable onPress={() => void Linking.openURL(explorerAddr(passMint(SEASON_ID).toBase58()))}>
-          <Tag text={`pass mint ${short(passMint(SEASON_ID).toBase58())} ↗`} color={C.teal} />
-        </Pressable>
+      {sig || premium ? (
+        <ProofSeal info={{ title: 'Season Pass', art: REWARD_ART.pass, glow: C.gold, about: 'A soulbound token: it cannot be sold or sent, so the pass is yours alone. The game reads it from your wallet every time.', proofs: [...(sig ? [{ label: `purchase ${short(sig, 6)}`, url: explorerTx(sig) }] : []), { label: `pass ${short(passMint(SEASON_ID).toBase58(), 6)}`, url: explorerAddr(passMint(SEASON_ID).toBase58()) }] }} />
       ) : null}
     </Well>
   );
@@ -189,7 +197,7 @@ export function SeasonPassSheet() {
           <View style={st.between}>
             <Image source={CHAR_ART.trophy} style={{ width: 64, height: 64, marginRight: 8 }} resizeMode="contain" accessibilityLabel="Season 1 trophy" />
             <View style={{ flex: 1 }}>
-              <Display size={28}>Season Pass</Display>
+              <Ribbon text="Season Pass" tone="purple" size={22} />
               <Body size={12}>{SEASON.name} · {daysLeft()} days left</Body>
             </View>
             <Btn label="✕" tone="ghost" size="sm" onPress={() => setPass(false)} />

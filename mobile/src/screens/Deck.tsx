@@ -5,7 +5,7 @@ import { useGame, avgDeckLevel } from '../state/game';
 import { useUi } from '../state/ui';
 import { haptic } from '../notify';
 import { ARCH_NAMES, C } from '../theme';
-import { ArchIcon, Body, Btn, CardTile, Display, Panel, Rise, Tag, Well } from '../ui/kit';
+import { ArchIcon, Body, Btn, CardTile, Display, Panel, Rise, Tag, Well, Ribbon } from '../ui/kit';
 import { ARENA_SKINS, FRAME_SKINS, ownsSkin, usePassChain } from '../chain/pass';
 import { useFrameKey } from '../game/cosmetics';
 import { EMOTE_ART } from '../data/cosmeticArt';
@@ -42,7 +42,7 @@ function Wardrobe() {
     <Well style={{ gap: 8 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Display size={18}>Wardrobe</Display>
-        <Tag text={pc.status === 'live' ? 'OWNERSHIP FROM CHAIN' : pc.status === 'preview' ? 'PREVIEW MODE' : 'CHECKING CHAIN'} color={pc.status === 'live' ? C.teal : C.dim} />
+        {pc.status === 'live' ? <Tag text="✓ YOURS ON CHAIN" color={C.teal} /> : pc.status === 'offline' ? <Tag text="OFFLINE" color={C.dim} /> : null}
       </View>
       <Body size={11} color={C.dim}>Arena skin (both the native 3D and the web compat arena)</Body>
       <View style={st.opts}>
@@ -89,8 +89,8 @@ export function DeckScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 120 }}>
       <Rise>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-          <Display size={28}>Battle Deck</Display>
+        <View style={{ alignItems: 'center', gap: 6 }}>
+          <Ribbon text="Battle Deck" tone="blue" size={22} />
           <Body size={13}>Avg Lv {avg.toFixed(1)} · {elixir.toFixed(1)} elixir</Body>
         </View>
       </Rise>

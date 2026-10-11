@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Image, Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Animated, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { UI_ART } from '../data/art';
 import { CHESTS, QUESTS, QUEST_BONUS, RIVALS, WEEK, dayKey, msToUtcMidnight, rolloverLabel, streakState } from '../game/rules';
 import { challengeMessage, claimQuest, doClockIn, openChest, prepareMatch, startUnlock } from '../game/actions';
-import { CLUSTER_LABEL, explorerTx } from '../chain/solana';
+import { explorerTx, short } from '../chain/solana';
 import { SKR_LABEL, SKR_LIVE } from '../chain/skr';
 import { useGame, avgDeckLevel, slotsOf } from '../state/game';
 import { SEASON, claimable, tierFor, tierProgress } from '../game/season';
@@ -21,6 +21,7 @@ import { useSession } from '../wallet/sessionKey';
 import { blinkMessage } from '../game/blink';
 import { readableError } from '../chain/send';
 import { CHAR_ART, FEATURE_ART, REWARD_ART, UI_ICON } from '../data/cosmeticArt';
+import { ProofSeal } from '../ui/ProofSheet';
 
 const QUEST_ICON = { clockin: UI_ICON.questClockin, win: UI_ICON.questWin, deploy: UI_ICON.questDeploy } as const;
 
@@ -87,7 +88,7 @@ function ClockIn() {
       const bits = [`Day ${r.streak}`, `+${r.skr} SKR`];
       if (r.chestTier) bits.push(r.chestQueued ? `${CHESTS[r.chestTier as keyof typeof CHESTS].name} waiting for a free slot` : `${CHESTS[r.chestTier as keyof typeof CHESTS].name}`);
       if (r.shieldsUsed) bits.push(`${r.shieldsUsed} shield used`);
-      say(`${bits.join(' · ')}${r.sig ? (r.via === 'session' ? ' · signed by your session key, no prompt' : ` · proof on ${CLUSTER_LABEL}`) : ''}`, 'ok');
+      say(`${bits.join(' · ')}${r.sig ? (r.via === 'session' ? ' · no prompt needed' : ' · on chain ✓') : ''}`, 'ok');
     } catch (e) {
       say(readableError(e), 'err');
     } finally {
@@ -126,7 +127,7 @@ function ClockIn() {
 
       <Btn
         label={doneToday ? 'CLOCKED IN ✓' : 'CLOCK IN'}
-        sub={doneToday ? undefined : !sgtChecked && busy ? 'checking Seeker perk…' : `Day ${ladderDay} reward · signed on Solana devnet`}
+        sub={doneToday ? undefined : !sgtChecked && busy ? 'checking Seeker perk…' : `Day ${ladderDay} reward · kept on Solana`}
         size="lg"
         tone={doneToday ? 'ghost' : 'gold'}
         disabled={doneToday}
@@ -139,28 +140,26 @@ function ClockIn() {
           Best {streak.best} · Shields {streak.shields} {sgt ? '· Seeker ×2 SKR' : ''}
         </Body>
         {last?.day === dayKey() && last.sig ? (
-          <Pressable onPress={() => void Linking.openURL(explorerTx(last.sig!))} hitSlop={14} accessibilityRole="link" accessibilityLabel="Open the Clock-In proof on Solana Explorer">
-            <Tag text="ON CHAIN ✓ ↗" color={C.teal} />
-          </Pressable>
+          <ProofSeal info={{ title: 'Today\'s Clock-In', art: FEATURE_ART.clockin, glow: C.gold, about: 'Your Clock-In was signed and landed on Solana. The program checked the day and your streak itself, so nobody can fake one.', proofs: [{ label: `tx ${short(last.sig, 6)}`, url: explorerTx(last.sig) }] }} />
         ) : last?.day === dayKey() && last.offlineReason ? (
-          <Tag text="saved on device" color={C.goldHi} />
+          <Tag text="SAVED" color={C.goldHi} />
         ) : null}
       </View>
       {ledger === undefined ? null : (
         <Body size={11} color={C.dimOnWood} style={{ marginTop: 4 }}>
           {ledger === null
-            ? 'Your streak is safe on this phone; it syncs with the chain when devnet answers.'
+            ? 'Your streak is safe on this phone and syncs when the network is back.'
             : ledger[0]?.via === 'program'
               ? `Kept on Solana: streak ${chainState?.streak ?? ledger[0].streak}, best ${chainState?.best ?? '–'}, ${chainState?.total ?? '–'} Clock-In${chainState?.total === 1 ? '' : 's'}${ledger.some((l) => l.via === 'session') ? `, ${ledger.filter((l) => l.via === 'session').length} with no prompt` : ''}.`
             : ledger.length
               ? `Kept on Solana: ${ledger.length} signed Clock-In${ledger.length === 1 ? '' : 's'}, latest streak ${ledger[0].streak}.`
-              : 'Your Clock-Ins go on chain once the wallet has devnet SOL.'}
+              : 'Your Clock-Ins go on chain once the wallet has SOL for fees.'}
         </Body>
       )}
       <SessionCard />
       {last?.day === dayKey() && last.offlineReason ? (
         <Body size={11} color={C.dimOnWood} style={{ marginTop: 4 }}>
-          Not on-chain: {last.offlineReason}. Your streak and chest are kept{SKR_LIVE ? '; the SKR is owed — claim it in the Shop once you have devnet SOL.' : `; ${SKR_LABEL} was credited.`}
+          Saved on this phone: {last.offlineReason}. Your streak and chest are kept{SKR_LIVE ? '; the SKR is owed: claim it in the Shop once you have SOL for fees.' : `; ${SKR_LABEL} was credited.`}
         </Body>
       ) : null}
       {stampDay !== null ? (
@@ -404,7 +403,7 @@ function PassTeaser() {
         <View style={{ flex: 1, gap: 4 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Display size={20}>Season Pass</Display>
-            <Tag text={premium ? 'PREMIUM · ON-CHAIN' : status === 'preview' ? 'PREVIEW' : 'FREE TRACK'} color={premium ? C.gold : C.teal} />
+            <Tag text={premium ? 'PREMIUM ✓' : 'FREE TRACK'} color={premium ? C.gold : C.teal} />
           </View>
           <Body size={12} color={C.dim}>Tier {tier} / {SEASON.tiers} · {pass.xp} XP{ready ? ` · ${ready} to claim` : ''}</Body>
           <Progress value={tierProgress(pass.xp)} color={C.gold} height={8} />
@@ -459,7 +458,7 @@ export function HomeScreen() {
       <Rise delay={120}><Battle /></Rise>
       <Rise delay={160}><CoachTeaser /></Rise>
       <Rise delay={180}>
-        <Btn label="ON-CHAIN" sub={`what this wallet has on Solana ${CLUSTER_LABEL}`} tone="ghost" size="sm" onPress={() => useUi.getState().setOnchain(true)} />
+        <Btn label="CHAIN POWERS" sub="everything you unlocked on Solana" icon={CHAR_ART.trophy} tone="gold" size="sm" onPress={() => useUi.getState().setOnchain(true)} />
       </Rise>
     </ScrollView>
   );

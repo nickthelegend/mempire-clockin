@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Image, Linking, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from 'react-native';
+import { Image, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from 'react-native';
 import { CARD_ART } from '../data/art';
-import { CLUSTER_LABEL, explorerTx, short } from '../chain/solana';
+import { explorerTx, short } from '../chain/solana';
 import { prepareDuel } from '../game/actions';
 import { duelMessage } from '../game/blink';
 import type { DuelPayload } from '../game/duel';
@@ -11,9 +11,10 @@ import { useDisplayName } from '../state/identity';
 import { useUi } from '../state/ui';
 import { useWallet } from '../wallet/wallet';
 import { C } from '../theme';
-import { Body, Btn, Display, Panel, Tag, Well } from '../ui/kit';
+import { Body, Btn, Display, Panel, Tag, Well, Ribbon } from '../ui/kit';
 import type { DuelTx } from '../chain/duels';
 import { CHAR_ART, FEATURE_ART } from '../data/cosmeticArt';
+import { ProofSeal } from '../ui/ProofSheet';
 
 const ago = (t: number) => {
   if (!t) return '';
@@ -62,11 +63,11 @@ function OpenCard() {
       {p ? (
         <>
           <Body size={12} color={C.dimOnWood}>
-            {p.rush ? 'Rush · 0:30' : 'Standard · 3:00'} · {p.inputs.length} recorded deploys · seed {p.seed}
+            {p.rush ? 'Rush · 0:30' : 'Standard · 3:00'} · {p.inputs.length} recorded moves
           </Body>
           <DeckRow p={p} />
           <Tag
-            text={open.source === 'chain' ? `MATCHES ITS ON-CHAIN COMMITMENT (${CLUSTER_LABEL})` : 'FROM A LINK · NOT ON CHAIN'}
+            text={open.source === 'chain' ? '✓ VERIFIED ON CHAIN' : 'FROM A LINK'}
             color={open.source === 'chain' ? C.teal : C.goldHi}
           />
           <Body size={12} color={C.dimOnWood} style={{ marginTop: 6 }}>
@@ -85,7 +86,7 @@ function OpenCard() {
           />
         </>
       ) : (
-        <Body size={12} color={open.error ? C.red : C.dimOnWood}>{open.error ?? 'Reading the challenge from chain…'}</Body>
+        <Body size={12} color={open.error ? C.red : C.dimOnWood}>{open.error ?? 'Loading the ghost…'}</Body>
       )}
     </Panel>
   );
@@ -102,10 +103,9 @@ function ResultLine({ t, check }: { t: DuelTx; check?: Check }) {
           <Who address={t.signer} />
           <Body size={12} color={C.dim}>{w === 'o' ? 'beat the ghost' : w === 'c' ? 'lost to the ghost' : 'drew'} · {ago(t.time)}</Body>
         </View>
-        <Body size={11} color={C.dim}>state hash {t.memo.stateHash.toString(16).padStart(8, '0')}</Body>
       </View>
       <Pressable onPress={() => void verify(t.sig)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Verify by replay">
-        {check?.state === 'ok' ? <Tag text="✓ RESULT MATCHES REPLAY" color={C.teal} />
+        {check?.state === 'ok' ? <Tag text="✓ REPLAY CONFIRMS" color={C.teal} />
           : check?.state === 'bad' ? <Tag text={`✗ ${check.why ?? 'MISMATCH'}`.slice(0, 40)} color={C.red} />
           : check?.state === 'busy' ? <Tag text="REPLAYING…" color={C.dim} />
           : <Tag text="VERIFY BY REPLAY" color={C.goldHi} />}
@@ -141,9 +141,7 @@ function Board() {
           </Pressable>
         ))}
       </View>
-      <Body size={11} color={C.dim}>
-        Read from {CLUSTER_LABEL} on this phone: every duel transaction carries the duel reference account. Results are re-simulated here before they get a ✓.
-      </Body>
+      <Body size={11} color={C.dim}>Every result is replayed on this phone before it gets a ✓.</Body>
       {error ? <Body size={12} color={C.red}>{error}</Body> : null}
       {!loading && !shown.length ? <Body size={12} color="#fff">{tab === 'all' ? 'No duels yet. Win (or lose) a native-arena battle, then Duel a friend.' : 'Nothing of yours yet.'}</Body> : null}
       {shown.map((c) => {
@@ -158,9 +156,10 @@ function Board() {
                   <Who address={c.signer} />
                   <Body size={12} color={C.dim}>{mine ? 'challenged anyone' : 'challenges you'} · {ago(c.time)}</Body>
                 </View>
-                <Pressable onPress={() => void Linking.openURL(explorerTx(c.sig))} hitSlop={6} accessibilityRole="link">
-                  <Body size={11} color={C.dim}>tx {short(c.sig, 6)} ↗ · {rs.length} answer{rs.length === 1 ? '' : 's'}</Body>
-                </Pressable>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                  <ProofSeal label="ON CHAIN" info={{ title: 'Ghost challenge', art: FEATURE_ART.ghostduel, glow: C.bluePale, about: 'This challenge is a transaction carrying the recorded moves. Every answer is replayed on your phone before it gets a ✓.', proofs: [{ label: `challenge ${short(c.sig, 6)}`, url: explorerTx(c.sig) }] }} />
+                  <Body size={11} color={C.dim}>{rs.length} answer{rs.length === 1 ? '' : 's'}</Body>
+                </View>
               </View>
               {mine ? (
                 <Btn label="SHARE" tone="blue" size="sm" style={{ width: 90 }} onPress={() => {
@@ -196,7 +195,7 @@ function Paste() {
       <TextInput
         value={v}
         onChangeText={setV}
-        placeholder="paste a duel link or signature"
+        placeholder="paste a duel link"
         placeholderTextColor={C.dim}
         autoCapitalize="none"
         autoCorrect={false}
@@ -215,10 +214,10 @@ export function DuelsScreen() {
       <View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <Image source={FEATURE_ART.ghostduel} style={{ width: 56, height: 56 }} resizeMode="contain" accessibilityLabel="Ghost Duels" />
-          <Display size={30}>Ghost Duels</Display>
+          <Ribbon text="Ghost Duels" tone="blue" size={22} />
         </View>
         <Body size={13}>
-          Async PvP. Any native-arena match can be sent as a ghost: your exact deploys, replayed on the same seed. A friend fights it whenever they like, and the result goes on chain with a state hash anyone can re-simulate.
+          Send any battle as a ghost. Friends fight your exact moves whenever they like, and every result is checked by replay.
         </Body>
       </View>
       <OpenCard />

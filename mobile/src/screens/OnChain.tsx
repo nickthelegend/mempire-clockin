@@ -24,7 +24,7 @@ import { useWallet } from '../wallet/wallet';
 import { haptic } from '../notify';
 import { reduceMotion } from '../motion';
 import { C, R } from '../theme';
-import { Body, Btn, Display, PressScale, SkrIcon } from '../ui/kit';
+import { Body, Btn, Display, PressScale, SkrIcon, Ribbon } from '../ui/kit';
 
 /**
  * "Chain Powers": every Solana feature Mempire uses, as a trophy room of
@@ -342,9 +342,9 @@ export function OnChainSheet() {
             <View style={st.heroGlow} />
             <Image source={CHAR_ART.trophy} style={{ width: 150, height: 150 }} resizeMode="contain" accessibilityLabel="Season 1 trophy" />
           </View>
-          <Display size={34} style={{ textAlign: 'center' }}>Chain Powers</Display>
+          <Ribbon text="Chain Powers" tone="gold" size={28} />
           <Body size={14} color={C.dim} style={{ textAlign: 'center', marginTop: -8 }}>
-            {active} of {total} powers active on Solana {CLUSTER_LABEL}
+            {active} of {total} powers active on Solana
           </Body>
           <View style={st.bar} accessibilityLabel={`${active} of ${total} powers active`}>
             <LinearGradient colors={[C.goldHi, C.gold]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ width: `${(active / total) * 100}%`, height: '100%', borderRadius: 7 }} />

@@ -1,21 +1,22 @@
 import { useEffect, useState } from 'react';
-import { Image, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, View } from 'react-native';
 import { SHOP, type ShopItemId } from '../game/rules';
 import { buy, claimOwedSkr } from '../game/actions';
-import { SKR_LABEL, SKR_LIVE, SKR_MAINNET_MINT } from '../chain/skr';
-import { explorerTx, short } from '../chain/solana';
+import { SKR_LABEL, SKR_LIVE, SKR_MINT } from '../chain/skr';
+import { explorerAddr, explorerTx, short } from '../chain/solana';
 import { useGame } from '../state/game';
 import { useUi } from '../state/ui';
 import { useWallet } from '../wallet/wallet';
 import { C } from '../theme';
 import { CARD_ART, UI_ART } from '../data/art';
-import { Body, Btn, ChestArt, Display, FrameOverlay, Panel, Rise, SkrIcon, Tag, Well } from '../ui/kit';
+import { Body, Btn, ChestArt, Display, FrameOverlay, Panel, Rise, SkrIcon, Tag, Well, Ribbon } from '../ui/kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ARENA_SKINS, FRAME_SKINS, ownsSkin, usePassChain, type SkinDef } from '../chain/pass';
-import { CLUSTER_LABEL } from '../chain/solana';
+
 import { buySkin } from '../game/actions';
 import { readableError } from '../chain/send';
-import { FEATURE_ART } from '../data/cosmeticArt';
+import { FEATURE_ART, REWARD_ART } from '../data/cosmeticArt';
+import { ProofSeal } from '../ui/ProofSheet';
 
 /**
  * Thumbnails of each arena skin, cropped from real renders of the native 3D
@@ -122,27 +123,27 @@ function Cosmetics() {
       <View style={st.between}>
         <Display size={20}>Skins</Display>
         <Tag
-          text={pc.status === 'live' ? `ON-CHAIN · ${(pc.skr ?? 0).toLocaleString()} SKR` : pc.status === 'preview' ? 'PREVIEW MODE' : pc.status === 'offline' ? 'CHAIN UNREACHABLE' : 'CHECKING…'}
+          text={pc.status === 'live' ? '✓ YOURS ON CHAIN' : pc.status === 'preview' ? 'SOON' : pc.status === 'offline' ? 'OFFLINE' : ' '}
           color={pc.status === 'live' ? C.skr : C.goldHi}
         />
       </View>
       <Body size={12} color={C.dimOnWood}>
         {pc.status === 'live'
-          ? `Each skin is a Token-2022 token with its name and type stored on the mint, sold for SKR in one transaction on ${CLUSTER_LABEL}. Tradable. Cosmetic only.`
+          ? 'Every skin is a collectible you own in your wallet. Bought with SKR, tradable, cosmetic only.'
           : pc.status === 'preview'
-            ? `On-chain skins available once deployed: preview mode. The mempire_pass program is not on ${CLUSTER_LABEL} yet, so nothing is sold and nothing shows as owned.`
+            ? 'Skins open soon.'
             : pc.status === 'offline'
-              ? `Can't reach ${CLUSTER_LABEL} right now, so skins can't be checked or bought. Nothing shows as owned until the chain answers.`
-              : `Reading your skins from ${CLUSTER_LABEL}…`}
+              ? 'The network is busy, so your skins can\'t be checked right now.'
+              : ' '}
       </Body>
       <Body size={12} color="#fff" bold style={{ marginTop: 10 }}>Arena skins · field, river, towers, crowd and light</Body>
       <View style={st.skinRow}>{ARENA_SKINS.map((s) => item(s, 'arena'))}</View>
       <Body size={12} color="#fff" bold style={{ marginTop: 10 }}>Card frames</Body>
       <View style={st.skinRow}>{FRAME_SKINS.map((s) => item(s, 'frame'))}</View>
       {sig ? (
-        <Pressable onPress={() => void Linking.openURL(explorerTx(sig))} style={{ marginTop: 8 }}>
-          <Tag text={`skin tx ${short(sig)} ↗`} color={C.teal} />
-        </Pressable>
+        <View style={{ marginTop: 8, alignSelf: 'flex-start' }}>
+          <ProofSeal info={{ title: 'Skin purchased', art: ARENA_THUMBS.neon, glow: C.purple, about: 'Your skin was minted to your wallet in one transaction, paid in SKR. It is yours to keep or trade.', proofs: [{ label: `purchase ${short(sig, 6)}`, url: explorerTx(sig) }] }} />
+        </View>
       ) : null}
       <Btn label="WARDROBE" sub="equip in Deck" tone="ghost" size="sm" style={{ marginTop: 10 }} onPress={() => setTab('deck')} />
     </Panel>
@@ -179,7 +180,7 @@ export function ShopScreen() {
     try {
       const r = await buy(id);
       if (r.sig) setLastSig(r.sig);
-      say(r.sig ? 'Paid in SKR on devnet ✓' : 'Bought with simulated SKR', 'ok');
+      say(r.sig ? 'Paid in SKR ✓' : 'Bought ✓', 'ok');
     } catch (e) {
       say(readableError(e), 'err');
     } finally {
@@ -190,8 +191,8 @@ export function ShopScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 120 }}>
       <Rise>
-        <Display size={28}>SKR Shop</Display>
-        <Body size={13}>Earn SKR by clocking in every day. Spend it on keeping the streak — never on power.</Body>
+        <Ribbon text="SKR Shop" tone="gold" />
+        <Body size={13} style={{ textAlign: 'center', marginTop: 6 }}>Earn SKR every day. Spend it on your streak, never on power.</Body>
       </Rise>
 
       <Rise delay={40}>
@@ -204,7 +205,7 @@ export function ShopScreen() {
                 <Display size={34} color="#fff">{SKR_LIVE && skrChain === null ? '…' : balance.toLocaleString()}</Display>
               </View>
             </View>
-            <Tag text={SKR_LIVE ? 'DEVNET SPL · 6 DEC' : 'SIMULATED'} color={SKR_LIVE ? C.skr : C.goldHi} />
+            {null}
           </View>
           {SKR_LIVE && owed > 0 ? (
             <Btn
@@ -219,14 +220,12 @@ export function ShopScreen() {
             />
           ) : null}
           <Body size={11} color={C.dim}>
-            {SKR_LIVE
-              ? 'A devnet stand-in for SKR with the same decimals and token program. Payments are real devnet transferChecked transactions to the game treasury.'
-              : `The devnet stand-in mint is not deployed in this build, so this balance is simulated on the device. Real SKR: ${short(SKR_MAINNET_MINT, 6)} (mainnet).`}
+            Earn SKR every Clock-In and quest. Spend it on streak keepers, chests and skins.
           </Body>
           {lastSig ? (
-            <Pressable onPress={() => void Linking.openURL(explorerTx(lastSig))}>
-              <Tag text={`last tx ${short(lastSig)} ↗`} color={C.teal} />
-            </Pressable>
+            <View style={{ alignSelf: 'flex-start' }}>
+              <ProofSeal info={{ title: 'SKR payment', art: REWARD_ART.skr, glow: C.skr, about: 'Your SKR went to the game treasury in one transaction. The stand-in SKR on this network has the same decimals and token program as the real one.', proofs: [{ label: `payment ${short(lastSig, 6)}`, url: explorerTx(lastSig) }, ...(SKR_MINT ? [{ label: `SKR ${short(SKR_MINT.toBase58(), 6)}`, url: explorerAddr(SKR_MINT.toBase58()) }] : [])] }} />
+            </View>
           ) : null}
         </Well>
       </Rise>
@@ -268,7 +267,7 @@ export function ShopScreen() {
               <Image source={FEATURE_ART.seeker} style={{ width: 32, height: 32 }} resizeMode="contain" />
               <Display size={18}>Seeker perks</Display>
             </View>
-            <Tag text={sgt ? 'SEEKER VERIFIED' : sgtChecked ? 'NOT DETECTED' : 'CHECKING…'} color={sgt ? C.teal : C.dim} />
+            {sgt ? <Tag text="✓ SEEKER" color={C.teal} /> : sgtChecked ? <Tag text="LOCKED" color={C.dim} /> : null}
           </View>
           <Body size={12}>
             Holding a Seeker Genesis Token doubles the SKR every Clock-In pays. Checked read-only on mainnet against the wallet you connected — Mempire never moves mainnet funds.

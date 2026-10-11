@@ -182,6 +182,7 @@ export function Chip({ label, value, color = C.gold, onPress, tag, icon }: {
 }
 
 export function Tag({ text, color = C.teal }: { text: string; color?: string }) {
+  if (!text.trim()) return null;
   return (
     <View style={{ borderRadius: 8, borderWidth: 1, borderColor: color, paddingHorizontal: 6, paddingVertical: 2, alignSelf: 'flex-start' }}>
       <Text maxFontSizeMultiplier={1.3} style={{ fontFamily: F.uiBold, fontSize: 10, color, letterSpacing: 0.4 }}>{text}</Text>
@@ -317,3 +318,34 @@ const s = StyleSheet.create({
   bar: { height: 14, marginTop: 4, borderRadius: 4, backgroundColor: C.recess, overflow: 'hidden', justifyContent: 'center' },
   barText: { position: 'absolute', alignSelf: 'center', fontFamily: F.uiBold, fontSize: 10, color: '#fff' },
 });
+
+// ── banners ─────────────────────────────────────────────────────────────────
+
+const RIBBON_TONES = {
+  gold: ['#ffd766', '#e59a12', '#8a5207'],
+  blue: ['#6cc4ff', '#2a74d6', '#123f7c'],
+  purple: ['#d9a3ff', '#8a45e6', '#4a1d8c'],
+  red: ['#ff8fa3', '#e0384f', '#7d1426'],
+} as const;
+
+/**
+ * A ribbon banner for screen and panel titles: a bevelled band with folded
+ * tails, the title in the display face with a hard drop shadow.
+ */
+export function Ribbon({ text, tone = 'gold', size = 24, style }: {
+  text: string; tone?: keyof typeof RIBBON_TONES; size?: number; style?: StyleProp<ViewStyle>;
+}) {
+  const [hi, mid, dark] = RIBBON_TONES[tone];
+  const h = Math.round(size * 1.9);
+  const tail = Math.round(h * 0.42);
+  return (
+    <View style={[{ flexDirection: 'row', alignItems: 'center', alignSelf: 'center' }, style]} accessibilityRole="header" accessibilityLabel={text}>
+      <View style={{ width: tail, height: h * 0.78, marginRight: -6, marginTop: h * 0.3, backgroundColor: dark, borderTopLeftRadius: 4, borderBottomLeftRadius: 4 }} />
+      <LinearGradient colors={[hi, mid, dark]} locations={[0, 0.55, 1]} style={{ height: h, paddingHorizontal: size * 0.9, borderRadius: 8, borderWidth: 2.5, borderColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>
+        <View style={{ position: 'absolute', left: 6, right: 6, top: 3, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.45)' }} />
+        <Text maxFontSizeMultiplier={1.2} numberOfLines={1} style={{ fontFamily: F.display, fontSize: size, color: '#fff', textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 2.5 }, textShadowRadius: 0 }}>{text}</Text>
+      </LinearGradient>
+      <View style={{ width: tail, height: h * 0.78, marginLeft: -6, marginTop: h * 0.3, backgroundColor: dark, borderTopRightRadius: 4, borderBottomRightRadius: 4 }} />
+    </View>
+  );
+}

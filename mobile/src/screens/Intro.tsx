@@ -21,7 +21,7 @@ const SLIDES = [
   {
     kicker: 'EVERY DAY',
     title: 'Clock in, keep the streak',
-    body: 'One tap a day. Seven days build to a Legendary chest, and your streak is signed on Solana devnet.',
+    body: 'One tap a day. Seven days build to a Legendary chest, and your streak is kept on Solana.',
     art: 'clockin',
   },
   {

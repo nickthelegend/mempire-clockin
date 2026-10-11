@@ -9,10 +9,10 @@ import { useGame } from '../state/game';
 import { useUi } from '../state/ui';
 import { useDisplayName } from '../state/identity';
 import { useWar } from '../state/war';
-import { CLUSTER_LABEL } from '../chain/solana';
+
 import { useWallet } from '../wallet/wallet';
 import { C, R } from '../theme';
-import { Body, Btn, Display, Panel, Tag, Well } from '../ui/kit';
+import { Body, Btn, Display, Panel, Tag, Well, Ribbon } from '../ui/kit';
 import { CHAR_ART, FEATURE_ART, UI_ICON } from '../data/cosmeticArt';
 
 function Coin({ t, size = 44 }: { t: string; size?: number }) {
@@ -74,9 +74,9 @@ function GlobalBoard() {
   return (
     <Well style={{ gap: 8 }}>
       <View style={[st.between, { flexWrap: 'wrap', gap: 6 }]}>
-        <Display size={18}>Global war · {CLUSTER_LABEL}</Display>
+        <Display size={18}>Global war</Display>
         <Tag
-          text={board ? 'COMPUTED FROM CHAIN ON THIS PHONE' : error ? 'CHAIN UNREACHABLE' : 'READING CHAIN…'}
+          text={board ? 'LIVE ✓' : error ? 'OFFLINE' : 'UPDATING'}
           color={board ? C.teal : error ? C.red : C.dim}
         />
       </View>
@@ -103,10 +103,10 @@ function GlobalBoard() {
           <Body size={11} color={C.dim}>{r.claimed !== r.streak ? `claims ${r.claimed}` : ''}</Body>
           <Display size={18} color={C.gold} style={{ width: 44, textAlign: 'right' }}>{r.streak}</Display>
         </View>
-      )) : <Body size={12} color="#fff">{loading ? 'Reading Clock-Ins from chain…' : 'No Clock-Ins with the war reference yet.'}</Body>}
+      )) : <Body size={12} color="#fff">{loading ? ' ' : 'No pledged Clock-Ins yet. Be the first!'}</Body>}
       {error ? <Body size={11} color={C.red}>{error}</Body> : null}
       <Body size={11} color={C.dim}>
-        {n} transactions read from the war reference account{board ? ` · ${board.wallets} wallets · ${board.clockIns} Clock-Ins` : ''}. A streak is the run of consecutive days visible on chain (session Clock-Ins count only with a valid owner-signed link); the number a client wrote in its memo is shown as "claims".
+        {board ? `${board.wallets} players · ${board.clockIns} Clock-Ins. ` : ''}Every phone counts the war straight from Solana, so nobody can pad the score.
       </Body>
       <View style={{ flexDirection: 'row', gap: 8 }}>
         <Btn label={loading ? '…' : 'REFRESH'} tone="ghost" size="sm" style={{ flex: 1 }} onPress={() => void refresh()} />
@@ -133,7 +133,7 @@ export function BoardSheet() {
   const pick = (s: WarSide) => {
     setWarSide(s);
     haptic.success();
-    say(`You fight for $${s}. Your next Clock-In memo carries the pledge.`, 'ok');
+    say(`You fight for $${s}! Your next Clock-In carries the pledge.`, 'ok');
   };
 
   return (
@@ -143,7 +143,7 @@ export function BoardSheet() {
           <View style={st.between}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Image source={CHAR_ART.trophy} style={{ width: 52, height: 52 }} resizeMode="contain" accessibilityLabel="Season 1 trophy" />
-              <Display size={28}>Leaderboard</Display>
+              <Ribbon text="Leaderboard" tone="gold" size={22} />
             </View>
             <Btn label="✕" tone="ghost" size="sm" onPress={() => setBoard(false)} />
           </View>
@@ -153,7 +153,7 @@ export function BoardSheet() {
             <View style={{ flex: 1 }}>
               <Body size={15} bold color={who.skr ? C.teal : '#fff'}>{who.label}</Body>
               <Body size={11} color={C.dim}>
-                {who.skr ? '.skr name, resolved from mainnet' : 'no .skr name found · showing your address'}{side ? ` · fights for $${side}` : ''}
+                {side ? `Fighting for $${side}` : 'Pick a side below'}
               </Body>
             </View>
             <Body size={12} color={C.dim}>{wins}W</Body>
@@ -166,7 +166,7 @@ export function BoardSheet() {
               <Display size={20}>Season War · {SEASON_WAR.title}</Display>
             </View>
             <Body size={12} color={C.dimOnWood} style={{ marginTop: 4 }}>
-              Pick a coin. Every Clock-In you sign carries your pledge in its on-chain memo, and battles won with that coin in your deck add points.
+              Pick a coin. Every Clock-In carries your pledge, and battles won with that coin in your deck add points.
             </Body>
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
               {SEASON_WAR.sides.map((s) => {

@@ -65,20 +65,20 @@ export function ConnectScreen() {
             try {
               await connectMwa();
               const p = useWallet.getState().signIn;
-              say(p ? `${signInLabel(p)} · SIWS verified on this phone` : 'Connected. Your wallet skipped the sign-in message.', p ? 'ok' : 'info');
+              say(p ? `${signInLabel(p)} ✓` : 'Connected. Your wallet skipped the sign-in message.', p ? 'ok' : 'info');
             } catch (e) { const m = e instanceof Error ? e.message : String(e); setErr(m); say(m, 'err'); } finally { setBusy(null); }
           }}
         />
         <Btn
-          label="USE DEV WALLET"
-          sub={MWA_AVAILABLE ? 'a devnet-only key kept on this device' : 'devnet key on this device · signs in with SIWS locally'}
+          label="PLAY NOW"
+          sub="a practice wallet on this phone · test tokens only"
           tone="ghost"
           busy={busy === 'dev'}
           onPress={async () => {
             setBusy('dev');
             try {
               await connectDev();
-              if (useWallet.getState().signIn) say('Signed in with Solana · dev wallet, verified on this device', 'ok');
+              if (useWallet.getState().signIn) say('Signed in with Solana ✓', 'ok');
             } catch (e) { const m = e instanceof Error ? e.message : String(e); setErr(`Could not create the dev wallet: ${m}`); } finally { setBusy(null); }
           }}
         />
@@ -87,7 +87,7 @@ export function ConnectScreen() {
             <Body size={13} bold color="#fff">Couldn't reach a wallet</Body>
             <Body size={12}>{err}</Body>
             <Body size={12}>
-              You can play right now with the dev wallet above and connect a real wallet later from Wallet & settings.
+              You can play right now with Play now and connect your wallet later from Settings.
             </Body>
           </Well>
         ) : null}
@@ -95,11 +95,11 @@ export function ConnectScreen() {
       <Rise delay={240}>
         <Well style={{ gap: 6, marginTop: 6 }}>
           <View style={{ flexDirection: 'row', gap: 6 }}>
-            <Tag text="SOLANA DEVNET" color={C.teal} />
+            <Tag text="TEST TOKENS ONLY" color={C.teal} />
             <Tag text="NO REAL FUNDS" color={C.goldHi} />
           </View>
           <Body size={12}>
-            Every on-chain action in this build is on devnet. Mempire never asks for a seed phrase; with Mobile Wallet Adapter your keys stay in your wallet.
+            Mempire never asks for a seed phrase. When you connect a wallet, your keys stay in it.
           </Body>
         </Well>
       </Rise>

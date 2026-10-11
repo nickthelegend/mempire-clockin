@@ -6,7 +6,7 @@ import { useGame } from '../state/game';
 import { useUi } from '../state/ui';
 import { haptic } from '../notify';
 import { ARCH_NAMES, C, R } from '../theme';
-import { ArchIcon, Body, Btn, CardTile, Display, Panel, Rise, Tag } from '../ui/kit';
+import { ArchIcon, Body, Btn, CardTile, Display, Panel, Rise, Tag, Ribbon } from '../ui/kit';
 import { ARCHETYPES } from '../../../app/src/sim/archetypes';
 
 const ALL_KINDS = [
@@ -56,7 +56,7 @@ export function CardSheet({ ticker, onClose }: { ticker: string | null; onClose:
             ))}
           </View>
           <Body size={12} color={C.dimOnWood} style={{ marginBottom: 10 }}>
-            Class and trait come from this coin&apos;s devnet mint ({f.mint.slice(0, 6)}…) by the same hash the on-chain program uses — nobody can reroll them.
+            This fighter&apos;s class and trait are fixed by its coin, so nobody can reroll them.
           </Body>
           {owned ? (
             <Btn
@@ -93,8 +93,8 @@ export function CardsScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 120 }}>
       <Rise>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-          <Display size={28}>Fighters</Display>
+        <View style={{ alignItems: 'center', gap: 6 }}>
+          <Ribbon text="Fighters" tone="blue" />
           <Body size={13}>{found}/{ROSTER.length} found{upgradable ? ` · ${upgradable} ready to upgrade` : ''}</Body>
         </View>
       </Rise>

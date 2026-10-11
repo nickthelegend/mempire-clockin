@@ -24,7 +24,7 @@ import { reduceMotion, useCountUp, EASE_OUT } from './src/motion';
 import { streakState } from './src/game/rules';
 import { findSgtMint, mainnetSkr } from './src/chain/seeker';
 import { SKR_LIVE } from './src/chain/skr';
-import { CLUSTER_LABEL, readClockIns, short } from './src/chain/solana';
+import { readClockIns, short } from './src/chain/solana';
 import { COPIES_TO_LEVEL, MAX_LEVEL } from './src/game/rules';
 import { commitPendingChests, prepareMatch } from './src/game/actions';
 import { setPerf } from './src/arena/perf';
@@ -93,19 +93,18 @@ function Header() {
         <View style={{ flexShrink: 1 }}>
           <Body size={13} color={who.skr ? C.teal : '#fff'} bold numberOfLines={1} style={{ maxWidth: 130 }}>{who.label}</Body>
           <Body size={10} color={sgt ? C.teal : kind === 'dev' ? C.goldHi : C.dim} bold numberOfLines={2}>
-            {sgt ? 'SEEKER VERIFIED' : kind === 'dev' ? 'DEV WALLET' : 'MWA WALLET'}{siws ? ' · SIWS ✓' : ''}
+            {sgt ? 'SEEKER ✓' : siws ? 'SIGNED IN ✓' : kind === 'dev' ? 'PRACTICE' : 'WALLET'}
           </Body>
         </View>
       </Pressable>
       <View style={{ flexDirection: 'row', gap: 6, flexShrink: 0 }}>
         <Chip label="TROPHY" value={String(shownTrophies)} color={C.gold} />
-        <Chip label="SOL" value={sol === null ? '…' : sol.toFixed(2)} color={C.bluePale} onPress={() => setWalletOpen(true)} tag={CLUSTER_LABEL} />
+        <Chip label="SOL" value={sol === null ? '…' : sol.toFixed(2)} color={C.bluePale} onPress={() => setWalletOpen(true)} />
         <Chip
           label="SKR"
           icon={REWARD_ART.skr}
           value={SKR_LIVE && skr === null ? '…' : String(shownSkr)}
           color={C.skr}
-          tag={SKR_LIVE ? 'stand-in' : 'sim'}
           onPress={() => setTab('shop')}
         />
       </View>
@@ -180,12 +179,13 @@ function OfflineBanner() {
   if (status !== 'down' && status !== 'busy') return null;
   const busy = status === 'busy';
   return (
-    <Pressable onPress={() => void check()} style={st.offline} accessibilityRole="button" accessibilityLabel={busy ? 'Devnet is busy. Tap to retry.' : 'Devnet unreachable. Tap to retry.'}>
-      <Body size={12} bold color="#fff">{busy ? 'Devnet is busy (rate-limited) right now.' : 'Devnet is unreachable right now.'}</Body>
-      <Body size={11} color={C.dim}>Battles, chests and quests still work. On-chain actions {busy ? 'may be slow' : 'wait'}. Tap to retry.</Body>
+    <Pressable onPress={() => void check()} style={[st.offline, busy && { backgroundColor: '#8a5a12' }]} accessibilityRole="button" accessibilityLabel={busy ? 'The network is busy. Tap to retry.' : 'Offline. Tap to retry.'}>
+      <Body size={12} bold color="#fff">{busy ? 'Network busy: rewards may take a moment' : 'Offline: battles and chests still work'}</Body>
+      <Body size={11} bold color={C.goldHi}>RETRY</Body>
     </Pressable>
   );
 }
+
 
 function Game() {
   const setIntro = useUi((s) => s.setIntro);
@@ -407,7 +407,7 @@ export default function App() {
 
 const st = StyleSheet.create({
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 18 },
-  offline: { backgroundColor: '#7a2236', paddingHorizontal: 14, paddingVertical: 8, minHeight: 44, justifyContent: 'center' },
+  offline: { backgroundColor: '#7a2236', paddingHorizontal: 14, paddingVertical: 6, minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 12, paddingBottom: 8, backgroundColor: 'rgba(9,22,48,0.55)',

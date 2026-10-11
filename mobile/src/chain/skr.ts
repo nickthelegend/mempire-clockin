@@ -38,7 +38,8 @@ const cfg = cfgJson as SkrConfig;
 
 export const SKR_MAINNET_MINT = 'SKRbvo6Gf7GondiT3BbTfuRDPqLWei4j2Qy2NPGZhW3';
 export const SKR_LIVE = !!(cfg.configured && cfg.mint && cfg.faucet && cfg.faucetPda && cfg.faucetProgram && cfg.treasury);
-export const SKR_LABEL = SKR_LIVE ? 'SKR (devnet stand-in)' : 'SKR (simulated)';
+/** Player-facing name. The stand-in detail lives in the proof sheets. */
+export const SKR_LABEL = 'SKR';
 export const SKR_DECIMALS = cfg.decimals ?? 6;
 export const SKR_MINT = SKR_LIVE ? new PublicKey(cfg.mint!) : null;
 const UNIT = 10 ** SKR_DECIMALS;

@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Image, Linking, Pressable, StyleSheet, Switch, View } from 'react-native';
-import { explorerTx } from '../chain/solana';
+import { Image, Linking, StyleSheet, Switch, View } from 'react-native';
+import { explorerAddr, explorerTx, short } from '../chain/solana';
 import { FEE_FLOAT_LAMPORTS, SESSION_DAYS } from '../chain/session';
 import { haptic } from '../notify';
 import { useUi } from '../state/ui';
 import { C } from '../theme';
-import { Body, Btn, Tag } from '../ui/kit';
+import { Body, Btn } from '../ui/kit';
 import { useSession } from '../wallet/sessionKey';
 import { useWallet } from '../wallet/wallet';
 import { readableError } from '../chain/send';
 import { FEATURE_ART } from '../data/cosmeticArt';
+import { ProofSeal } from '../ui/ProofSheet';
 
 const left = (sec: number) => {
   if (sec <= 0) return 'expired';
@@ -27,7 +28,6 @@ export function SessionCard() {
   const chain = useSession((s) => s.chain);
   const busy = useSession((s) => s.busy);
   const sol = useWallet((s) => s.sol);
-  const kind = useWallet((s) => s.kind);
   const say = useUi((s) => s.say);
   const [now, setNow] = useState(Math.floor(Date.now() / 1000));
   useEffect(() => { const t = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000); return () => clearInterval(t); }, []);
@@ -60,9 +60,9 @@ export function SessionCard() {
         <View style={{ flex: 1 }}>
           <Body size={13} bold color="#fff">Approve once · {SESSION_DAYS} days</Body>
           <Body size={11} color={C.dimOnWood}>
-            {on ? `Clock-Ins sign with a session key on this phone · ${left(cur!.expiresAt - now)} left`
-              : expired ? 'The session expired. Revoke to return its float, then link a new one.'
-              : `One ${kind === 'mwa' ? 'wallet' : 'dev-wallet'} approval links a session key for ${SESSION_DAYS} days; daily Clock-Ins then need no prompt.`}
+            {on ? `Daily Clock-Ins need no wallet prompt · ${left(cur!.expiresAt - now)} left`
+              : expired ? 'This week is over. Turn it off to get the fee float back, then approve a new week.'
+              : `Approve once and play ${SESSION_DAYS} days with no wallet prompts.`}
           </Body>
         </View>
         <Switch
@@ -76,17 +76,18 @@ export function SessionCard() {
       {cur ? (
         <>
           <View style={[st.row, { marginTop: 6, gap: 8, flexWrap: 'wrap' }]}>
-            <Pressable onPress={() => void Linking.openURL(explorerTx(cur.linkSig))} hitSlop={8} accessibilityRole="link" accessibilityLabel="Open the session link on Solana Explorer">
-              <Tag text={onChain ? 'LINKED ON CHAIN ✓ ↗' : 'LINK ↗'} color={onChain ? C.teal : C.goldHi} />
-            </Pressable>
+            <ProofSeal
+              label={onChain ? 'LINKED' : 'LINKING'}
+              tone={onChain ? 'teal' : 'gold'}
+              info={{ title: 'Approve Once', art: FEATURE_ART.session, glow: C.purple, about: `One approval linked a session key on this phone until ${new Date(cur.expiresAt * 1000).toLocaleDateString()}. The program checks its record on every Clock-In, and a small fee float (${lamports === null ? '…' : (lamports / 1e9).toFixed(4)} SOL) returns to your wallet when you turn it off.`, proofs: [{ label: `link ${short(cur.linkSig, 6)}`, url: explorerTx(cur.linkSig) }, { label: `key ${short(cur.session, 6)}`, url: explorerAddr(cur.session) }] }}
+            />
             <Body size={11} color={C.dimOnWood}>
-              {onChain ? `${chain!.accepted} Clock-In${chain!.accepted === 1 ? '' : 's'} with no prompt` : ''}
-              {lamports !== null ? `${onChain ? ' · ' : ''}${(lamports / 1e9).toFixed(4)} SOL set aside for fees` : ''}
+              {onChain ? `${chain!.accepted} Clock-In${chain!.accepted === 1 ? '' : 's'} with no prompt` : 'Checking the link…'}
             </Body>
           </View>
           <Btn
-            label={expired ? 'REVOKE · RETURN FLOAT' : 'REVOKE'}
-            sub="memo on chain · the float goes back to your wallet"
+            label={expired ? 'TURN OFF · RETURN FLOAT' : 'TURN OFF'}
+            sub="the fee float goes back to your wallet"
             tone="ghost"
             size="sm"
             busy={busy}

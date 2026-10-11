@@ -9,8 +9,8 @@ import { useDuels } from '../state/duels';
 import { sfx, useSound } from '../sound';
 import { EASE_IN_OUT, reduceMotion } from '../motion';
 import { markFtue } from '../state/ui';
-import { CLUSTER_LABEL, airdrop, connection, explorerAddr, explorerBlock, explorerTx, short } from '../chain/solana';
-import { FAIR_LABEL, FORMULA, seededRand, verifyProof } from '../chain/fair';
+import { airdrop, connection, explorerAddr, explorerBlock, explorerTx, short } from '../chain/solana';
+import { FORMULA, seededRand, verifyProof } from '../chain/fair';
 import { Buffer } from 'buffer';
 import { SKR_LABEL, SKR_LIVE } from '../chain/skr';
 import { useGame } from '../state/game';
@@ -19,14 +19,21 @@ import { lookupSkrOwner, useDisplayName, useIdentity } from '../state/identity';
 import { recheckProof, signInLabel, useWallet, walletLabel } from '../wallet/wallet';
 import { cancelChestReminders, haptic } from '../notify';
 import { C, F, TIER_COLORS } from '../theme';
-import { Body, Btn, CardTile, ChestArt, Display, Panel, Tag, Well } from '../ui/kit';
+import { Body, Btn, CardTile, ChestArt, Display, Panel, Tag, Well, SkrIcon } from '../ui/kit';
 import { ShareCardButton } from './ShareCard';
 import { Qr } from '../ui/Qr';
 import { duelScanLink, solanaPayDuelUrl } from '../game/blink';
 import { readableError } from '../chain/send';
-import { CHAR_ART } from '../data/cosmeticArt';
+import { CHAR_ART, FEATURE_ART, REWARD_ART } from '../data/cosmeticArt';
+import { ProofSeal } from '../ui/ProofSheet';
+import { Celebrate, usePopIn } from '../ui/Celebrate';
 
 /** Chest opening: shake, burst, then the fighters land one by one. */
+function PopIn({ children }: { children: React.ReactNode }) {
+  const v = usePopIn(true);
+  return <Animated.View style={{ transform: [{ scale: v }] }}>{children}</Animated.View>;
+}
+
 export function RevealSheet() {
   const reveal = useUi((s) => s.reveal);
   const show = useUi((s) => s.showReveal);
@@ -64,14 +71,14 @@ export function RevealSheet() {
   return (
     <Modal visible transparent animationType="fade" onRequestClose={() => show(null)}>
       <View style={st.center}>
+        <Celebrate burst={opened && !sealing ? reveal.title + reveal.drops.length : null} size={360} />
         <Display size={28} color={glowA}>{reveal.title}</Display>
         {sealing ? (
           <View style={{ alignItems: 'center', gap: 10 }}>
             <ChestArt tier={reveal.tier} size={180} />
-            <Body size={14} bold color="#fff">Sealing with Solana slot #{reveal.sealing!.targetSlot}</Body>
+            <Body size={16} bold color="#fff">Sealing your chest…{reveal.sealing!.left > 0 ? ` ~${Math.ceil(reveal.sealing!.left * 0.4)} s` : ''}</Body>
             <Body size={12} color={C.dim} style={{ textAlign: 'center', maxWidth: 300 }}>
-              {reveal.sealing!.left > 0 ? `${reveal.sealing!.left} slots to go (~${Math.ceil(reveal.sealing!.left * 0.4)} s). ` : ''}
-              This chest was committed to a slot that had not happened yet; its blockhash decides the drops.
+              A Solana block that does not exist yet decides your drops, so nobody can rig them.
             </Body>
           </View>
         ) : !opened ? (
@@ -82,7 +89,7 @@ export function RevealSheet() {
           <View style={st.drops}>
             {reveal.drops.slice(0, shown).map((d) => (
               <View key={d.ticker} style={{ alignItems: 'center', gap: 4 }}>
-                <CardTile ticker={d.ticker} owned={cards[d.ticker]} width={88} />
+                <PopIn><CardTile ticker={d.ticker} owned={cards[d.ticker]} width={88} /></PopIn>
                 <Tag text={d.fresh ? 'NEW!' : `+${d.copies} ${d.copies === 1 ? 'copy' : 'copies'}`} color={d.fresh ? C.gold : C.teal} />
               </View>
             ))}
@@ -126,7 +133,7 @@ function FairPanel({ reveal }: { reveal: Reveal }) {
   };
   return (
     <View style={{ width: '92%', marginTop: 12, gap: 6 }}>
-      <Btn label={open ? 'HIDE PROOF' : 'VERIFY'} sub={FAIR_LABEL} tone="ghost" size="sm" onPress={() => setOpen(!open)} />
+      <Btn label={open ? 'HIDE PROOF' : 'VERIFY FAIR ROLL'} icon={FEATURE_ART.commit} tone="ghost" size="sm" onPress={() => setOpen(!open)} />
       {open ? (
         <Well style={{ gap: 4 }}>
           <View style={st.row}><Body size={11} color={C.dim}>Chest</Body><Body size={11} color="#fff" bold>{p.chestId}</Body></View>
@@ -168,7 +175,7 @@ function DuelAFriend({ ghost, rush }: { ghost: string; rush: boolean }) {
     <View style={{ width: '88%', marginTop: 10, gap: 6 }}>
       <Btn
         label={sig ? 'SHARE DUEL AGAIN' : 'DUEL A FRIEND'}
-        sub={sig ? `challenge ${short(sig)} on ${CLUSTER_LABEL}` : 'send this match as a ghost · async PvP'}
+        sub={sig ? 'your ghost is live · share it again' : 'send this match as a ghost'}
         tone="blue"
         size="sm"
         busy={busy}
@@ -213,7 +220,7 @@ function ScanToDuel({ sig }: { sig: string }) {
       <Qr value={value} label={mode === 'pay' ? 'Solana Pay QR: accept this duel in any Solana Pay wallet' : 'QR with the Mempire app link to this duel'} />
       <Body size={11} color={C.dim} style={{ textAlign: 'center' }}>
         {mode === 'pay'
-          ? 'Any Solana Pay wallet: it fetches the accept transaction from the duel Action (devnet) and signs it.'
+          ? 'Scan with any Solana Pay wallet to accept the duel.'
           : 'A phone with Mempire: the camera opens the duel; the ghost is read from chain.'}
       </Body>
     </Well>
@@ -244,19 +251,17 @@ function DuelResult({ r }: { r: MatchResult }) {
         <Display size={20}>Ghost duel</Display>
       </View>
       <Body size={12} color={C.dimOnWood}>
-        {d.winner === 'o' ? 'You beat the ghost.' : d.winner === 'c' ? 'The ghost won.' : 'A draw.'} Final state hash {d.stateHash.toString(16).padStart(8, '0')}.
+        {d.winner === 'o' ? 'You beat the ghost!' : d.winner === 'c' ? 'The ghost won this time.' : 'A draw.'}
       </Body>
       {check ? (
-        <Tag text={check.ok ? '✓ RESULT MATCHES REPLAY' : `✗ REPLAY GAVE ${check.hash.toString(16)}`} color={check.ok ? C.teal : C.red} />
-      ) : <Body size={11} color={C.dimOnWood}>Re-simulating both sides…</Body>}
+        <Tag text={check.ok ? '✓ REPLAY CONFIRMS IT' : '✗ REPLAY DISAGREES'} color={check.ok ? C.teal : C.red} />
+      ) : <Body size={11} color={C.dimOnWood}>Replaying the fight to confirm…</Body>}
       {d.posted ? (
-        <Pressable onPress={() => void Linking.openURL(explorerTx(d.posted!))} hitSlop={10} accessibilityRole="link">
-          <Tag text={`result ${short(d.posted)} on ${CLUSTER_LABEL} ↗`} color={C.teal} />
-        </Pressable>
+        <ProofSeal label="RESULT POSTED" info={{ title: 'Duel result', art: FEATURE_ART.ghostduel, glow: C.bluePale, about: 'The winner, the final state hash and your deploys went on chain in one transaction. Anyone can replay the fight and get the same hash.', proofs: [{ label: `result ${short(d.posted, 6)}`, url: explorerTx(d.posted) }, ...(d.challengeSig ? [{ label: `challenge ${short(d.challengeSig, 6)}`, url: explorerTx(d.challengeSig) }] : [])] }} />
       ) : d.challengeSig ? (
         <Btn
           label="POST RESULT"
-          sub="winner + state hash + your deploys, one memo"
+          sub="put your win on the record"
           tone="gold"
           size="sm"
           busy={busy}
@@ -271,7 +276,7 @@ function DuelResult({ r }: { r: MatchResult }) {
             } catch (e) { say(readableError(e), 'err'); } finally { setBusy(false); }
           }}
         />
-      ) : <Body size={11} color={C.dimOnWood}>This ghost came from a link, not a challenge on chain, so there is nothing to answer on chain.</Body>}
+      ) : <Body size={11} color={C.dimOnWood}>This ghost came from a link, so there is no on-chain challenge to answer.</Body>}
     </Panel>
   );
 }
@@ -291,25 +296,25 @@ export function ResultSheet() {
   return (
     <Modal visible transparent animationType="fade" onRequestClose={() => show(null)}>
       <ScrollView style={st.scrim} contentContainerStyle={st.centerScroll}>
+        {r.won ? <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 260 }}><Celebrate burst={r.rival + r.crowns.join('')} size={340} /></View> : null}
         <Animated.View style={{ transform: [{ scale: pop }] }}>
           <Display size={54} color={r.won ? C.gold : r.draw ? '#fff' : C.red}>{title}</Display>
         </Animated.View>
         <Body size={15} color="#fff">vs {r.rival}</Body>
-        <Body size={11} color={C.dim}>
-          {r.renderer === 'native' ? 'Native 3D arena' : r.fellBack ? 'Web arena (switched from native)' : 'Web arena (compat)'}
-        </Body>
         <Panel style={{ width: '88%', marginTop: 18 }}>
           <View style={st.row}><Body color={C.dimOnWood}>Crowns</Body><Display size={20}>{r.crowns[0]} – {r.crowns[1]}</Display></View>
           <View style={st.row}><Body color={C.dimOnWood}>Trophies</Body><Display size={20} color={r.trophyDelta > 0 ? C.teal : r.trophyDelta < 0 ? C.red : "#fff"}>{r.trophyDelta > 0 ? '+' : ''}{r.trophyDelta}</Display></View>
           {r.won && !r.duel ? (
             <View style={st.row}>
-              <Body color={C.dimOnWood}>{SKR_LABEL}</Body>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><SkrIcon size={22} /><Body color={C.dimOnWood}>SKR</Body></View>
               <Display size={20} color={C.skr}>+{WIN_SKR}</Display>
             </View>
           ) : null}
           {r.skrSig ? (
-            <Pressable onPress={() => void Linking.openURL(explorerTx(r.skrSig!))} hitSlop={14} accessibilityRole="link" accessibilityLabel="Open the SKR mint on Solana Explorer"><Tag text={`minted ${short(r.skrSig)} ↗`} /></Pressable>
-          ) : r.won && !r.duel && SKR_LIVE ? <Body size={11} color={C.dimOnWood}>SKR is owed until your wallet can pay the devnet fee — claim it in the Shop.</Body> : null}
+            <View style={{ alignSelf: 'flex-end' }}>
+              <ProofSeal label="SKR MINTED" info={{ title: 'Win reward', art: REWARD_ART.skr, glow: C.skr, about: 'Your win paid SKR straight to your wallet in one transaction.', proofs: [{ label: `mint ${short(r.skrSig, 6)}`, url: explorerTx(r.skrSig) }] }} />
+            </View>
+          ) : r.won && !r.duel && SKR_LIVE ? <Body size={11} color={C.dimOnWood}>Your SKR is saved: claim it in the Shop once your wallet has SOL for fees.</Body> : null}
           {r.chest ? (
             <View style={[st.row, { marginTop: 8 }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -394,10 +399,10 @@ export function WalletSheet() {
               busy={busy}
               onPress={async () => {
                 setBusy(true);
-                try { await airdrop(address, 0.5); await refresh(); say('0.5 devnet SOL received', 'ok'); } catch (e) { say(readableError(e), 'err'); } finally { setBusy(false); }
+                try { await airdrop(address, 0.5); await refresh(); say('0.5 test SOL received', 'ok'); } catch (e) { say(readableError(e), 'err'); } finally { setBusy(false); }
               }}
             />
-            <Btn label="ON-CHAIN STATUS" sub="every Solana feature, live from the cluster" tone="blue" size="sm" onPress={() => useUi.getState().setOnchain(true)} />
+            <Btn label="CHAIN POWERS" sub="everything you unlocked on Solana" icon={CHAR_ART.trophy} tone="blue" size="sm" onPress={() => useUi.getState().setOnchain(true)} />
             <Btn label="VIEW ON EXPLORER" tone="ghost" size="sm" onPress={() => void Linking.openURL(explorerAddr(address))} />
             <SoundSetting />
             <RendererSetting />
@@ -421,8 +426,8 @@ function SkrLine({ address, kind }: { address: string; kind: string | null }) {
       <Body size={11} color={C.dim} style={{ flex: 1 }}>
         {who.skr ? 'your .skr name · AllDomains, mainnet'
           : !known ? 'looking up your .skr name on mainnet…'
-          : kind === 'dev' ? 'no .skr: a dev wallet is not a Seeker wallet'
-          : 'no .skr name for this wallet · the address is shown instead'}
+          : kind === 'dev' ? 'practice wallet on this phone'
+          : 'no .skr name yet'}
       </Body>
     </View>
   );
@@ -500,16 +505,12 @@ function SignInCard() {
     <Well style={{ marginBottom: 10, gap: 6 }}>
       <View style={st.row}>
         <Body size={13} bold color="#fff" style={{ flex: 1 }}>{signInLabel(p)}</Body>
-        <Tag text={check === 'bad' ? 'INVALID' : 'SIWS ✓'} color={check === 'bad' ? C.red : C.teal} />
+        <Tag text={check === 'bad' ? 'INVALID' : 'VERIFIED ✓'} color={check === 'bad' ? C.red : C.teal} />
       </View>
       <Body size={11} color={C.dim}>
-        {p.method === 'siws' ? 'One tap: the wallet authorized Mempire and signed a Sign In With Solana message in the same sheet.'
-          : p.method === 'signMessage' ? 'Your wallet has no one-tap sign-in, so it signed the same Sign In With Solana message separately.'
-          : 'Dev wallet: the same Sign In With Solana message, signed by the key on this device (iOS has no Mobile Wallet Adapter).'}
-        {' '}The ed25519 signature was verified on this phone.
-      </Body>
-      <Body size={11} color={C.dim}>
-        {p.domain} · {p.chainId ?? 'no chain'} · nonce {p.nonce.slice(0, 8)}… · {issued.toLocaleString()}
+        {p.method === 'dev-local' ? 'This phone signed a Sign In With Solana message with its own key, and the signature checked out.'
+          : 'Your wallet signed a Sign In With Solana message, and this phone checked the signature.'}
+        {' '}Signed in {issued.toLocaleString()}.
       </Body>
       {open ? <Text selectable style={st.mono}>{p.message}</Text> : null}
       <View style={{ flexDirection: 'row', gap: 8 }}>
