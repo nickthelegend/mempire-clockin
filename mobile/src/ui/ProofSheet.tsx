@@ -64,20 +64,29 @@ export function ProofSheet({ info, onClose }: { info: ProofInfo | null; onClose:
 }
 
 /** A chunky "ON CHAIN ✓" seal that opens the proof sheet. */
-export function ProofSeal({ info, label = 'ON CHAIN', tone = 'teal', children }: {
+export function ProofSeal({ info, label = 'ON CHAIN', tone = 'teal', children, compact }: {
   info: ProofInfo; label?: string; tone?: 'teal' | 'gold'; children?: ReactNode;
+  /** A round medallion (art + check badge) instead of the labelled pill. */
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const col = tone === 'gold' ? C.gold : C.teal;
   return (
     <>
       <PressScale onPress={() => { haptic.tap(); setOpen(true); }} accessibilityLabel={`${label}. Show the proof`} hitSlop={8}>
-        {children ?? (
+        {children ?? (compact ? (
+          <View style={st.medal}>
+            <LinearGradient colors={tone === 'gold' ? ['#ffe38a', '#c8890b'] : ['#3dffb4', '#0c9e63']} style={st.medalRing}>
+              <View style={st.medalCore}><Image source={info.art ?? FEATURE_ART.commit} style={{ width: 28, height: 28 }} resizeMode="contain" /></View>
+            </LinearGradient>
+            <View style={[st.medalCheck, { backgroundColor: col }]}><Body size={10} bold color={C.ink}>✓</Body></View>
+          </View>
+        ) : (
           <LinearGradient colors={tone === 'gold' ? ['#ffe38a', '#c8890b'] : ['#3dffb4', '#0c9e63']} style={st.seal}>
             <View style={[st.check, { borderColor: col }]}><Body size={11} bold color={col}>✓</Body></View>
             <Body size={12} bold color={C.ink}>{label}</Body>
           </LinearGradient>
-        )}
+        ))}
       </PressScale>
       <ProofSheet info={open ? info : null} onClose={() => setOpen(false)} />
     </>
@@ -92,5 +101,9 @@ const st = StyleSheet.create({
   proof: { backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: R.card, padding: 12, gap: 10 },
   chip: { borderRadius: 10, borderWidth: 1.5, borderColor: C.teal, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: 'rgba(20,241,149,0.08)' },
   seal: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 14, paddingLeft: 4, paddingRight: 10, height: 28, borderWidth: 2, borderColor: 'rgba(0,0,0,0.35)' },
+  medal: { width: 44, height: 44 },
+  medalRing: { width: 44, height: 44, borderRadius: 22, padding: 3, borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.4)' },
+  medalCore: { flex: 1, borderRadius: 19, backgroundColor: '#0d2350', alignItems: 'center', justifyContent: 'center' },
+  medalCheck: { position: 'absolute', right: -3, bottom: -3, width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   check: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
 });

@@ -3,33 +3,40 @@
  * so the native screens and the 3D arena read as one game.
  */
 export const C = {
-  blueDeep: '#0d2a5c',
-  blue: '#14418f',
-  blueLit: '#2160c4',
-  bluePale: '#59a6f5',
-  wood: '#7a4a22',
-  woodLit: '#96602e',
-  woodHi: '#b9793c',
-  woodDark: '#4a2a11',
-  woodEdge: '#2e1908',
-  gold: '#ffc422',
-  goldHi: '#ffe38a',
-  btnGold: '#f5b423',
-  btnGoldDark: '#a86e07',
-  btnBlue: '#3aa0f7',
-  btnBlueDark: '#17629f',
-  btnGreen: '#52c41a',
-  btnGreenDark: '#2c7a06',
-  purple: '#9945ff',
-  teal: '#14f195',
-  red: '#ff4d6d',
-  text: '#ffffff',
-  dim: '#dbe8ff',
-  dimOnWood: '#f6e6cc',
-  ink: '#10203f',
-  recess: 'rgba(9, 22, 48, 0.55)',
-  scrim: 'rgba(6, 16, 38, 0.86)',
-  skr: '#c8ff2e',
+  // One palette (Supercell-style cohesion): deep navy, gold rims, purple accents.
+  bg: '#0A1028',
+  panel: '#121B3D',
+  panelRaised: '#18234D',
+  rimHi: '#F7D774',
+  rimLo: '#B8862B',
+  // Legacy names, remapped onto the palette so every screen adopts it.
+  blueDeep: '#0A1028',
+  blue: '#121B3D',
+  blueLit: '#18234D',
+  bluePale: '#9DB2FF',
+  wood: '#121B3D',
+  woodLit: '#18234D',
+  woodHi: '#1E2A5A',
+  woodDark: '#0E1533',
+  woodEdge: '#B8862B',
+  gold: '#F7C948',
+  goldHi: '#FFE08A',
+  btnGold: '#F2B33D',
+  btnGoldDark: '#8A5A0C',
+  btnBlue: '#6A3FE0',
+  btnBlueDark: '#3F2399',
+  btnGreen: '#3DDC97',
+  btnGreenDark: '#1E8F5E',
+  purple: '#9B6CFF',
+  teal: '#3DDC97',
+  red: '#FF5C7A',
+  text: '#FFFFFF',
+  dim: '#A9B4D9',
+  dimOnWood: '#A9B4D9',
+  ink: '#3A2200',
+  recess: 'rgba(24, 35, 77, 0.9)',
+  scrim: 'rgba(5, 8, 22, 0.86)',
+  skr: '#FFD45E',
 } as const;
 
 export const F = {
@@ -39,7 +46,7 @@ export const F = {
   uiReg: 'HankenGrotesk_500Medium',
 } as const;
 
-export const R = { panel: 16, card: 12, pill: 14, sheet: 24 } as const;
+export const R = { panel: 20, card: 14, pill: 14, sheet: 24 } as const;
 
 export const TIER_COLORS: Record<string, [string, string]> = {
   silver: ['#dfe8f5', '#8b9dbb'],

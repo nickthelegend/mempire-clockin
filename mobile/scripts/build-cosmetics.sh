@@ -26,3 +26,22 @@ for dir in "$SRC"/*/; do
   done
 done
 du -sh "$OUT" | awk '{print "cosmetics: " $1}'
+
+# Game UI art: screen backgrounds, HUD/item icons, nav icons -> assets/game/<group>.
+GSRC="$HERE/art-src/game"
+GOUT="$HERE/assets/game"
+for dir in "$GSRC"/*/; do
+  group="$(basename "$dir")"
+  mkdir -p "$GOUT/$group"
+  case "$group" in
+    bg) W=828; H=0; Q=80 ;;
+    mascot) W=360; H=0; Q=86 ;;
+    gameui) W=420; H=0; Q=88 ;;
+    *) W=192; H=0; Q=86 ;;
+  esac
+  for png in "$dir"*.png; do
+    name="$(basename "$png" .png)"
+    cwebp -quiet -q $Q -alpha_q 92 -m 6 -resize $W $H "$png" -o "$GOUT/$group/$name.webp"
+  done
+done
+du -sh "$GOUT/bg" "$GOUT/items" "$GOUT/nav" "$GOUT/mascot" "$GOUT/gameui" | awk '{print "game " $2 ": " $1}'

@@ -24,7 +24,7 @@ import { ShareCardButton } from './ShareCard';
 import { Qr } from '../ui/Qr';
 import { duelScanLink, solanaPayDuelUrl } from '../game/blink';
 import { readableError } from '../chain/send';
-import { CHAR_ART, FEATURE_ART, REWARD_ART } from '../data/cosmeticArt';
+import { CHAR_ART, FEATURE_ART, ITEM_ART, REWARD_ART, MASCOT } from '../data/cosmeticArt';
 import { ProofSeal } from '../ui/ProofSheet';
 import { Celebrate, usePopIn } from '../ui/Celebrate';
 
@@ -86,6 +86,8 @@ export function RevealSheet() {
             <ChestArt tier={reveal.tier} size={180} />
           </Animated.View>
         ) : (
+          <View style={{ alignItems: 'center' }}>
+          <Image source={ITEM_ART.chestOpen} style={{ width: 120, height: 120, marginBottom: -8 }} resizeMode="contain" accessibilityLabel="Open chest" />
           <View style={st.drops}>
             {reveal.drops.slice(0, shown).map((d) => (
               <View key={d.ticker} style={{ alignItems: 'center', gap: 4 }}>
@@ -93,6 +95,7 @@ export function RevealSheet() {
                 <Tag text={d.fresh ? 'NEW!' : `+${d.copies} ${d.copies === 1 ? 'copy' : 'copies'}`} color={d.fresh ? C.gold : C.teal} />
               </View>
             ))}
+          </View>
           </View>
         )}
         {opened && !sealing && shown >= reveal.drops.length ? (
@@ -297,6 +300,7 @@ export function ResultSheet() {
     <Modal visible transparent animationType="fade" onRequestClose={() => show(null)}>
       <ScrollView style={st.scrim} contentContainerStyle={st.centerScroll}>
         {r.won ? <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 260 }}><Celebrate burst={r.rival + r.crowns.join('')} size={340} /></View> : null}
+        {r.won ? <Animated.Image source={MASCOT.cheer} style={{ width: 150, height: 150, marginBottom: -16, transform: [{ scale: pop }] }} resizeMode="contain" accessibilityLabel="The Emperor cheers" /> : null}
         <Animated.View style={{ transform: [{ scale: pop }] }}>
           <Display size={54} color={r.won ? C.gold : r.draw ? '#fff' : C.red}>{title}</Display>
         </Animated.View>

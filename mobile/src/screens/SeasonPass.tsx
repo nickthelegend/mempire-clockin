@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react';
-import { Image, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { CHAR_ART, EMOTE_ART, REWARD_ART, UI_ICON } from '../data/cosmeticArt';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Image, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { CHAR_ART, EMOTE_ART, ITEM_ART, REWARD_ART, UI_ICON, GAME_BG, MASCOT, PREMIUM_UI } from '../data/cosmeticArt';
 import { CARD_ART } from '../data/art';
 import { hasPremium, passMint, usePassChain, SEASON_ID } from '../chain/pass';
 import { explorerAddr, explorerTx, short } from '../chain/solana';
 import { buySeasonPass, claimPassTier } from '../game/actions';
 import {
   EMOTES, PASS_FRAMES, SEASON, TIERS, canClaim, claimable, rewardLabel, tierFor, tierProgress,
-  type Reward, type Track,
+  XP, type Reward, type Track,
 } from '../game/season';
 import { useGame } from '../state/game';
 import { useUi } from '../state/ui';
@@ -16,8 +16,10 @@ import { C, R } from '../theme';
 import { Body, Btn, ChestArt, Display, FrameOverlay, Panel, Progress, SkrIcon, Tag, Well, Ribbon } from '../ui/kit';
 import { readableError } from '../chain/send';
 import { ProofSeal } from '../ui/ProofSheet';
-import { Celebrate } from '../ui/Celebrate';
+import { Celebrate, usePopIn } from '../ui/Celebrate';
 import { haptic } from '../notify';
+import { DriftBackground, HeroSpace } from '../ui/Backdrop';
+import { InfoButton } from '../ui/InfoButton';
 
 /** A soft placeholder while the pass is read (never "loading…" text). */
 function Shimmerish() {
@@ -55,6 +57,7 @@ function PremiumCard() {
   const [busy, setBusy] = useState(false);
   const [sig, setSig] = useState<string | null>(null);
   const [burst, setBurst] = useState<number | null>(null);
+  const [cheer, setCheer] = useState(false);
   const premium = hasPremium(pc);
   const price = pc.chain?.season?.priceSkr ?? SEASON.priceSkr;
 
@@ -64,6 +67,7 @@ function PremiumCard() {
       const s = await buySeasonPass();
       setSig(s);
       setBurst(Date.now());
+      setCheer(true);
       haptic.success();
       say('Season Pass unlocked! Premium rewards are yours', 'ok');
     } catch (e) {
@@ -76,6 +80,7 @@ function PremiumCard() {
   return (
     <Well style={{ gap: 8, borderColor: premium ? C.gold : 'rgba(0,0,0,0.35)', borderWidth: premium ? 2 : 1, overflow: 'visible' }}>
       <Celebrate burst={burst} size={300} />
+      {cheer ? <CheerPop /> : null}
       <View style={st.between}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 }}>
           <Image source={REWARD_ART.pass} style={{ width: 44, height: 44, opacity: premium ? 1 : 0.85 }} resizeMode="contain" accessibilityLabel="Season Pass" />
@@ -130,7 +135,15 @@ function TierRow({ n, onClaim }: { n: number; onClaim: (n: number, t: Track) => 
   const reached = tierFor(pass.xp) >= n;
   const cell = (track: Track) => {
     const r = track === 'free' ? tier.free : tier.premium;
-    if (!r) return <View style={[st.cell, st.cellEmpty]} />;
+    if (!r) {
+      // No free reward on this tier: a dim coin, so the column never looks broken.
+      return (
+        <View style={[st.cell, st.cellEmpty]}>
+          <Image source={ITEM_ART.coin} style={{ width: 30, height: 30, opacity: 0.22 }} resizeMode="contain" />
+          <Body size={11} color="rgba(169,180,217,0.5)" bold>Premium tier</Body>
+        </View>
+      );
+    }
     const claimed = (track === 'free' ? pass.claimedFree : pass.claimedPremium).includes(n);
     const can = canClaim(pass, n, track, premium);
     const locked = track === 'premium' && !premium;
@@ -140,10 +153,11 @@ function TierRow({ n, onClaim }: { n: number; onClaim: (n: number, t: Track) => 
         disabled={!can}
         accessibilityRole="button"
         accessibilityLabel={`Tier ${n} ${track} reward: ${rewardLabel(r)}${claimed ? ', claimed' : can ? ', claim' : locked ? ', needs the pass' : ', locked'}`}
-        style={[st.cell, track === 'premium' && st.cellPremium, can && st.cellReady, { opacity: claimed ? 0.45 : reached ? 1 : 0.7 }]}
+        style={[st.cell, track === 'premium' && st.cellPremium, can && st.cellReady, { opacity: claimed ? 0.7 : reached ? 1 : 0.7 }]}
       >
         <View>
           <RewardIcon r={r} size={34} />
+          {claimed ? <Image source={PREMIUM_UI.stamp} style={st.claimCheck} resizeMode="contain" accessibilityLabel="Claimed" /> : null}
           {locked && !claimed ? <Image source={UI_ICON.lock} style={st.lockBadge} accessibilityLabel="Needs the pass" /> : null}
           {n === SEASON.tiers && track === 'premium' ? <Image source={CHAR_ART.trophy} style={st.trophyBadge} accessibilityLabel="Season 1 trophy tier" /> : null}
         </View>
@@ -156,15 +170,38 @@ function TierRow({ n, onClaim }: { n: number; onClaim: (n: number, t: Track) => 
       </Pressable>
     );
   };
+  const current = tierFor(pass.xp) + 1 === n;
   return (
     <View style={st.row}>
-      <View style={[st.badge, reached && { backgroundColor: C.gold }]}>
-        <Body size={13} color={reached ? C.ink : '#fff'} bold>{n}</Body>
-      </View>
+      <TierBadge n={n} reached={reached} current={current} />
       {cell('free')}
       {cell('premium')}
     </View>
   );
+}
+
+/** The tier number; the next tier to reach pulses gold. */
+function TierBadge({ n, reached, current }: { n: number; reached: boolean; current: boolean }) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!current) return undefined;
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(v, { toValue: 1, duration: 800, useNativeDriver: true }),
+      Animated.timing(v, { toValue: 0, duration: 800, useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [current, v]);
+  return (
+    <Animated.View style={[st.badge, reached && { backgroundColor: C.gold }, current && { borderColor: C.gold, borderWidth: 2, transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] }) }], shadowColor: C.gold, shadowOpacity: 0.9, shadowRadius: 8, shadowOffset: { width: 0, height: 0 } }]}>
+      <Body size={13} color={reached ? '#3A2200' : '#fff'} bold>{n}</Body>
+    </Animated.View>
+  );
+}
+
+function CheerPop() {
+  const v = usePopIn(true);
+  return <Animated.Image source={MASCOT.cheer} style={{ position: 'absolute', right: -6, top: -40, width: 110, height: 110, transform: [{ scale: v }] }} resizeMode="contain" />;
 }
 
 export function SeasonPassSheet() {
@@ -193,15 +230,17 @@ export function SeasonPassSheet() {
   return (
     <Modal visible={open} animationType="slide" transparent onRequestClose={() => setPass(false)}>
       <View style={st.wrap}>
-        <ScrollView contentContainerStyle={{ padding: 14, gap: 12, paddingTop: 60, paddingBottom: 60 }}>
+        <DriftBackground source={GAME_BG.home} dim={0.5} />
+        <ScrollView contentContainerStyle={{ padding: 14, gap: 12, paddingTop: 54, paddingBottom: 60 }}>
           <View style={st.between}>
-            <Image source={CHAR_ART.trophy} style={{ width: 64, height: 64, marginRight: 8 }} resizeMode="contain" accessibilityLabel="Season 1 trophy" />
-            <View style={{ flex: 1 }}>
-              <Ribbon text="Season Pass" tone="purple" size={22} />
-              <Body size={12}>{SEASON.name} · {daysLeft()} days left</Body>
-            </View>
+            <View />
             <Btn label="✕" tone="ghost" size="sm" onPress={() => setPass(false)} />
           </View>
+          <HeroSpace offset={110}>
+            <Image source={PREMIUM_UI.seasonCrown} style={{ width: 110, height: 110 }} resizeMode="contain" accessibilityLabel="Season 1 crown" />
+            <Ribbon text="SEASON PASS" tone="purple" size={26} />
+            <Body size={13} color="#fff" style={{ marginTop: 6 }}>{daysLeft()} days left</Body>
+          </HeroSpace>
 
           <Panel>
             <View style={st.between}>
@@ -211,9 +250,12 @@ export function SeasonPassSheet() {
             <View style={{ marginTop: 8 }}>
               <Progress value={tierProgress(pass.xp)} color={C.gold} height={12} />
             </View>
-            <Body size={11} color={C.dimOnWood} style={{ marginTop: 6 }}>
-              XP: Clock-In +60 · quest +25 · all quests +40 · win +40 · draw +20 · loss +15. {SEASON.xpPerTier} XP per tier.
-            </Body>
+            <InfoButton title="How XP works" lines={[
+              `Clock-In +${XP.clockin} · quest +${XP.quest} · all three quests +${XP.questBonus}`,
+              `Win +${XP.win} · draw +${XP.draw} · loss +${XP.loss}`,
+              `${SEASON.xpPerTier} XP per tier, ${SEASON.tiers} tiers`,
+              'No reward changes a fighter\'s stats. Frames and emotes are cosmetic.',
+            ]} />
             {ready.length ? (
               <Btn
                 label={`CLAIM ALL (${ready.length})`}
@@ -238,9 +280,6 @@ export function SeasonPassSheet() {
           </View>
           {TIERS.map((t) => <TierRow key={t.n} n={t.n} onClaim={onClaim} />)}
 
-          <Body size={11} color={C.dim}>
-            No reward changes a fighter&apos;s stats. Chests use the same odds as everywhere else. Frames and emotes are cosmetic.
-          </Body>
         </ScrollView>
       </View>
     </Modal>
@@ -262,6 +301,7 @@ const st = StyleSheet.create({
   },
   cellPremium: { backgroundColor: 'rgba(153,69,255,0.28)' },
   cellReady: { borderColor: C.teal, borderWidth: 2 },
+  claimCheck: { position: 'absolute', right: -10, top: -10, width: 28, height: 28 },
   cellEmpty: { backgroundColor: 'rgba(9,22,48,0.35)' },
   icon: { alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.4)' },
   lockBadge: { position: 'absolute', right: -6, bottom: -4, width: 18, height: 18 },

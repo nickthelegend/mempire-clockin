@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { UI_ART } from '../data/art';
-import { CHESTS, QUESTS, QUEST_BONUS, RIVALS, WEEK, dayKey, msToUtcMidnight, rolloverLabel, streakState } from '../game/rules';
+import { CHESTS, QUESTS, QUEST_BONUS, RIVALS, WEEK, dayKey, msToUtcMidnight, rolloverLabel, streakState, nextRollover } from '../game/rules';
 import { challengeMessage, claimQuest, doClockIn, openChest, prepareMatch, startUnlock } from '../game/actions';
 import { explorerTx, short } from '../chain/solana';
 import { SKR_LABEL, SKR_LIVE } from '../chain/skr';
@@ -12,7 +12,7 @@ import { hasPremium, usePassChain } from '../chain/pass';
 import { SeasonWarBanner } from './Board';
 import { useUi } from '../state/ui';
 import { C, F, R } from '../theme';
-import { Body, Btn, ChestArt, Display, Panel, PressScale, Progress, Rise, Tag, TierGlow, Well, SkrIcon } from '../ui/kit';
+import { Body, Btn, ChestArt, Display, Panel, PressScale, Progress, Rise, Tag, TierGlow, Well, SkrIcon, CountdownRing } from '../ui/kit';
 import { EASE_OUT, reduceMotion, useCountUp } from '../motion';
 import { sfx } from '../sound';
 import { haptic } from '../notify';
@@ -20,10 +20,42 @@ import { SessionCard } from './SessionCard';
 import { useSession } from '../wallet/sessionKey';
 import { blinkMessage } from '../game/blink';
 import { readableError } from '../chain/send';
-import { CHAR_ART, FEATURE_ART, REWARD_ART, UI_ICON } from '../data/cosmeticArt';
+import { CHAR_ART, FEATURE_ART, ITEM_ART, REWARD_ART, UI_ICON, NAV_ART, MASCOT, PREMIUM_UI } from '../data/cosmeticArt';
 import { ProofSeal } from '../ui/ProofSheet';
+import { HeroSpace } from '../ui/Backdrop';
 
 const QUEST_ICON = { clockin: UI_ICON.questClockin, win: UI_ICON.questWin, deploy: UI_ICON.questDeploy } as const;
+
+/** Done for today: a gold stamp, and a ring that empties toward the next Clock-In. */
+function ClockedStamp() {
+  const now = useNow(30_000);
+  // Slammed in: 1.6 → 1 with a heavy haptic, once per mount.
+  const slam = useRef(new Animated.Value(reduceMotion() ? 1 : 1.6)).current;
+  useEffect(() => {
+    if (reduceMotion()) return;
+    Animated.spring(slam, { toValue: 1, friction: 5, tension: 180, useNativeDriver: true }).start();
+    haptic.heavy();
+  }, [slam]);
+  const next = nextRollover(new Date(now)).getTime();
+  const left = Math.max(0, next - now);
+  const h = Math.floor(left / 3_600_000);
+  const m = Math.floor((left % 3_600_000) / 60_000);
+  return (
+    <LinearGradient colors={['#ffe38a', '#f5b423', '#a86e07']} style={st.goldStamp} accessibilityLabel={`Clocked in. Next Clock-In in ${h} hours ${m} minutes`}>
+      <View style={st.stampInner}>
+        <Animated.Image source={PREMIUM_UI.stamp} style={{ width: 56, height: 56, transform: [{ scale: slam }, { rotate: '-8deg' }] }} resizeMode="contain" />
+        <View style={{ flex: 1 }}>
+          <Display size={22} color={C.ink}>CLOCKED IN</Display>
+          <Body size={12} color={C.ink} bold>Come back for tomorrow&apos;s reward</Body>
+        </View>
+        <CountdownRing left={left / 86_400_000} size={62} color={C.ink}>
+          <Body size={11} bold color={C.ink}>{h}h</Body>
+          <Body size={10} bold color={C.ink}>{String(m).padStart(2, '0')}m</Body>
+        </CountdownRing>
+      </View>
+    </LinearGradient>
+  );
+}
 
 function useNow(ms = 1000) {
   const [now, setNow] = useState(Date.now());
@@ -106,7 +138,10 @@ function ClockIn() {
           </Body>
         </View>
         <Animated.View style={[st.streakBadge, { transform: [{ scale: pop.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.25, 1] }) }] }]}>
-          <Text maxFontSizeMultiplier={1.15} style={st.streakNum}>{shownStreak}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Image source={ITEM_ART.streak} style={{ width: 34, height: 34, marginLeft: -4 }} resizeMode="contain" />
+            <Text maxFontSizeMultiplier={1.15} style={st.streakNum}>{shownStreak}</Text>
+          </View>
           <Text maxFontSizeMultiplier={1.1} style={st.streakLbl}>DAY STREAK</Text>
         </Animated.View>
       </View>
@@ -125,22 +160,23 @@ function ClockIn() {
         })}
       </View>
 
-      <Btn
-        label={doneToday ? 'CLOCKED IN ✓' : 'CLOCK IN'}
-        sub={doneToday ? undefined : !sgtChecked && busy ? 'checking Seeker perk…' : `Day ${ladderDay} reward · kept on Solana`}
-        size="lg"
-        tone={doneToday ? 'ghost' : 'gold'}
-        disabled={doneToday}
-        busy={busy}
-        onPress={go}
-      />
+      {doneToday ? <ClockedStamp /> : (
+        <Btn
+          label="CLOCK IN"
+          sub={!sgtChecked && busy ? 'checking Seeker perk…' : `Day ${ladderDay} reward · kept on Solana`}
+          size="lg"
+          tone="gold"
+          busy={busy}
+          onPress={go}
+        />
+      )}
 
       <View style={[st.rowBetween, { marginTop: 10 }]}>
         <Body size={12} color={C.dimOnWood}>
           Best {streak.best} · Shields {streak.shields} {sgt ? '· Seeker ×2 SKR' : ''}
         </Body>
         {last?.day === dayKey() && last.sig ? (
-          <ProofSeal info={{ title: 'Today\'s Clock-In', art: FEATURE_ART.clockin, glow: C.gold, about: 'Your Clock-In was signed and landed on Solana. The program checked the day and your streak itself, so nobody can fake one.', proofs: [{ label: `tx ${short(last.sig, 6)}`, url: explorerTx(last.sig) }] }} />
+          <ProofSeal compact tone="gold" info={{ title: 'Today\'s Clock-In', art: FEATURE_ART.clockin, glow: C.gold, about: 'Your Clock-In was signed and landed on Solana. The program checked the day and your streak itself, so nobody can fake one.', proofs: [{ label: `tx ${short(last.sig, 6)}`, url: explorerTx(last.sig) }] }} />
         ) : last?.day === dayKey() && last.offlineReason ? (
           <Tag text="SAVED" color={C.goldHi} />
         ) : null}
@@ -319,14 +355,13 @@ function Battle() {
   const [rival, setRival] = useState(1);
   const [rush, setRush] = useState(false);
   const openBattle = useUi((s) => s.openBattle);
-  const avg = useGame((s) => avgDeckLevel(s));
   const wins = useGame((s) => s.wins);
   const losses = useGame((s) => s.losses);
   return (
     <Panel>
       <View style={st.rowBetween}>
         <Display size={24}>Battle</Display>
-        <Body size={12} color={C.dimOnWood}>Deck Lv {avg.toFixed(1)} · {wins}W {losses}L</Body>
+        <Body size={12} color={C.dim}>{wins}W · {losses}L</Body>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 10 }} contentContainerStyle={{ gap: 8 }}>
         {RIVALS.map((r, i) => (
@@ -361,10 +396,12 @@ function Battle() {
         ))}
       </View>
       <Btn
-        label="BATTLE"
-        sub={`3D arena · ${rush ? '30 s rush' : '3 min'} · chest + SKR on a win`}
+        label="PLAY"
+        sub={`${rush ? '30 s rush' : '3 min battle'} · chest + SKR on a win`}
         size="lg"
-        tone="blue"
+        tone="gold"
+        icon={PREMIUM_UI.play}
+        pulse
         onPress={() => openBattle(prepareMatch(rival, rush))}
       />
       <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
@@ -440,10 +477,14 @@ function CoachTeaser() {
 export function HomeScreen() {
   return (
     <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false}>
-      <Rise><Image source={UI_ART.logo} style={st.logo} resizeMode="contain" accessibilityLabel="Mempire" /></Rise>
+      <HeroSpace offset={14}>
+        <Image source={MASCOT.wave} style={st.mascot} resizeMode="contain" accessibilityLabel="The Emperor waves" />
+        <Rise><Image source={UI_ART.logo} style={st.logo} resizeMode="contain" accessibilityLabel="Mempire" /></Rise>
+      </HeroSpace>
       <Rise delay={20}><SeasonWarBanner /></Rise>
       <Rise delay={40}><ClockIn /></Rise>
-      <Rise delay={60}><Quests /></Rise>
+      <Rise delay={60}><Battle /></Rise>
+      <Rise delay={80}><Quests /></Rise>
       <Rise delay={80}>
         <Well style={{ gap: 8 }}>
           <View style={st.rowBetween}>
@@ -455,7 +496,6 @@ export function HomeScreen() {
         </Well>
       </Rise>
       <Rise delay={100}><PassTeaser /></Rise>
-      <Rise delay={120}><Battle /></Rise>
       <Rise delay={160}><CoachTeaser /></Rise>
       <Rise delay={180}>
         <Btn label="CHAIN POWERS" sub="everything you unlocked on Solana" icon={CHAR_ART.trophy} tone="gold" size="sm" onPress={() => useUi.getState().setOnchain(true)} />
@@ -465,8 +505,9 @@ export function HomeScreen() {
 }
 
 const st = StyleSheet.create({
-  scroll: { padding: 14, gap: 14, paddingBottom: 120 },
-  logo: { width: '70%', height: 84, alignSelf: 'center' },
+  scroll: { paddingHorizontal: 14, paddingTop: 0, gap: 14, paddingBottom: 120 },
+  logo: { width: 250, height: 84, alignSelf: 'center' },
+  mascot: { position: 'absolute', right: -8, bottom: 6, width: 140, height: 140 },
   passDot: {
     minWidth: 30, height: 30, borderRadius: 15, backgroundColor: C.teal, alignItems: 'center', justifyContent: 'center',
     paddingHorizontal: 6,
@@ -502,6 +543,9 @@ const st = StyleSheet.create({
   mode: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 44, paddingVertical: 7, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.3)' },
   pressed: { transform: [{ scale: 0.97 }], opacity: 0.92 },
   waiting: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,196,34,0.12)', borderRadius: 12, padding: 10, borderWidth: 1, borderColor: 'rgba(255,196,34,0.4)' },
+  goldStamp: { borderRadius: 18, padding: 3, borderWidth: 2, borderColor: 'rgba(0,0,0,0.4)', shadowColor: C.gold, shadowOpacity: 0.6, shadowRadius: 10, shadowOffset: { width: 0, height: 0 } },
+  stampInner: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 15, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 2, borderColor: 'rgba(255,255,255,0.55)', borderStyle: 'dashed' },
+  stampCheck: { width: 46, height: 46, borderRadius: 23, backgroundColor: C.btnGreen, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#fff', transform: [{ rotate: '-8deg' }] },
   quest: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 },
   stampWrap: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   stamp: {

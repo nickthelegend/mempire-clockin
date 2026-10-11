@@ -60,3 +60,41 @@ export const UI_ICON = {
   star: require('../../assets/cosmetics/ui/star.webp') as ImageSourcePropType,
   crown: require('../../assets/cosmetics/ui/crown.webp') as ImageSourcePropType,
 };
+
+/** Game UI art: full-bleed screen backgrounds, item icons and the tab bar. */
+export const GAME_BG = {
+  home: require('../../assets/game/bg/home.webp') as ImageSourcePropType,
+  duels: require('../../assets/game/bg/duels.webp') as ImageSourcePropType,
+  shop: require('../../assets/game/bg/shop.webp') as ImageSourcePropType,
+};
+export const ITEM_ART = {
+  coin: require('../../assets/game/items/coin.webp') as ImageSourcePropType,
+  gem: require('../../assets/game/items/gem.webp') as ImageSourcePropType,
+  energy: require('../../assets/game/items/energy.webp') as ImageSourcePropType,
+  ticket: require('../../assets/game/items/ticket.webp') as ImageSourcePropType,
+  chestClosed: require('../../assets/game/items/chest-closed.webp') as ImageSourcePropType,
+  chestOpen: require('../../assets/game/items/chest-open.webp') as ImageSourcePropType,
+  streak: require('../../assets/game/items/streak.webp') as ImageSourcePropType,
+  vs: require('../../assets/game/items/vs.webp') as ImageSourcePropType,
+};
+export const NAV_ART = {
+  home: require('../../assets/game/nav/home.webp') as ImageSourcePropType,
+  battle: require('../../assets/game/nav/battle.webp') as ImageSourcePropType,
+  deck: require('../../assets/game/nav/deck.webp') as ImageSourcePropType,
+  duels: require('../../assets/game/nav/duels.webp') as ImageSourcePropType,
+  shop: require('../../assets/game/nav/shop.webp') as ImageSourcePropType,
+  pass: require('../../assets/game/nav/pass.webp') as ImageSourcePropType,
+};
+
+/** The Emperor mascot, and the premium UI pieces (ribbon, stamp, play emblem, season crown). */
+export const MASCOT = {
+  wave: require('../../assets/game/mascot/wave.webp') as ImageSourcePropType,
+  cheer: require('../../assets/game/mascot/cheer.webp') as ImageSourcePropType,
+  sleep: require('../../assets/game/mascot/sleep.webp') as ImageSourcePropType,
+};
+export const PREMIUM_UI = {
+  ribbon: require('../../assets/game/gameui/ribbon.webp') as ImageSourcePropType,
+  stamp: require('../../assets/game/gameui/stamp.webp') as ImageSourcePropType,
+  play: require('../../assets/game/gameui/play.webp') as ImageSourcePropType,
+  seasonCrown: require('../../assets/game/gameui/season-crown.webp') as ImageSourcePropType,
+};

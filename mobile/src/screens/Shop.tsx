@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Image, ScrollView, StyleSheet, View } from 'react-native';
 import { SHOP, type ShopItemId } from '../game/rules';
 import { buy, claimOwedSkr } from '../game/actions';
-import { SKR_LABEL, SKR_LIVE, SKR_MINT } from '../chain/skr';
+import { SKR_LIVE, SKR_MINT } from '../chain/skr';
 import { explorerAddr, explorerTx, short } from '../chain/solana';
 import { useGame } from '../state/game';
 import { useUi } from '../state/ui';
@@ -15,7 +15,8 @@ import { ARENA_SKINS, FRAME_SKINS, ownsSkin, usePassChain, type SkinDef } from '
 
 import { buySkin } from '../game/actions';
 import { readableError } from '../chain/send';
-import { FEATURE_ART, REWARD_ART } from '../data/cosmeticArt';
+import { FEATURE_ART, ITEM_ART, REWARD_ART } from '../data/cosmeticArt';
+import { HeroSpace } from '../ui/Backdrop';
 import { ProofSeal } from '../ui/ProofSheet';
 
 /**
@@ -106,9 +107,10 @@ function Cosmetics() {
           />
         ) : (
           <Btn
-            label={`${price} SKR`}
+            label={`${price}`}
+            icon={ITEM_ART.coin}
             size="sm"
-            tone="skr"
+            tone="gold"
             busy={busy === s.id}
             disabled={pc.status !== 'live' || !onChain || !address || (pc.skr ?? 0) < price}
             onPress={() => void purchase(s, kind)}
@@ -127,18 +129,9 @@ function Cosmetics() {
           color={pc.status === 'live' ? C.skr : C.goldHi}
         />
       </View>
-      <Body size={12} color={C.dimOnWood}>
-        {pc.status === 'live'
-          ? 'Every skin is a collectible you own in your wallet. Bought with SKR, tradable, cosmetic only.'
-          : pc.status === 'preview'
-            ? 'Skins open soon.'
-            : pc.status === 'offline'
-              ? 'The network is busy, so your skins can\'t be checked right now.'
-              : ' '}
-      </Body>
-      <Body size={12} color="#fff" bold style={{ marginTop: 10 }}>Arena skins · field, river, towers, crowd and light</Body>
+      <Display size={16} style={{ marginTop: 8 }}>Arena skins</Display>
       <View style={st.skinRow}>{ARENA_SKINS.map((s) => item(s, 'arena'))}</View>
-      <Body size={12} color="#fff" bold style={{ marginTop: 10 }}>Card frames</Body>
+      <Display size={16} style={{ marginTop: 12 }}>Card frames</Display>
       <View style={st.skinRow}>{FRAME_SKINS.map((s) => item(s, 'frame'))}</View>
       {sig ? (
         <View style={{ marginTop: 8, alignSelf: 'flex-start' }}>
@@ -153,7 +146,16 @@ function Cosmetics() {
 function PassEntry() {
   const setPass = useUi((s) => s.setPass);
   return (
-    <Btn label="SEASON PASS" sub="free track + premium, priced in SKR" tone="blue" onPress={() => setPass(true)} />
+    <Panel>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <Image source={REWARD_ART.pass} style={{ width: 84, height: 84 }} resizeMode="contain" />
+        <View style={{ flex: 1, gap: 2 }}>
+          <Display size={22}>Season 1 Pass</Display>
+          <Body size={13}>Premium rewards all season</Body>
+        </View>
+      </View>
+      <Btn label="VIEW" tone="gold" size="sm" style={{ marginTop: 10 }} onPress={() => setPass(true)} />
+    </Panel>
   );
 }
 
@@ -169,7 +171,6 @@ export function ShopScreen() {
   const shields = useGame((s) => s.streak.shields);
   const sgt = useUi((s) => s.sgt);
   const sgtChecked = useUi((s) => s.sgtChecked);
-  const mainnetSkr = useUi((s) => s.mainnetSkr);
   const say = useUi((s) => s.say);
   const [busy, setBusy] = useState<string | null>(null);
   const [lastSig, setLastSig] = useState<string | null>(null);
@@ -189,29 +190,32 @@ export function ShopScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 120 }}>
-      <Rise>
-        <Ribbon text="SKR Shop" tone="gold" />
-        <Body size={13} style={{ textAlign: 'center', marginTop: 6 }}>Earn SKR every day. Spend it on your streak, never on power.</Body>
-      </Rise>
+    <ScrollView contentContainerStyle={{ paddingHorizontal: 14, gap: 12, paddingBottom: 120 }}>
+      <HeroSpace>
+        <Ribbon text="SHOP" tone="gold" size={28} />
+      </HeroSpace>
 
       <Rise delay={40}>
-        <Well style={{ gap: 6 }}>
-          <View style={st.between}>
-            <View>
-              <Body size={12} color={C.skr} bold>{SKR_LABEL.toUpperCase()}</Body>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <SkrIcon size={34} />
-                <Display size={34} color="#fff">{SKR_LIVE && skrChain === null ? '…' : balance.toLocaleString()}</Display>
-              </View>
+        <Panel>
+          <View style={{ alignItems: 'center', gap: 4 }}>
+            <Body size={12} bold>YOUR SKR</Body>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <SkrIcon size={44} />
+              {SKR_LIVE && skrChain === null
+                ? <View style={{ width: 90, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.12)' }} />
+                : <Display size={44} color={C.gold}>{balance.toLocaleString()}</Display>}
             </View>
-            {null}
+            {lastSig ? (
+              <ProofSeal compact tone="gold" info={{ title: 'SKR payment', art: REWARD_ART.skr, glow: C.skr, about: 'Your SKR went to the game treasury in one transaction. The stand-in SKR on this network has the same decimals and token program as the real one.', proofs: [{ label: `payment ${short(lastSig, 6)}`, url: explorerTx(lastSig) }, ...(SKR_MINT ? [{ label: `SKR ${short(SKR_MINT.toBase58(), 6)}`, url: explorerAddr(SKR_MINT.toBase58()) }] : [])] }} />
+            ) : null}
           </View>
           {SKR_LIVE && owed > 0 ? (
             <Btn
-              label={`CLAIM ${owed} OWED SKR`}
-              tone="skr"
+              label={`CLAIM ${owed} SKR`}
+              icon={ITEM_ART.coin}
+              tone="gold"
               size="sm"
+              style={{ marginTop: 10 }}
               busy={busy === 'claim'}
               onPress={async () => {
                 setBusy('claim');
@@ -219,15 +223,7 @@ export function ShopScreen() {
               }}
             />
           ) : null}
-          <Body size={11} color={C.dim}>
-            Earn SKR every Clock-In and quest. Spend it on streak keepers, chests and skins.
-          </Body>
-          {lastSig ? (
-            <View style={{ alignSelf: 'flex-start' }}>
-              <ProofSeal info={{ title: 'SKR payment', art: REWARD_ART.skr, glow: C.skr, about: 'Your SKR went to the game treasury in one transaction. The stand-in SKR on this network has the same decimals and token program as the real one.', proofs: [{ label: `payment ${short(lastSig, 6)}`, url: explorerTx(lastSig) }, ...(SKR_MINT ? [{ label: `SKR ${short(SKR_MINT.toBase58(), 6)}`, url: explorerAddr(SKR_MINT.toBase58()) }] : [])] }} />
-            </View>
-          ) : null}
-        </Well>
+        </Panel>
       </Rise>
 
       <Rise delay={60}><PassEntry /></Rise>
@@ -243,13 +239,14 @@ export function ShopScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Display size={20}>{item.title}</Display>
-                <Body size={12} color={C.dimOnWood}>{item.blurb}</Body>
+                <Body size={13} numberOfLines={1}>{item.blurb}</Body>
                 {item.id === 'shield' ? <Body size={11} color={C.gold}>You hold {shields}</Body> : null}
               </View>
             </View>
             <Btn
-              label={`${item.price} SKR`}
-              tone="skr"
+              label={`${item.price}`}
+              icon={ITEM_ART.coin}
+              tone="gold"
               size="sm"
               disabled={balance < item.price}
               busy={busy === item.id}
@@ -269,10 +266,7 @@ export function ShopScreen() {
             </View>
             {sgt ? <Tag text="✓ SEEKER" color={C.teal} /> : sgtChecked ? <Tag text="LOCKED" color={C.dim} /> : null}
           </View>
-          <Body size={12}>
-            Holding a Seeker Genesis Token doubles the SKR every Clock-In pays. Checked read-only on mainnet against the wallet you connected — Mempire never moves mainnet funds.
-          </Body>
-          {mainnetSkr !== null ? <Body size={12} color={C.skr}>Mainnet SKR in this wallet: {mainnetSkr.toLocaleString()} (read-only)</Body> : null}
+          <Body size={13}>Seeker owners earn double SKR every day.</Body>
         </Well>
       </Rise>
     </ScrollView>
@@ -284,8 +278,8 @@ const st = StyleSheet.create({
   item: { flexDirection: 'row', gap: 12, alignItems: 'center' },
   skinRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
   skin: {
-    width: '31%', minWidth: 96, flexGrow: 1, alignItems: 'center', gap: 6, padding: 8, borderRadius: 12,
-    backgroundColor: 'rgba(0,0,0,0.25)', borderWidth: 1, borderColor: 'rgba(0,0,0,0.4)',
+    width: '31%', minWidth: 96, flexGrow: 1, alignItems: 'center', gap: 6, padding: 8, borderRadius: 14,
+    backgroundColor: '#18234D', borderWidth: 1, borderColor: 'rgba(247,215,116,0.18)',
   },
-  icon: { width: 64, height: 64, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center' },
+  icon: { width: 64, height: 64, borderRadius: 14, backgroundColor: '#18234D', alignItems: 'center', justifyContent: 'center' },
 });

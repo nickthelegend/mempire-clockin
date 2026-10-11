@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Image, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from 'react-native';
+import { Image, Pressable, ScrollView, Share, StyleSheet, TextInput, View, Modal } from 'react-native';
 import { CARD_ART } from '../data/art';
 import { explorerTx, short } from '../chain/solana';
 import { prepareDuel } from '../game/actions';
@@ -13,8 +13,11 @@ import { useWallet } from '../wallet/wallet';
 import { C } from '../theme';
 import { Body, Btn, Display, Panel, Tag, Well, Ribbon } from '../ui/kit';
 import type { DuelTx } from '../chain/duels';
-import { CHAR_ART, FEATURE_ART } from '../data/cosmeticArt';
+import { CHAR_ART, FEATURE_ART, ITEM_ART, MASCOT } from '../data/cosmeticArt';
+import { UI_ART } from '../data/art';
 import { ProofSeal } from '../ui/ProofSheet';
+import { HeroSpace } from '../ui/Backdrop';
+import { prepareMatch } from '../game/actions';
 
 const ago = (t: number) => {
   if (!t) return '';
@@ -57,8 +60,10 @@ function OpenCard() {
         </View>
         <Btn label="✕" tone="ghost" size="sm" onPress={close} />
       </View>
-      <View style={[st.row, { justifyContent: 'flex-start', gap: 6 }]}>
-        <Body color={C.dimOnWood}>from</Body><Who address={open.challenger} />
+      <View style={[st.row, { justifyContent: 'center', gap: 10, marginVertical: 4 }]}>
+        <View style={{ alignItems: 'center', gap: 2, flex: 1 }}><Body size={11} color={C.dim} bold>YOU</Body><Image source={UI_ART.avatar_guest} style={{ width: 52, height: 52, borderRadius: 12 }} /></View>
+        <Image source={ITEM_ART.vs} style={{ width: 72, height: 72 }} resizeMode="contain" accessibilityLabel="versus" />
+        <View style={{ alignItems: 'center', gap: 2, flex: 1 }}><Body size={11} color={C.dim} bold>GHOST OF</Body><Who address={open.challenger} /></View>
       </View>
       {p ? (
         <>
@@ -132,7 +137,7 @@ function Board() {
     <Well style={{ gap: 10 }}>
       <View style={st.row}>
         <Display size={18}>Duel board</Display>
-        <Btn label={loading ? '…' : 'REFRESH'} tone="ghost" size="sm" onPress={() => void refresh()} />
+        <Btn label="REFRESH" tone="ghost" size="sm" busy={loading} onPress={() => void refresh()} />
       </View>
       <View style={{ flexDirection: 'row', gap: 6 }}>
         {(['all', 'mine'] as const).map((k) => (
@@ -141,9 +146,21 @@ function Board() {
           </Pressable>
         ))}
       </View>
-      <Body size={11} color={C.dim}>Every result is replayed on this phone before it gets a ✓.</Body>
-      {error ? <Body size={12} color={C.red}>{error}</Body> : null}
-      {!loading && !shown.length ? <Body size={12} color="#fff">{tab === 'all' ? 'No duels yet. Win (or lose) a native-arena battle, then Duel a friend.' : 'Nothing of yours yet.'}</Body> : null}
+      {error && !shown.length ? (
+        <View style={{ alignItems: 'center', gap: 6, paddingVertical: 10 }}>
+          <Image source={MASCOT.sleep} style={{ width: 110, height: 110 }} resizeMode="contain" />
+          <Body size={14}>The board is offline. It refreshes on its own.</Body>
+          <Btn label="TRY NOW" tone="gold" size="sm" style={{ alignSelf: 'stretch' }} onPress={() => void refresh()} />
+        </View>
+      ) : null}
+      {!loading && !error && !shown.length ? (
+        <View style={{ alignItems: 'center', gap: 6, paddingVertical: 10 }}>
+          <Image source={MASCOT.sleep} style={{ width: 120, height: 120 }} resizeMode="contain" />
+          <Display size={20}>No duels yet</Display>
+          <Body size={13}>Send your first ghost</Body>
+          <Btn label="SEND A GHOST" tone="gold" size="sm" style={{ alignSelf: 'stretch', marginTop: 4 }} onPress={sendGhost} />
+        </View>
+      ) : null}
       {shown.map((c) => {
         if (c.memo.kind !== 'challenge') return null;
         const rs = resultsFor(c.sig);
@@ -190,7 +207,17 @@ function Paste() {
     void openLink(sig, d);
     setV('');
   };
+  const [open, setOpen] = useState(false);
   return (
+    <>
+    <Pressable onPress={() => setOpen(true)} hitSlop={10} accessibilityRole="button" style={{ alignSelf: 'center' }}>
+      <Body size={14} bold color={C.goldHi}>Have a duel code?</Body>
+    </Pressable>
+    <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+      <Pressable style={{ flex: 1, backgroundColor: C.scrim }} onPress={() => setOpen(false)} />
+      <View style={st.codeSheet}>
+        <Display size={22}>Enter a duel code</Display>
+        <Body size={13}>Paste the link a friend sent you.</Body>
     <View style={{ flexDirection: 'row', gap: 8 }}>
       <TextInput
         value={v}
@@ -203,32 +230,41 @@ function Paste() {
         style={st.input}
         accessibilityLabel="Duel link"
       />
-      <Btn label="OPEN" tone="blue" size="sm" style={{ width: 80 }} onPress={go} />
+      <Btn label="OPEN" tone="gold" size="sm" style={{ width: 80 }} onPress={() => { setOpen(false); go(); }} />
     </View>
+      </View>
+    </Modal>
+    </>
   );
+}
+
+/** A ghost is a recorded native-arena match: start one; its result offers Duel a friend. */
+function sendGhost() {
+  haptic.tap();
+  const m = prepareMatch(1, false);
+  m.renderer = 'native';
+  useUi.getState().openBattle(m);
 }
 
 export function DuelsScreen() {
   return (
     <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-      <View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <Image source={FEATURE_ART.ghostduel} style={{ width: 56, height: 56 }} resizeMode="contain" accessibilityLabel="Ghost Duels" />
-          <Ribbon text="Ghost Duels" tone="blue" size={22} />
-        </View>
-        <Body size={13}>
-          Send any battle as a ghost. Friends fight your exact moves whenever they like, and every result is checked by replay.
-        </Body>
-      </View>
-      <OpenCard />
+      <HeroSpace>
+        <Image source={CHAR_ART.ghost} style={st.floatGhost} resizeMode="contain" accessibilityLabel="The ghost" />
+        <Ribbon text="GHOST DUELS" tone="purple" size={26} />
+      </HeroSpace>
+      <Btn label="SEND A GHOST" sub="friends fight your exact moves" tone="gold" size="lg" icon={FEATURE_ART.ghostduel} onPress={sendGhost} />
       <Paste />
+      <OpenCard />
       <Board />
     </ScrollView>
   );
 }
 
 const st = StyleSheet.create({
-  scroll: { padding: 14, gap: 14, paddingBottom: 120 },
+  scroll: { paddingHorizontal: 14, gap: 14, paddingBottom: 120 },
+  floatGhost: { position: 'absolute', right: 6, top: 30, width: 110, height: 110 },
+  codeSheet: { backgroundColor: C.panel, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 40, gap: 10, borderTopWidth: 1.5, borderColor: 'rgba(247,215,116,0.5)' },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   deck: { flexDirection: 'row', gap: 4, marginVertical: 8 },
   mini: { flex: 1, aspectRatio: 0.75, borderRadius: 6, overflow: 'hidden', borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.5)' },

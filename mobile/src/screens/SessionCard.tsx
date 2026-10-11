@@ -77,12 +77,12 @@ export function SessionCard() {
         <>
           <View style={[st.row, { marginTop: 6, gap: 8, flexWrap: 'wrap' }]}>
             <ProofSeal
-              label={onChain ? 'LINKED' : 'LINKING'}
+              compact
               tone={onChain ? 'teal' : 'gold'}
               info={{ title: 'Approve Once', art: FEATURE_ART.session, glow: C.purple, about: `One approval linked a session key on this phone until ${new Date(cur.expiresAt * 1000).toLocaleDateString()}. The program checks its record on every Clock-In, and a small fee float (${lamports === null ? '…' : (lamports / 1e9).toFixed(4)} SOL) returns to your wallet when you turn it off.`, proofs: [{ label: `link ${short(cur.linkSig, 6)}`, url: explorerTx(cur.linkSig) }, { label: `key ${short(cur.session, 6)}`, url: explorerAddr(cur.session) }] }}
             />
             <Body size={11} color={C.dimOnWood}>
-              {onChain ? `${chain!.accepted} Clock-In${chain!.accepted === 1 ? '' : 's'} with no prompt` : 'Checking the link…'}
+              {onChain ? `${chain!.accepted} Clock-In${chain!.accepted === 1 ? '' : 's'} with no prompt` : 'Tap the seal for proof'}
             </Body>
           </View>
           <Btn

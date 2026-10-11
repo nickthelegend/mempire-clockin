@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CHAR_ART, FEATURE_ART, REWARD_ART, UI_ICON } from '../data/cosmeticArt';
+import { CHAR_ART, FEATURE_ART, REWARD_ART, UI_ICON, GAME_BG, PREMIUM_UI } from '../data/cosmeticArt';
 import { ARENA_THUMBS } from './Shop';
 import { ALL_SKINS, PASS_PROGRAM, hasPremium, ownsSkin, passMint, usePassChain, SEASON_ID } from '../chain/pass';
 import { clockStatePda, programLive, readClockState, readSessionRecord, type ClockState } from '../chain/clockin';
@@ -25,6 +25,7 @@ import { haptic } from '../notify';
 import { reduceMotion } from '../motion';
 import { C, R } from '../theme';
 import { Body, Btn, Display, PressScale, SkrIcon, Ribbon } from '../ui/kit';
+import { DriftBackground } from '../ui/Backdrop';
 
 /**
  * "Chain Powers": every Solana feature Mempire uses, as a trophy room of
@@ -100,7 +101,7 @@ function Seal({ state }: { state: PowerState }) {
   }
   return (
     <Animated.View style={[st.seal, { backgroundColor: 'rgba(20,241,149,0.16)', borderColor: C.teal, transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] }) }] }]}>
-      <View style={st.check}><Body size={11} bold color={C.ink}>✓</Body></View>
+      <Image source={PREMIUM_UI.stamp} style={{ width: 24, height: 24, marginLeft: -6 }} resizeMode="contain" />
       <Body size={11} bold color={C.teal}>ACTIVE</Body>
     </Animated.View>
   );
@@ -334,6 +335,7 @@ export function OnChainSheet() {
   return (
     <Modal visible={open} animationType="slide" transparent onRequestClose={() => (sheet ? setSheet(null) : setOpen(false))}>
       <View style={st.wrap}>
+        <DriftBackground source={GAME_BG.home} dim={0.5} />
         <ScrollView contentContainerStyle={{ padding: pad, gap: 14, paddingTop: insets.top + 8, paddingBottom: 60, alignItems: 'center' }}>
           <View style={{ alignSelf: 'stretch', alignItems: 'flex-end', marginBottom: -40, zIndex: 2 }}>
             <Btn label="✕" tone="ghost" size="sm" onPress={() => setOpen(false)} />

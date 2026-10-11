@@ -5,7 +5,7 @@ import {
   type ImageSourcePropType, type ImageStyle, type StyleProp, type TextStyle, type ViewStyle,
 } from 'react-native';
 import { UI_ART, CARD_ART } from '../data/art';
-import { FRAME_ART, REWARD_ART } from '../data/cosmeticArt';
+import { FRAME_ART, PREMIUM_UI, REWARD_ART } from '../data/cosmeticArt';
 import { BY_TICKER, COPIES_TO_LEVEL, MAX_LEVEL, type OwnedCard } from '../game/rules';
 import { haptic } from '../notify';
 import { EASE_OUT, reduceMotion } from '../motion';
@@ -22,7 +22,7 @@ export function Display({ children, size = 24, color = C.text, style }: {
       maxFontSizeMultiplier={1.35}
       style={[{
         fontFamily: F.display, fontSize: size, color, letterSpacing: 0.5,
-        textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 0,
+        textShadowColor: 'rgba(10,6,30,0.9)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 2,
       }, style]}
     >
       {children}
@@ -33,8 +33,9 @@ export function Display({ children, size = 24, color = C.text, style }: {
 export function Body({ children, size = 14, color = C.dim, style, bold, numberOfLines }: {
   children: ReactNode; size?: number; color?: string; style?: StyleProp<TextStyle>; bold?: boolean; numberOfLines?: number;
 }) {
+  // System font for body copy, 15 px at most.
   return (
-    <Text maxFontSizeMultiplier={1.35} numberOfLines={numberOfLines} style={[{ fontFamily: bold ? F.uiBold : F.ui, fontSize: size, color }, style]}>
+    <Text maxFontSizeMultiplier={1.35} numberOfLines={numberOfLines} style={[{ fontSize: Math.min(size, 15), fontWeight: bold ? '700' : '500', color }, style]}>
       {children}
     </Text>
   );
@@ -42,31 +43,43 @@ export function Body({ children, size = 14, color = C.dim, style, bold, numberOf
 
 // ── surfaces ────────────────────────────────────────────────────────────────
 
-/** Carved wood panel — the game's primary container. */
+/**
+ * The panel: navy, radius 20, a thin gold gradient rim, an inner top
+ * highlight and a soft drop shadow. The one container for primary content.
+ */
 export function Panel({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   return (
-    <View style={[s.panelEdge, style]}>
-      <LinearGradient colors={[C.woodHi, C.wood, C.woodDark]} style={s.panel}>
-        {children}
+    <View style={[s.panelShadow, style]}>
+      <LinearGradient colors={['rgba(247,215,116,0.6)', 'rgba(184,134,43,0.6)']} style={s.panelRim}>
+        <View style={s.panel}>
+          <View pointerEvents="none" style={s.panelLip} />
+          {children}
+        </View>
       </LinearGradient>
     </View>
   );
 }
 
-/** Recessed navy well for secondary content. */
+/** A raised tile (or secondary panel): radius 14, one step lighter. */
 export function Well({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
-  return <View style={[s.well, style]}>{children}</View>;
+  return (
+    <View style={[s.well, style]}>
+      <View pointerEvents="none" style={s.wellLip} />
+      {children}
+    </View>
+  );
 }
 
 // ── buttons ─────────────────────────────────────────────────────────────────
 
 type Tone = 'gold' | 'blue' | 'green' | 'ghost' | 'skr';
-const TONES: Record<Tone, { top: string; bottom: string; edge: string; text: string }> = {
-  gold: { top: '#ffd766', bottom: C.btnGold, edge: C.btnGoldDark, text: C.ink },
-  blue: { top: '#7cc6ff', bottom: C.btnBlue, edge: C.btnBlueDark, text: '#fff' },
-  green: { top: '#8ce85a', bottom: C.btnGreen, edge: C.btnGreenDark, text: '#fff' },
-  skr: { top: '#e6ff8a', bottom: C.skr, edge: '#6f8f00', text: C.ink },
-  ghost: { top: 'rgba(255,255,255,0.14)', bottom: 'rgba(255,255,255,0.06)', edge: 'rgba(0,0,0,0.35)', text: '#fff' },
+const TONES: Record<Tone, { top: string; mid?: string; bottom: string; edge: string; text: string }> = {
+  // Primary: gold. Secondary: purple. Prices (skr) are gold too, never olive.
+  gold: { top: '#FFE08A', mid: '#F2B33D', bottom: '#C98316', edge: '#8A5A0C', text: '#3A2200' },
+  skr: { top: '#FFE08A', mid: '#F2B33D', bottom: '#C98316', edge: '#8A5A0C', text: '#3A2200' },
+  blue: { top: '#9B6CFF', bottom: '#6A3FE0', edge: '#3F2399', text: '#fff' },
+  green: { top: '#6CF2B5', bottom: '#2DB57A', edge: '#1A6E4A', text: '#fff' },
+  ghost: { top: 'rgba(255,255,255,0.10)', bottom: 'rgba(255,255,255,0.04)', edge: 'rgba(184,134,43,0.55)', text: '#fff' },
 };
 
 /**
@@ -74,14 +87,26 @@ const TONES: Record<Tone, { top: string; bottom: string; edge: string; text: str
  * tick. Every primary action in the app is one of these.
  */
 export function Btn({
-  label, onPress, tone = 'gold', disabled, busy, size = 'md', style, sub, icon,
+  label, onPress, tone = 'gold', disabled, busy, size = 'md', style, sub, icon, pulse,
 }: {
   label: string; onPress?: () => void; tone?: Tone; disabled?: boolean; busy?: boolean;
   size?: 'sm' | 'md' | 'lg'; style?: StyleProp<ViewStyle>; sub?: string;
   /** Art drawn before the label (feature icons). */
   icon?: ImageSourcePropType;
+  /** The icon breathes gently (the PLAY emblem). */
+  pulse?: boolean;
 }) {
   const press = useRef(new Animated.Value(0)).current;
+  const breathe = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!pulse || reduceMotion()) return undefined;
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(breathe, { toValue: 1, duration: 900, useNativeDriver: true }),
+      Animated.timing(breathe, { toValue: 0, duration: 900, useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [pulse, breathe]);
   const t = TONES[tone];
   const h = size === 'lg' ? 64 : size === 'sm' ? 38 : 50;
   const fs = size === 'lg' ? 26 : size === 'sm' ? 15 : 19;
@@ -100,7 +125,7 @@ export function Btn({
       <View style={{ minHeight: h + 5, paddingBottom: 5, borderRadius: R.pill, backgroundColor: t.edge }}>
         <Animated.View style={{ transform: [{ translateY: press.interpolate({ inputRange: [0, 1], outputRange: [0, 4] }) }] }}>
           <LinearGradient
-            colors={[t.top, t.bottom]}
+            colors={t.mid ? [t.top, t.mid, t.bottom] : [t.top, t.bottom]}
             style={{
               minHeight: h, borderRadius: R.pill, alignItems: 'center', justifyContent: 'center',
               borderWidth: 2, borderColor: 'rgba(0,0,0,0.35)', paddingHorizontal: 14, paddingVertical: 6,
@@ -109,7 +134,7 @@ export function Btn({
             {busy ? <ActivityIndicator color={t.text} /> : (
               <>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  {icon ? <Image source={icon} style={{ width: fs * 1.4, height: fs * 1.4 }} resizeMode="contain" /> : null}
+                  {icon ? <Animated.Image source={icon} style={{ width: fs * (pulse ? 2 : 1.4), height: fs * (pulse ? 2 : 1.4), marginVertical: pulse ? -8 : 0, transform: [{ scale: breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.1] }) }] }} resizeMode="contain" /> : null}
                   <Text maxFontSizeMultiplier={1.3} style={{ fontFamily: F.display, fontSize: fs, color: t.text, letterSpacing: 0.6, textAlign: 'center' }}>{label}</Text>
                 </View>
                 {sub ? <Text maxFontSizeMultiplier={1.3} style={{ fontFamily: F.uiBold, fontSize: 11, color: t.text, opacity: 0.85, textAlign: 'center' }}>{sub}</Text> : null}
@@ -297,12 +322,12 @@ export function Progress({ value, color = C.teal, height = 10 }: { value: number
 }
 
 const s = StyleSheet.create({
-  panelEdge: { borderRadius: R.panel, backgroundColor: C.woodEdge, padding: 3 },
-  panel: {
-    borderRadius: R.panel - 2, padding: 14,
-    borderTopWidth: 2, borderTopColor: 'rgba(255,255,255,0.25)',
-  },
-  well: { backgroundColor: C.recess, borderRadius: R.card, padding: 12, borderWidth: 1, borderColor: 'rgba(0,0,0,0.35)' },
+  panelShadow: { borderRadius: R.panel, shadowColor: '#000', shadowOpacity: 0.45, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
+  panelRim: { borderRadius: R.panel, padding: 1.5 },
+  panel: { borderRadius: R.panel - 1.5, padding: 16, backgroundColor: C.panel, overflow: 'hidden' },
+  panelLip: { position: 'absolute', left: 0, right: 0, top: 0, height: 1.5, backgroundColor: 'rgba(255,255,255,0.08)' },
+  well: { borderRadius: R.card, padding: 12, backgroundColor: C.panelRaised, borderWidth: 1, borderColor: 'rgba(247,215,116,0.14)' },
+  wellLip: { position: 'absolute', left: 10, right: 10, top: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.08)' },
   chip: {
     minHeight: 44, justifyContent: 'center',
     backgroundColor: 'rgba(9,22,48,0.7)', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4,
@@ -321,31 +346,54 @@ const s = StyleSheet.create({
 
 // ── banners ─────────────────────────────────────────────────────────────────
 
-const RIBBON_TONES = {
-  gold: ['#ffd766', '#e59a12', '#8a5207'],
-  blue: ['#6cc4ff', '#2a74d6', '#123f7c'],
-  purple: ['#d9a3ff', '#8a45e6', '#4a1d8c'],
-  red: ['#ff8fa3', '#e0384f', '#7d1426'],
-} as const;
+/**
+ * The title ribbon (painted art): sized to fit its title, the title centred on
+ * the band in the display face with a dark stroke. `tone` is kept for older
+ * call sites; the ribbon art is the one look.
+ */
+export function Ribbon({ text, size = 24, style }: {
+  text: string; tone?: string; size?: number; style?: StyleProp<ViewStyle>;
+}) {
+  const h = Math.round(size * 2.7);
+  const natural = h * (504 / 190);
+  const textW = text.length * size * 0.6;
+  const w = Math.max(natural, textW / 0.5);
+  return (
+    <View style={[{ width: w, height: h, alignSelf: 'center', alignItems: 'center', justifyContent: 'center' }, style]} accessibilityRole="header" accessibilityLabel={text}>
+      <Image source={PREMIUM_UI.ribbon} resizeMode="stretch" style={{ position: 'absolute', width: w, height: h }} />
+      <Text maxFontSizeMultiplier={1.15} numberOfLines={1} style={{
+        fontFamily: F.display, fontSize: size, color: '#fff', marginTop: -h * 0.12, maxWidth: w * 0.62,
+        textShadowColor: '#2a0f5c', textShadowOffset: { width: 0, height: 2.5 }, textShadowRadius: 3,
+      }}
+      >{text}</Text>
+    </View>
+  );
+}
 
 /**
- * A ribbon banner for screen and panel titles: a bevelled band with folded
- * tails, the title in the display face with a hard drop shadow.
+ * A ring of dots that empties as time runs out (no SVG): `left` is the share
+ * of the period still to go, 0..1. Lit dots are the time remaining.
  */
-export function Ribbon({ text, tone = 'gold', size = 24, style }: {
-  text: string; tone?: keyof typeof RIBBON_TONES; size?: number; style?: StyleProp<ViewStyle>;
+export function CountdownRing({ left, size = 64, dots = 36, color = C.gold, children }: {
+  left: number; size?: number; dots?: number; color?: string; children?: ReactNode;
 }) {
-  const [hi, mid, dark] = RIBBON_TONES[tone];
-  const h = Math.round(size * 1.9);
-  const tail = Math.round(h * 0.42);
+  const r = size / 2 - 4;
+  const lit = Math.round(Math.max(0, Math.min(1, left)) * dots);
   return (
-    <View style={[{ flexDirection: 'row', alignItems: 'center', alignSelf: 'center' }, style]} accessibilityRole="header" accessibilityLabel={text}>
-      <View style={{ width: tail, height: h * 0.78, marginRight: -6, marginTop: h * 0.3, backgroundColor: dark, borderTopLeftRadius: 4, borderBottomLeftRadius: 4 }} />
-      <LinearGradient colors={[hi, mid, dark]} locations={[0, 0.55, 1]} style={{ height: h, paddingHorizontal: size * 0.9, borderRadius: 8, borderWidth: 2.5, borderColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>
-        <View style={{ position: 'absolute', left: 6, right: 6, top: 3, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.45)' }} />
-        <Text maxFontSizeMultiplier={1.2} numberOfLines={1} style={{ fontFamily: F.display, fontSize: size, color: '#fff', textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 2.5 }, textShadowRadius: 0 }}>{text}</Text>
-      </LinearGradient>
-      <View style={{ width: tail, height: h * 0.78, marginLeft: -6, marginTop: h * 0.3, backgroundColor: dark, borderTopRightRadius: 4, borderBottomRightRadius: 4 }} />
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      {Array.from({ length: dots }, (_, i) => {
+        const a = (i / dots) * Math.PI * 2 - Math.PI / 2;
+        const on = i < lit;
+        return (
+          <View key={i} style={{
+            position: 'absolute', width: on ? 5 : 4, height: on ? 5 : 4, borderRadius: 3,
+            left: size / 2 + Math.cos(a) * r - (on ? 2.5 : 2), top: size / 2 + Math.sin(a) * r - (on ? 2.5 : 2),
+            backgroundColor: on ? color : 'rgba(255,255,255,0.18)',
+          }}
+          />
+        );
+      })}
+      {children}
     </View>
   );
 }

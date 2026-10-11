@@ -13,7 +13,8 @@ import { useWar } from '../state/war';
 import { useWallet } from '../wallet/wallet';
 import { C, R } from '../theme';
 import { Body, Btn, Display, Panel, Tag, Well, Ribbon } from '../ui/kit';
-import { CHAR_ART, FEATURE_ART, UI_ICON } from '../data/cosmeticArt';
+import { CHAR_ART, FEATURE_ART, UI_ICON, GAME_BG, PREMIUM_UI } from '../data/cosmeticArt';
+import { DriftBackground } from '../ui/Backdrop';
 
 function Coin({ t, size = 44 }: { t: string; size?: number }) {
   const f = BY_TICKER.get(t);
@@ -35,7 +36,7 @@ export function SeasonWarBanner() {
       accessibilityRole="button"
       accessibilityLabel={`Season War, ${SEASON_WAR.title}. ${side ? `You fight for ${side}.` : 'Pick a side.'} Open the leaderboard.`}
     >
-      <LinearGradient colors={['#ff7a2e', '#9945ff']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.banner}>
+      <LinearGradient colors={['#9B6CFF', '#5A2FC9', '#3F2399']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.banner}>
         <Coin t={a} />
         <View style={{ flex: 1, alignItems: 'center' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -96,7 +97,7 @@ function GlobalBoard() {
       {board && board.streaks.length ? board.streaks.slice(0, 10).map((r, i) => (
         <View key={r.wallet} style={st.row}>
           {i === 0
-            ? <Image source={UI_ICON.crown} style={{ width: 26, height: 26 }} resizeMode="contain" accessibilityLabel="First place" />
+            ? <Image source={PREMIUM_UI.seasonCrown} style={{ width: 30, height: 30 }} resizeMode="contain" accessibilityLabel="First place" />
             : <Body size={14} bold color={i < 3 ? C.gold : '#fff'} style={{ width: 26 }}>{i + 1}</Body>}
           <StreakName wallet={r.wallet} />
           {r.side ? <Coin t={r.side} size={22} /> : null}
@@ -139,6 +140,7 @@ export function BoardSheet() {
   return (
     <Modal visible={open} animationType="slide" transparent onRequestClose={() => setBoard(false)}>
       <View style={st.wrap}>
+        <DriftBackground source={GAME_BG.home} dim={0.5} />
         <ScrollView contentContainerStyle={{ padding: 14, gap: 12, paddingTop: 60, paddingBottom: 60 }}>
           <View style={st.between}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -227,7 +229,7 @@ const st = StyleSheet.create({
   between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   banner: {
     flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: R.panel,
-    borderWidth: 3, borderColor: 'rgba(0,0,0,0.45)',
+    borderWidth: 1.5, borderColor: 'rgba(247,215,116,0.6)',
   },
   side: {
     flex: 1, alignItems: 'center', gap: 4, padding: 10, borderRadius: R.card,

@@ -1,7 +1,5 @@
 import { Component, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import {
-  ActivityIndicator, Animated, AppState, BackHandler, Image, Linking, Pressable, StyleSheet, View,
-} from 'react-native';
+import { ActivityIndicator, Animated, AppState, BackHandler, Image, Linking, Pressable, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -30,8 +28,9 @@ import { commitPendingChests, prepareMatch } from './src/game/actions';
 import { setPerf } from './src/arena/perf';
 import { ensureChannel, ensureStreakReminder, haptic } from './src/notify';
 import { C } from './src/theme';
-import { Body, Btn, Chip, Display } from './src/ui/kit';
-import { REWARD_ART } from './src/data/cosmeticArt';
+import { Body, Btn, Display } from './src/ui/kit';
+import { CHAR_ART, GAME_BG, ITEM_ART, NAV_ART } from './src/data/cosmeticArt';
+import { Hero } from './src/ui/Backdrop';
 import { ConnectScreen } from './src/screens/Connect';
 import { HomeScreen } from './src/screens/Home';
 import { CardsScreen } from './src/screens/Cards';
@@ -63,19 +62,18 @@ Notifications.setNotificationHandler({
 });
 void SplashScreen.preventAutoHideAsync();
 
-const TABS: { id: Tab; label: string; icon: keyof typeof UI_ART }[] = [
-  { id: 'home', label: 'Home', icon: 'tab_arena' },
-  { id: 'cards', label: 'Cards', icon: 'tab_cards' },
-  { id: 'deck', label: 'Deck', icon: 'tab_deck' },
-  { id: 'duels', label: 'Duels', icon: 'clan_badge' },
-  { id: 'shop', label: 'Shop', icon: 'tab_swap' },
+const TABS: { id: Tab; label: string; icon: ImageSourcePropType }[] = [
+  { id: 'home', label: 'Home', icon: NAV_ART.home },
+  { id: 'cards', label: 'Cards', icon: UI_ART.tab_cards },
+  { id: 'deck', label: 'Deck', icon: NAV_ART.deck },
+  { id: 'duels', label: 'Duels', icon: NAV_ART.duels },
+  { id: 'shop', label: 'Shop', icon: NAV_ART.shop },
 ];
 
 function Header() {
   const insets = useSafeAreaInsets();
   const address = useWallet((s) => s.address);
   const kind = useWallet((s) => s.kind);
-  const sol = useWallet((s) => s.sol);
   const skr = useWallet((s) => s.skr);
   const skrSim = useGame((s) => s.skrSim);
   const trophies = useGame((s) => s.trophies);
@@ -97,17 +95,33 @@ function Header() {
           </Body>
         </View>
       </Pressable>
-      <View style={{ flexDirection: 'row', gap: 6, flexShrink: 0 }}>
-        <Chip label="TROPHY" value={String(shownTrophies)} color={C.gold} />
-        <Chip label="SOL" value={sol === null ? '…' : sol.toFixed(2)} color={C.bluePale} onPress={() => setWalletOpen(true)} />
-        <Chip
-          label="SKR"
-          icon={REWARD_ART.skr}
-          value={SKR_LIVE && skr === null ? '…' : String(shownSkr)}
-          color={C.skr}
-          onPress={() => setTab('shop')}
-        />
+      <View style={{ flexDirection: 'row', gap: 8, flexShrink: 0, alignItems: 'center' }}>
+        <NetIcon />
+        <HudPill icon={CHAR_ART.trophy} value={String(shownTrophies)} label="Trophies" />
+        <HudPill icon={ITEM_ART.coin} value={SKR_LIVE && skr === null ? null : String(shownSkr)} label="SKR" onPress={() => setTab('shop')} />
       </View>
+    </View>
+  );
+}
+
+/** A HUD counter: art badge overlapping a capsule; a shimmer until the value is known. */
+function HudPill({ icon, value, label, onPress }: { icon: ImageSourcePropType; value: string | null; label: string; onPress?: () => void }) {
+  return (
+    <Pressable onPress={onPress ? () => { haptic.tap(); onPress(); } : undefined} accessibilityRole={onPress ? 'button' : undefined} accessibilityLabel={`${label} ${value ?? 'loading'}`} style={({ pressed }) => [st.pill, pressed && { transform: [{ translateY: 2 }] }]}>
+      <Image source={icon} style={st.pillIcon} resizeMode="contain" />
+      {value === null ? <View style={st.pillShimmer} /> : <Text maxFontSizeMultiplier={1.15} style={st.pillText}>{value}</Text>}
+    </Pressable>
+  );
+}
+
+/** Network trouble is a small spinning cloud in the HUD, retried silently; never a banner. */
+function NetIcon() {
+  const status = useNet((s) => s.status);
+  if (status !== 'busy' && status !== 'down') return null;
+  return (
+    <View style={st.net} accessibilityLabel={status === 'busy' ? 'Network busy, retrying' : 'Offline, retrying'}>
+      <View style={st.cloud} />
+      <ActivityIndicator size="small" color="#fff" style={{ transform: [{ scale: 0.7 }] }} />
     </View>
   );
 }
@@ -137,8 +151,9 @@ function TabBar() {
             onPress={() => { if (!on) { haptic.tap(); setTab(t.id); } }}
             style={[st.tab, on && st.tabOn]}
           >
-            <Image source={UI_ART[t.icon]} style={{ width: on ? 40 : 32, height: on ? 40 : 32 }} />
-            <Body size={11} color={on ? '#fff' : C.dim} bold>{t.label}</Body>
+            {on ? <View style={st.tabGlow} /> : null}
+            <Image source={t.icon} style={{ width: 30, height: 30, transform: [{ translateY: on ? -6 : 0 }, { scale: on ? 1.25 : 1 }], opacity: on ? 1 : 0.7 }} resizeMode="contain" />
+            <Text maxFontSizeMultiplier={1.1} style={{ fontFamily: 'LilitaOne_400Regular', fontSize: 11, color: on ? C.goldHi : C.dim, marginTop: on ? -2 : 2 }}>{t.label}</Text>
             {dot ? <View style={st.dot} /> : null}
           </Pressable>
         );
@@ -158,7 +173,10 @@ function Screens() {
     v.setValue(0);
     Animated.timing(v, { toValue: 1, duration: 220, easing: EASE_OUT, useNativeDriver: true }).start();
   }, [tab, v]);
+  const bg = tab === 'duels' ? GAME_BG.duels : tab === 'shop' ? GAME_BG.shop : GAME_BG.home;
   return (
+    <View style={{ flex: 1 }}>
+    <Hero source={bg} dim={tab === 'deck' || tab === 'cards' ? 0.45 : 0} />
     <Animated.View
       style={{
         flex: 1,
@@ -168,23 +186,13 @@ function Screens() {
     >
       {tab === 'home' ? <HomeScreen /> : tab === 'cards' ? <CardsScreen /> : tab === 'deck' ? <DeckScreen /> : tab === 'duels' ? <DuelsScreen /> : <ShopScreen />}
     </Animated.View>
+    </View>
   );
 }
+
 
 let initialUrlConsumed = false;
 
-function OfflineBanner() {
-  const status = useNet((s) => s.status);
-  const check = useNet((s) => s.check);
-  if (status !== 'down' && status !== 'busy') return null;
-  const busy = status === 'busy';
-  return (
-    <Pressable onPress={() => void check()} style={[st.offline, busy && { backgroundColor: '#8a5a12' }]} accessibilityRole="button" accessibilityLabel={busy ? 'The network is busy. Tap to retry.' : 'Offline. Tap to retry.'}>
-      <Body size={12} bold color="#fff">{busy ? 'Network busy: rewards may take a moment' : 'Offline: battles and chests still work'}</Body>
-      <Body size={11} bold color={C.goldHi}>RETRY</Body>
-    </Pressable>
-  );
-}
 
 
 function Game() {
@@ -254,7 +262,6 @@ function Game() {
   return (
     <View style={{ flex: 1 }}>
       <Header />
-      <OfflineBanner />
       <Screens />
       <TabBar />
       <CoachSheet />
@@ -288,7 +295,15 @@ function Root() {
     void useNet.getState().check();
     const t = setInterval(() => void useNet.getState().check(), 45_000);
     void ensureChannel();
-    return () => clearInterval(t);
+    // Silent recovery: when the network comes back, re-read balances and holdings.
+    const unsub = useNet.subscribe((n, prev) => {
+      if (n.status === 'ok' && prev.status !== 'ok' && prev.status !== 'unknown') {
+        void useWallet.getState().refresh();
+        const a = useWallet.getState().address;
+        if (a) void usePassChain.getState().refresh(a);
+      }
+    });
+    return () => { clearInterval(t); unsub(); };
   }, [restore]);
 
   useEffect(() => {
@@ -397,7 +412,7 @@ export default function App() {
   if (!fontsLoaded) return null;
   return (
     <SafeAreaProvider>
-      <LinearGradient colors={[C.blueLit, C.blue, C.blueDeep]} style={{ flex: 1 }}>
+      <LinearGradient colors={[C.bg, C.bg]} style={{ flex: 1 }}>
         <StatusBar style="light" />
         <AppBoundary><Root /></AppBoundary>
       </LinearGradient>
@@ -410,18 +425,28 @@ const st = StyleSheet.create({
   offline: { backgroundColor: '#7a2236', paddingHorizontal: 14, paddingVertical: 6, minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 12, paddingBottom: 8, backgroundColor: 'rgba(9,22,48,0.55)',
+    paddingHorizontal: 12, paddingBottom: 8, backgroundColor: 'rgba(10,16,40,0.92)',
     borderBottomWidth: 2, borderBottomColor: 'rgba(0,0,0,0.4)',
   },
   // Shrinks first at large text sizes so the balance chips never leave the screen.
   who: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1, marginRight: 6 },
-  avatar: { width: 38, height: 38, borderRadius: 10, borderWidth: 2, borderColor: C.gold },
+  avatar: { width: 40, height: 40, borderRadius: 20, borderWidth: 2.5, borderColor: C.gold },
+  pill: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 15, borderWidth: 1.5, borderColor: 'rgba(247,215,116,0.6)', height: 30, paddingRight: 12, paddingLeft: 28, minWidth: 64, marginLeft: 10 },
+  pillIcon: { position: 'absolute', left: -10, width: 36, height: 36 },
+  pillText: { fontFamily: 'LilitaOne_400Regular', fontSize: 16, color: '#fff' },
+  pillShimmer: { width: 26, height: 12, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.18)' },
+  net: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.12)' },
+  cloud: { position: 'absolute', width: 22, height: 12, borderRadius: 6, bottom: 8, backgroundColor: 'rgba(255,255,255,0.25)' },
   tabs: {
-    flexDirection: 'row', backgroundColor: C.woodDark, borderTopWidth: 3, borderTopColor: C.woodEdge,
-    paddingTop: 6, paddingHorizontal: 6,
+    flexDirection: 'row', backgroundColor: C.bg, borderTopWidth: 1, borderTopColor: 'rgba(247,215,116,0.55)',
+    paddingTop: 8, paddingHorizontal: 6,
   },
-  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4, borderRadius: 12, minHeight: 56 },
-  tabOn: { backgroundColor: 'rgba(255,196,34,0.18)' },
+  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4, minHeight: 52 },
+  tabOn: {},
+  tabGlow: {
+    position: 'absolute', bottom: 10, width: 46, height: 14, borderRadius: 23, backgroundColor: 'rgba(247,201,72,0.35)',
+    shadowColor: C.gold, shadowOpacity: 1, shadowRadius: 12, shadowOffset: { width: 0, height: 0 },
+  },
   dot: {
     position: 'absolute', top: 2, right: '28%', width: 10, height: 10, borderRadius: 5,
     backgroundColor: C.red, borderWidth: 1.5, borderColor: '#fff',
