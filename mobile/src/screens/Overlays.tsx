@@ -362,7 +362,7 @@ export function WalletSheet() {
     <Modal visible transparent animationType="slide" onRequestClose={() => setOpen(false)}>
       <Pressable style={{ flex: 1, backgroundColor: C.scrim }} onPress={() => setOpen(false)} />
       <View style={[st.sheet, { maxHeight: '92%' }]}>
-        <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
+        <ScrollView bounces={false} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <Panel>
           <View style={st.row}>
             <Display size={22}>Wallet & settings</Display>

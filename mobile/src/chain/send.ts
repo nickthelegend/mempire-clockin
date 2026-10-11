@@ -178,10 +178,12 @@ export function friendlyTxError(e: unknown): Error {
   const out = (m: string) => Object.assign(new Error(m), { cause: e });
   const anchor = /Error Message: ([^.\n]+)/.exec(all);
   if (anchor) return out(`${anchor[1]}.`);
+  if (/Transfer is disabled for this mint|NonTransferable/i.test(all)) return out('This token is soulbound: it cannot be transferred.');
   if (/Tokenkeg|TokenzQd/.test(logs) && /custom program error: 0x1\b|insufficient funds/i.test(all)) return out('Not enough SKR (or token balance) for this.');
+  if (/AccountNotFound|Attempt to debit an account but found no record/i.test(all)) return out('Not enough devnet SOL for this transaction (network fee or rent).');
   if (/insufficient (funds|lamports)|no record of a prior credit|InsufficientFundsForFee/i.test(all)) return out('Not enough devnet SOL for this transaction (network fee or rent).');
   if (/already in use|custom program error: 0x0\b/i.test(all)) return out('Already done: that on-chain record exists (bought or claimed before).');
-  if (/Blockhash not found|block height exceeded|expired/i.test(all)) return out('The network was busy and the transaction expired. Nothing was charged; try again.');
+  if (/Blockhash ?not ?found|block height exceeded|expired/i.test(all)) return out('The network was busy and the transaction expired. Nothing was charged; try again.');
   if (/429|Too Many Requests|rate.?limit/i.test(all)) return out('The devnet RPC is rate-limiting right now. Try again in a moment.');
   if (/declin|reject|cancel/i.test(all)) return out('You declined the request in your wallet.');
   if (/Network request failed|fetch failed|ECONNREFUSED|ENOTFOUND/i.test(all)) return out('Could not reach the Solana network. Check your connection and try again.');

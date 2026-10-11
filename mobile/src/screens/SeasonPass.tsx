@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { hasPremium, passMint, usePassChain, SEASON_ID } from '../chain/pass';
 import { CLUSTER_LABEL, explorerAddr, explorerTx, short } from '../chain/solana';
@@ -152,6 +152,14 @@ export function SeasonPassSheet() {
   const premium = hasPremium(pc);
   const tier = tierFor(pass.xp);
   const ready = claimable(pass, premium);
+  // Opening the pass reads the chain again: SKR balance and pass ownership
+  // must be current before the buy button decides anything.
+  useEffect(() => {
+    if (!open) return;
+    const a = useWallet.getState().address;
+    void usePassChain.getState().refresh(a);
+    void useWallet.getState().refresh();
+  }, [open]);
 
   const onClaim = (n: number, t: Track) => {
     const msg = claimPassTier(n, t);

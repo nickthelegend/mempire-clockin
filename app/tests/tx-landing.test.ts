@@ -120,6 +120,9 @@ describe('friendly errors', () => {
     expect(f(new Error('Blockhash not found'))).toMatch(/expired/);
     expect(f(new Error('429 Too Many Requests'))).toMatch(/rate-limiting/);
     expect(f(new Error('User declined the request'))).toMatch(/declined/);
+    expect(f(new SimulationError({ InstructionError: [1, { Custom: 37 }] }, ['Program log: Transfer is disabled for this mint']))).toMatch(/soulbound/);
+    expect(f(new SimulationError('AccountNotFound', []))).toMatch(/Not enough devnet SOL/);
+    expect(f(new SimulationError('BlockhashNotFound', []))).toMatch(/expired/);
     expect(f(new Error('weird'))).toBe('weird');
   });
 });

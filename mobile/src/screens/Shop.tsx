@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Image, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SHOP, type ShopItemId } from '../game/rules';
 import { buy, claimOwedSkr } from '../game/actions';
@@ -150,6 +150,11 @@ function PassEntry() {
 
 
 export function ShopScreen() {
+  // The Shop spends on-chain balances: read them fresh when it opens.
+  useEffect(() => {
+    void useWallet.getState().refresh();
+    void usePassChain.getState().refresh(useWallet.getState().address);
+  }, []);
   const skrChain = useWallet((s) => s.skr);
   const owed = useGame((s) => s.skrSim);
   const shields = useGame((s) => s.streak.shields);

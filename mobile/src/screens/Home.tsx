@@ -150,7 +150,7 @@ function ClockIn() {
           : ledger[0]?.via === 'program'
             ? `On-chain record (mempire_pass): streak ${chainState?.streak ?? ledger[0].streak} · best ${chainState?.best ?? '–'} · ${chainState?.total ?? '–'} Clock-In${chainState?.total === 1 ? '' : 's'} · last ${ledger[0].day} UTC${ledger.some((l) => l.via === 'session') ? ` · ${ledger.filter((l) => l.via === 'session').length} by session key` : ''}`
           : ledger.length
-            ? `Chain ledger: ${ledger.length} signed Clock-In${ledger.length === 1 ? '' : 's'} on ${CLUSTER_LABEL}${ledger.some((l) => l.via === 'session') ? ` (${ledger.filter((l) => l.via === 'session').length} by session key)` : ''} · latest day ${ledger[0].streak}`
+            ? `Chain ledger: ${ledger.length} signed Clock-In${ledger.length === 1 ? '' : 's'} on ${CLUSTER_LABEL}${ledger.some((l) => l.via === 'session') ? ` (${ledger.filter((l) => l.via === 'session').length} by session key)` : ''} · latest: day ${ledger[0].day}, streak ${ledger[0].streak}`
             : 'Chain ledger: no signed Clock-Ins yet — they appear once the wallet has devnet SOL.'}
       </Body>
       <SessionCard />

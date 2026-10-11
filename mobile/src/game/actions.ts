@@ -185,9 +185,10 @@ export async function doClockIn(seeker: boolean): Promise<ClockInResult | null> 
     const ledger = useUi.getState().chainLedger ?? [];
     useUi.getState().setChainLedger([{ day, streak: done.outcome.streak.count, sig, via }, ...ledger]);
   }
-  // A session Clock-In is only "on the ledger" once the session rules accept
-  // it from chain: read it back rather than trusting the local write.
-  if (sig && done && via === 'session' && address) {
+  // Read the ledger back from chain after any on-chain Clock-In: the program's
+  // ClockInState then leads it, and a session Clock-In is only "on the ledger"
+  // once the session rules accept it. Never trust the local write alone.
+  if (sig && done && address) {
     void readFullLedger(address).then((l) => { if (useWallet.getState().address === address) useUi.getState().setChainLedger(l); }).catch(() => {});
   }
   if (!done) return null;
