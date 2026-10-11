@@ -147,7 +147,12 @@ export const useUi = create<UiState>((set, get) => ({
   tab: 'home',
   setTab: (tab) => set({ tab }),
   battle: null,
-  openBattle: (battle) => set({ battle }),
+  // A battle is inline under the sheets: close any open sheet first, or the
+  // match would play (and finish) hidden behind it.
+  openBattle: (battle) => {
+    if (sheetTimer) { clearTimeout(sheetTimer); sheetTimer = null; }
+    set({ ...NO_SHEETS, battle });
+  },
   closeBattle: () => set({ battle: null }),
   result: null,
   showResult: (result) => set({ result }),
