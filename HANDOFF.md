@@ -50,6 +50,41 @@ Also verified: the shared battle sim is deterministic (`npx tsx app/scripts/sim-
   dApp Store, must be signed with this key.
 - `apksigner` certificate: CN=Mempire, O=Mempire, C=IN; cert SHA-256 510a32d604173681a92bd6cb9c9b3809c4042c7d59a3fbbaf02316769fc3d943
 
+## Go devnet (final step)
+
+Once the deployer `2vAPj7…` (`~/.config/solana/mempire-clockin/deployer.json`) is funded, everything that goes on devnet is one command:
+
+```bash
+bash scripts/go-devnet.sh                     # devnet: deploy, set up, sweep, ship the APK, push
+bash scripts/go-devnet.sh --no-ship           # stop after the sweep
+bash scripts/go-devnet.sh --cluster localnet  # the same against a throwaway local validator (ports 4150–4179)
+```
+
+The script is idempotent: every step is skipped when it is already done.
+
+1. **Balance check.** It needs about 6.6 SOL **peak**. The upgradeable loader holds the deploy buffer (the .so) and the program data (`--max-len` = .so + 16 KB) at the same moment; the buffer is refunded right after. Net cost measured on localnet: **3.59 SOL**. If the balance is short, the script prints exactly how much is missing and stops. The program is now built with `opt-level = "z"` (411 KB, down from 513 KB) to keep this down.
+2. **Deploy `mempire_pass`** with `--max-len`. If a deployed program is byte-identical to the local .so, the deploy is skipped; otherwise it is upgraded.
+3. **SKR stand-in** (`mobile/scripts/setup-skr-devnet.mjs`) writes `mobile/src/data/skr-devnet.json` (public addresses only).
+4. **Season 1 and the 7 skins** (`chain/pass/scripts/setup.ts --skr …`), priced in that stand-in.
+5. **0.3 SOL to the demo wallet** `DP7e…CmV7`, unless it already holds 0.25 SOL or more.
+6. **The sweep** (`mobile/scripts/devnet-sweep.ts`, the app's own builders) writes every signature with explorer links to `clockin/DEVNET-EVIDENCE.md`. It uses a sweep-only player key, kept next to the deployer and never in the repo. The sweep covers:
+   - SIWS, signed and verified with the app's verifier;
+   - `create_session`;
+   - a session `clock_in` with the BONK war pledge;
+   - a chest commit by the session key, then open and `verifyProof` (roll and commit);
+   - 3 SKR faucet claims;
+   - the Season Pass and the Neon Night skin;
+   - a Streak Shield payment;
+   - a ghost duel challenge and its replay-verified result.
+7. **The Season Pass Blink** must answer without `disabled:true`. It reads the program from devnet, so no Vercel redeploy is needed.
+8. **Ship.** Bump the patch version and versionCode, build the APK (lock, same keystore), refuse it if it has a microphone permission, upload with `--clobber`, check the re-downloaded hash, put the sha256 into HANDOFF / SUBMISSION / README, scan the staged files for secrets, commit and push.
+
+**Proven on localnet** (Oct 11):
+
+- All 13 sweep steps pass; see `clockin/LOCALNET-EVIDENCE.md`.
+- A second run on the same ledger (`--keep`) skipped the deploy ("identical"), the config, the season, the skins, the demo wallet, the Clock-In ("already clocked in today"), the pass and the skin. The deployer spent 0 SOL on that run.
+- Not covered on localnet: step 7 (the Blink reads devnet) and step 8 (shipping).
+
 ## On-chain session delegate, Clock-In record and chest commits (Oct 11)
 
 The two weakest tech pieces now run on chain.

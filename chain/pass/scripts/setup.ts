@@ -37,6 +37,8 @@ const clusterName = local ? 'localnet' : 'devnet';
 const adminPath = (arg('admin', local ? join(HERE, '.keys/test-admin.json') : join(homedir(), '.config/solana/id.json'))!)
   .replace(/^~/, homedir());
 const fund = arg('fund');
+/** An SKR stand-in config (setup-skr-devnet.mjs output) to price in; default: mobile/src/data/skr-devnet.json on devnet. */
+const skrCfgPath = arg('skr');
 
 const RAW = 'https://raw.githubusercontent.com/nickthelegend/mempire-clockin/main/chain/pass/metadata';
 const catalog = JSON.parse(readFileSync(join(HERE, '../../mobile/src/data/skins.json'), 'utf8')) as {
@@ -75,11 +77,11 @@ async function main() {
     skrMint = (await program.account.config.fetch(config)).skrMint;
     console.log(`config exists · SKR mint ${skrMint.toBase58()}`);
   } else {
-    const devnetSkr = join(HERE, '../../mobile/src/data/skr-devnet.json');
-    const cfg = !local && existsSync(devnetSkr) ? JSON.parse(readFileSync(devnetSkr, 'utf8')) : null;
+    const devnetSkr = skrCfgPath ?? join(HERE, '../../mobile/src/data/skr-devnet.json');
+    const cfg = (skrCfgPath || !local) && existsSync(devnetSkr) ? JSON.parse(readFileSync(devnetSkr, 'utf8')) : null;
     if (cfg?.configured && cfg.mint) {
       skrMint = new PublicKey(cfg.mint);
-      console.log(`using the devnet SKR stand-in ${skrMint.toBase58()}`);
+      console.log(`using the SKR stand-in ${skrMint.toBase58()} (${devnetSkr})`);
     } else {
       skrMint = await createMint(conn, admin, admin.publicKey, null, 6);
       writeFileSync(skrRecord, JSON.stringify({ mint: skrMint.toBase58(), decimals: 6, mintAuthority: admin.publicKey.toBase58() }, null, 2));

@@ -6,6 +6,10 @@ resolver = "2"
 overflow-checks = true
 lto = "fat"
 codegen-units = 1
+# Size over speed: a devnet deploy briefly pays rent for the buffer AND the
+# program data (~2x the .so), so every KB is ~0.014 SOL at deploy time.
+opt-level = "z"
+strip = true
 [profile.release.build-override]
 opt-level = 3
 incremental = false
