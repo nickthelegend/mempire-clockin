@@ -188,4 +188,89 @@ describe('mempire_pass (localnet)', () => {
     expect(Number((await getAccount(conn, skrAta(rich.publicKey))).amount)).to.eq((300 - 150 - 60) * SKR);
     expect(Number((await getAccount(conn, skrAta(poor.publicKey))).amount)).to.eq(10 * SKR);
   });
+
+  // ── session delegate + on-chain Clock-In ──────────────────────────────────
+  describe('session delegate and clock_in', () => {
+    const utcDay = (t = Date.now()) => { const d = new Date(t); return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate(); };
+    const sessionPda = (owner: PublicKey, key: PublicKey) => pda(Buffer.from('session'), owner.toBuffer(), key.toBuffer());
+    const statePda = (owner: PublicKey) => pda(Buffer.from('clockin'), owner.toBuffer());
+    const nowSec = () => Math.floor(Date.now() / 1000);
+    const createSession = (owner: Keypair, key: PublicKey, expiresAt: number) => program.methods
+      .createSession(key, new BN(expiresAt))
+      .accountsPartial({ owner: owner.publicKey, session: sessionPda(owner.publicKey, key), clockState: statePda(owner.publicKey) })
+      .signers([owner]).rpc();
+    const clockIn = (authority: Keypair, owner: PublicKey, session: PublicKey | null, day = utcDay(), streak = 1, war = 1) => program.methods
+      .clockIn(day, streak, war)
+      .accountsPartial({ authority: authority.publicKey, owner, session, clockState: statePda(owner) })
+      .signers([authority]).rpc();
+    const fresh = async () => { const k = Keypair.generate(); await airdrop(k.publicKey, 1); return k; };
+
+    it('the owner clocks in directly; a second Clock-In the same UTC day is rejected', async () => {
+      const o = await fresh();
+      await clockIn(o, o.publicKey, null);
+      const st = await program.account.clockInState.fetch(statePda(o.publicKey));
+      expect(st.lastDay).to.eq(utcDay());
+      expect(st.streak).to.eq(1);
+      expect(st.warSide).to.eq(1);
+      await expectFail(clockIn(o, o.publicKey, null), /AlreadyClockedIn|Already clocked in/);
+    });
+
+    it('a session key created by the owner clocks in with no owner signature', async () => {
+      const o = await fresh();
+      const key = await fresh();
+      await createSession(o, key.publicKey, nowSec() + 7 * 86400);
+      const rec = await program.account.sessionRecord.fetch(sessionPda(o.publicKey, key.publicKey));
+      expect(rec.owner.toBase58()).to.eq(o.publicKey.toBase58());
+      await clockIn(key, o.publicKey, sessionPda(o.publicKey, key.publicKey), utcDay(), 4, 2);
+      const st = await program.account.clockInState.fetch(statePda(o.publicKey));
+      expect(st.streak).to.eq(1);
+      expect(st.total).to.eq(1);
+      expect(st.warSide).to.eq(2);
+      await expectFail(clockIn(key, o.publicKey, sessionPda(o.publicKey, key.publicKey)), /AlreadyClockedIn|Already clocked in/);
+    });
+
+    it('rejects a wrong signer: no session, or another owner\'s session record', async () => {
+      const o = await fresh();
+      const stranger = await fresh();
+      await expectFail(clockIn(stranger, o.publicKey, null), /NotAuthorized|neither the owner/);
+      const o2 = await fresh();
+      const key2 = await fresh();
+      await createSession(o2, key2.publicKey, nowSec() + 3600);
+      // key2 is a real session key, but of o2, not o
+      await expectFail(clockIn(key2, o.publicKey, sessionPda(o2.publicKey, key2.publicKey)), /ConstraintSeeds|seeds constraint|2006/);
+    });
+
+    it('rejects an expired session', async () => {
+      const o = await fresh();
+      const key = await fresh();
+      await createSession(o, key.publicKey, nowSec() + 3);
+      await new Promise((r) => setTimeout(r, 7000));
+      await expectFail(clockIn(key, o.publicKey, sessionPda(o.publicKey, key.publicKey)), /SessionExpired|has expired/);
+    });
+
+    it('rejects a revoked session; only owner or session key can revoke', async () => {
+      const o = await fresh();
+      const key = await fresh();
+      const stranger = await fresh();
+      await createSession(o, key.publicKey, nowSec() + 3600);
+      const revoke = (signer: Keypair) => program.methods.revokeSession()
+        .accountsPartial({ signer: signer.publicKey, owner: o.publicKey, session: sessionPda(o.publicKey, key.publicKey) })
+        .signers([signer]).rpc();
+      await expectFail(revoke(stranger), /NotAuthorized|neither the owner/);
+      await revoke(key); // the session key ends itself
+      expect(await conn.getAccountInfo(sessionPda(o.publicKey, key.publicKey))).to.eq(null);
+      await expectFail(clockIn(key, o.publicKey, sessionPda(o.publicKey, key.publicKey)), /AccountNotInitialized|3012|not initialized/);
+    });
+
+    it('rejects a session longer than 8 days', async () => {
+      const o = await fresh();
+      await expectFail(createSession(o, Keypair.generate().publicKey, nowSec() + 9 * 86400), /BadSession|Bad session/);
+    });
+
+    it('rejects a day that is not today (UTC)', async () => {
+      const o = await fresh();
+      await expectFail(clockIn(o, o.publicKey, null, utcDay(Date.now() + 86_400_000)), /BadDay|Day must be/);
+      await expectFail(clockIn(o, o.publicKey, null, utcDay(Date.now() - 3 * 86_400_000)), /BadDay|Day must be/);
+    });
+  });
 });

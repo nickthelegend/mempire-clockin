@@ -43,6 +43,10 @@ pub const PASS_RECEIPT_SEED: &[u8] = b"pass_receipt";
 pub const SKIN_SEED: &[u8] = b"skin";
 pub const SKIN_MINT_SEED: &[u8] = b"skin_mint";
 pub const SKIN_RECEIPT_SEED: &[u8] = b"skin_receipt";
+pub const SESSION_SEED: &[u8] = b"session";
+pub const CLOCKIN_SEED: &[u8] = b"clockin";
+/** Longest session: 7 days plus a day of slack for clock drift. */
+pub const MAX_SESSION_SECS: i64 = 8 * 86_400;
 
 const MAX_NAME: usize = 32;
 const MAX_SYMBOL: usize = 10;
@@ -231,6 +235,107 @@ pub mod mempire_pass {
             price_skr: r.paid
         });
         Ok(())
+    }
+
+    /// The owner delegates daily Clock-Ins to a session key until `expires_at`
+    /// ("approve once, play all week"). Also creates the owner's Clock-In
+    /// record, paid by the owner, so the session key's small float never pays rent.
+    pub fn create_session(ctx: Context<CreateSession>, session_key: Pubkey, expires_at: i64) -> Result<()> {
+        let now = Clock::get()?.unix_timestamp;
+        require!(session_key != ctx.accounts.owner.key(), PassError::BadSession);
+        require!(expires_at > now && expires_at - now <= MAX_SESSION_SECS, PassError::BadSession);
+        let r = &mut ctx.accounts.session;
+        r.owner = ctx.accounts.owner.key();
+        r.session = session_key;
+        r.expires_at = expires_at;
+        r.created_at = now;
+        r.bump = ctx.bumps.session;
+        let c = &mut ctx.accounts.clock_state;
+        if c.owner == Pubkey::default() {
+            c.owner = ctx.accounts.owner.key();
+            c.bump = ctx.bumps.clock_state;
+        }
+        emit!(SessionCreated { owner: r.owner, session: session_key, expires_at });
+        Ok(())
+    }
+
+    /// End a session early. Signed by the owner or by the session key itself;
+    /// the record is closed and its rent goes back to the owner.
+    pub fn revoke_session(ctx: Context<RevokeSession>) -> Result<()> {
+        let r = &ctx.accounts.session;
+        let signer = ctx.accounts.signer.key();
+        require!(signer == r.owner || signer == r.session, PassError::NotAuthorized);
+        emit!(SessionRevoked { owner: r.owner, session: r.session, by_session: signer == r.session });
+        Ok(())
+    }
+
+    /// Today's Clock-In, signed by the owner or by a live session key of that
+    /// owner. The program keeps the streak itself (consecutive UTC days) in
+    /// the owner's Clock-In PDA; `streak` is the app's claim (it can include
+    /// Streak Shields) and is only recorded in the event.
+    pub fn clock_in(ctx: Context<ClockIn>, day: u32, streak: u32, war_side: u8) -> Result<()> {
+        let now = Clock::get()?.unix_timestamp;
+        let owner = ctx.accounts.owner.key();
+        let authority = ctx.accounts.authority.key();
+        let by_session = authority != owner;
+        if by_session {
+            let s = ctx.accounts.session.as_ref().ok_or(error!(PassError::NotAuthorized))?;
+            require!(s.owner == owner && s.session == authority, PassError::NotAuthorized);
+            require!(now < s.expires_at, PassError::SessionExpired);
+        }
+        require!(war_side <= 2, PassError::BadDay);
+        let today = utc_day(now);
+        let yesterday = utc_day(now - 86_400);
+        // Today, or yesterday for an approval that straddled UTC midnight.
+        require!(day == today || day == yesterday, PassError::BadDay);
+        let prev = if day == today { yesterday } else { utc_day(now - 2 * 86_400) };
+        let c = &mut ctx.accounts.clock_state;
+        if c.owner == Pubkey::default() {
+            c.owner = owner;
+            c.bump = ctx.bumps.clock_state;
+        }
+        require!(day > c.last_day, PassError::AlreadyClockedIn);
+        c.streak = if c.last_day == prev { c.streak.checked_add(1).ok_or(PassError::Overflow)? } else { 1 };
+        c.best = c.best.max(c.streak);
+        c.total = c.total.checked_add(1).ok_or(PassError::Overflow)?;
+        c.last_day = day;
+        c.last_at = now;
+        c.war_side = war_side;
+        emit!(ClockedIn {
+            owner,
+            day,
+            streak: c.streak,
+            claimed_streak: streak,
+            war_side,
+            by_session,
+        });
+        Ok(())
+    }
+}
+
+/// yyyymmdd of a unix time, in UTC (days-from-civil, inverted).
+pub fn utc_day(ts: i64) -> u32 {
+    let z = ts.div_euclid(86_400) + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = yoe + era * 400 + if m <= 2 { 1 } else { 0 };
+    (y * 10_000 + m * 100 + d) as u32
+}
+
+#[cfg(test)]
+mod tests {
+    use super::utc_day;
+    #[test]
+    fn utc_days() {
+        assert_eq!(utc_day(0), 19_700_101);
+        assert_eq!(utc_day(951_782_400), 20_000_229); // leap day
+        assert_eq!(utc_day(1_791_590_399), 20_261_009); // 2026-10-09 23:59:59 UTC
+        assert_eq!(utc_day(1_791_590_400), 20_261_010);
     }
 }
 
@@ -561,7 +666,119 @@ pub struct BuySkin<'info> {
     pub system_program: Program<'info, System>,
 }
 
+#[derive(Accounts)]
+#[instruction(session_key: Pubkey)]
+pub struct CreateSession<'info> {
+    #[account(mut)]
+    pub owner: Signer<'info>,
+    #[account(
+        init,
+        payer = owner,
+        space = 8 + SessionRecord::INIT_SPACE,
+        seeds = [SESSION_SEED, owner.key().as_ref(), session_key.as_ref()],
+        bump
+    )]
+    pub session: Account<'info, SessionRecord>,
+    #[account(
+        init_if_needed,
+        payer = owner,
+        space = 8 + ClockInState::INIT_SPACE,
+        seeds = [CLOCKIN_SEED, owner.key().as_ref()],
+        bump
+    )]
+    pub clock_state: Account<'info, ClockInState>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct RevokeSession<'info> {
+    pub signer: Signer<'info>,
+    /// CHECK: must be the record's owner; receives the rent.
+    #[account(mut, address = session.owner @ PassError::NotAuthorized)]
+    pub owner: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        close = owner,
+        seeds = [SESSION_SEED, session.owner.as_ref(), session.session.as_ref()],
+        bump = session.bump
+    )]
+    pub session: Account<'info, SessionRecord>,
+}
+
+#[derive(Accounts)]
+pub struct ClockIn<'info> {
+    /// The owner, or a session key of the owner (then `session` is required).
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    /// CHECK: whose Clock-In this is; authority is checked against it.
+    pub owner: UncheckedAccount<'info>,
+    #[account(
+        seeds = [SESSION_SEED, owner.key().as_ref(), authority.key().as_ref()],
+        bump = session.bump
+    )]
+    pub session: Option<Account<'info, SessionRecord>>,
+    #[account(
+        init_if_needed,
+        payer = authority,
+        space = 8 + ClockInState::INIT_SPACE,
+        seeds = [CLOCKIN_SEED, owner.key().as_ref()],
+        bump
+    )]
+    pub clock_state: Account<'info, ClockInState>,
+    pub system_program: Program<'info, System>,
+}
+
 // ---------------------------------------------------------------- state
+
+#[account]
+#[derive(InitSpace)]
+pub struct SessionRecord {
+    pub owner: Pubkey,
+    pub session: Pubkey,
+    pub expires_at: i64,
+    pub created_at: i64,
+    pub bump: u8,
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct ClockInState {
+    pub owner: Pubkey,
+    /// yyyymmdd (UTC) of the last Clock-In
+    pub last_day: u32,
+    /// consecutive UTC days, kept by the program
+    pub streak: u32,
+    pub best: u32,
+    pub total: u32,
+    pub last_at: i64,
+    /// 0 none, 1 BONK, 2 POPCAT (Season War pledge)
+    pub war_side: u8,
+    pub bump: u8,
+}
+
+#[event]
+pub struct SessionCreated {
+    pub owner: Pubkey,
+    pub session: Pubkey,
+    pub expires_at: i64,
+}
+
+#[event]
+pub struct SessionRevoked {
+    pub owner: Pubkey,
+    pub session: Pubkey,
+    pub by_session: bool,
+}
+
+#[event]
+pub struct ClockedIn {
+    pub owner: Pubkey,
+    pub day: u32,
+    pub streak: u32,
+    pub claimed_streak: u32,
+    pub war_side: u8,
+    pub by_session: bool,
+}
 
 #[account]
 #[derive(InitSpace)]
@@ -633,4 +850,14 @@ pub enum PassError {
     WrongItem,
     #[msg("Arithmetic overflow")]
     Overflow,
+    #[msg("Bad session: wrong key or expiry")]
+    BadSession,
+    #[msg("Signer is neither the owner nor a session key of the owner")]
+    NotAuthorized,
+    #[msg("This session has expired")]
+    SessionExpired,
+    #[msg("Day must be today (UTC), or yesterday across midnight")]
+    BadDay,
+    #[msg("Already clocked in for this day")]
+    AlreadyClockedIn,
 }

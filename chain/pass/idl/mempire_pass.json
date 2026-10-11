@@ -440,6 +440,199 @@
       ]
     },
     {
+      "name": "clock_in",
+      "docs": [
+        "Today's Clock-In, signed by the owner or by a live session key of that",
+        "owner. The program keeps the streak itself (consecutive UTC days) in",
+        "the owner's Clock-In PDA; `streak` is the app's claim (it can include",
+        "Streak Shields) and is only recorded in the event."
+      ],
+      "discriminator": [
+        206,
+        150,
+        221,
+        145,
+        122,
+        124,
+        77,
+        89
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "docs": [
+            "The owner, or a session key of the owner (then `session` is required)."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "owner"
+        },
+        {
+          "name": "session",
+          "optional": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "clock_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  108,
+                  111,
+                  99,
+                  107,
+                  105,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "day",
+          "type": "u32"
+        },
+        {
+          "name": "streak",
+          "type": "u32"
+        },
+        {
+          "name": "war_side",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "create_session",
+      "docs": [
+        "The owner delegates daily Clock-Ins to a session key until `expires_at`",
+        "(\"approve once, play all week\"). Also creates the owner's Clock-In",
+        "record, paid by the owner, so the session key's small float never pays rent."
+      ],
+      "discriminator": [
+        242,
+        193,
+        143,
+        179,
+        150,
+        25,
+        122,
+        227
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "session",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              },
+              {
+                "kind": "arg",
+                "path": "session_key"
+              }
+            ]
+          }
+        },
+        {
+          "name": "clock_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  108,
+                  111,
+                  99,
+                  107,
+                  105,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "session_key",
+          "type": "pubkey"
+        },
+        {
+          "name": "expires_at",
+          "type": "i64"
+        }
+      ]
+    },
+    {
       "name": "init_config",
       "docs": [
         "One-time setup: who may create seasons/skins, which mint is SKR, and the",
@@ -825,9 +1018,80 @@
           "type": "u16"
         }
       ]
+    },
+    {
+      "name": "revoke_session",
+      "docs": [
+        "End a session early. Signed by the owner or by the session key itself;",
+        "the record is closed and its rent goes back to the owner."
+      ],
+      "discriminator": [
+        86,
+        92,
+        198,
+        120,
+        144,
+        2,
+        7,
+        194
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "signer": true
+        },
+        {
+          "name": "owner",
+          "writable": true
+        },
+        {
+          "name": "session",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "session.owner",
+                "account": "SessionRecord"
+              },
+              {
+                "kind": "account",
+                "path": "session.session",
+                "account": "SessionRecord"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
+    {
+      "name": "ClockInState",
+      "discriminator": [
+        133,
+        88,
+        188,
+        108,
+        24,
+        92,
+        158,
+        108
+      ]
+    },
     {
       "name": "Config",
       "discriminator": [
@@ -868,6 +1132,19 @@
       ]
     },
     {
+      "name": "SessionRecord",
+      "discriminator": [
+        145,
+        59,
+        206,
+        119,
+        242,
+        195,
+        20,
+        170
+      ]
+    },
+    {
       "name": "Skin",
       "discriminator": [
         175,
@@ -883,6 +1160,19 @@
   ],
   "events": [
     {
+      "name": "ClockedIn",
+      "discriminator": [
+        126,
+        191,
+        159,
+        12,
+        150,
+        198,
+        98,
+        132
+      ]
+    },
+    {
       "name": "PassBought",
       "discriminator": [
         193,
@@ -893,6 +1183,32 @@
         169,
         248,
         39
+      ]
+    },
+    {
+      "name": "SessionCreated",
+      "discriminator": [
+        107,
+        111,
+        254,
+        25,
+        21,
+        122,
+        220,
+        225
+      ]
+    },
+    {
+      "name": "SessionRevoked",
+      "discriminator": [
+        90,
+        48,
+        35,
+        234,
+        203,
+        192,
+        126,
+        211
       ]
     },
     {
@@ -944,9 +1260,115 @@
       "code": 6006,
       "name": "Overflow",
       "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6007,
+      "name": "BadSession",
+      "msg": "Bad session: wrong key or expiry"
+    },
+    {
+      "code": 6008,
+      "name": "NotAuthorized",
+      "msg": "Signer is neither the owner nor a session key of the owner"
+    },
+    {
+      "code": 6009,
+      "name": "SessionExpired",
+      "msg": "This session has expired"
+    },
+    {
+      "code": 6010,
+      "name": "BadDay",
+      "msg": "Day must be today (UTC), or yesterday across midnight"
+    },
+    {
+      "code": 6011,
+      "name": "AlreadyClockedIn",
+      "msg": "Already clocked in for this day"
     }
   ],
   "types": [
+    {
+      "name": "ClockInState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "last_day",
+            "docs": [
+              "yyyymmdd (UTC) of the last Clock-In"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "streak",
+            "docs": [
+              "consecutive UTC days, kept by the program"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "best",
+            "type": "u32"
+          },
+          {
+            "name": "total",
+            "type": "u32"
+          },
+          {
+            "name": "last_at",
+            "type": "i64"
+          },
+          {
+            "name": "war_side",
+            "docs": [
+              "0 none, 1 BONK, 2 POPCAT (Season War pledge)"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ClockedIn",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "day",
+            "type": "u32"
+          },
+          {
+            "name": "streak",
+            "type": "u32"
+          },
+          {
+            "name": "claimed_streak",
+            "type": "u32"
+          },
+          {
+            "name": "war_side",
+            "type": "u8"
+          },
+          {
+            "name": "by_session",
+            "type": "bool"
+          }
+        ]
+      }
+    },
     {
       "name": "Config",
       "type": {
@@ -1047,6 +1469,74 @@
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SessionCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "session",
+            "type": "pubkey"
+          },
+          {
+            "name": "expires_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SessionRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "session",
+            "type": "pubkey"
+          },
+          {
+            "name": "expires_at",
+            "type": "i64"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SessionRevoked",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "session",
+            "type": "pubkey"
+          },
+          {
+            "name": "by_session",
+            "type": "bool"
           }
         ]
       }
