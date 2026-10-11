@@ -384,7 +384,7 @@ export function WalletSheet() {
           <SignInCard />
           <FindSeeker />
           <View style={st.row}><Body color={C.dimOnWood}>Devnet SOL</Body><Display size={18}>{sol === null ? '…' : sol.toFixed(4)}</Display></View>
-          <View style={st.row}><Body color={C.dimOnWood}>{SKR_LABEL}</Body><Display size={18} color={C.skr}>{SKR_LIVE ? (skr ?? 0) : useGame.getState().skrSim}</Display></View>
+          <View style={st.row}><Body color={C.dimOnWood}>{SKR_LABEL}</Body><Display size={18} color={C.skr}>{SKR_LIVE ? (skr ?? '…') : useGame.getState().skrSim}</Display></View>
           <View style={{ gap: 8, marginTop: 10 }}>
             <Btn
               label="GET DEVNET SOL"

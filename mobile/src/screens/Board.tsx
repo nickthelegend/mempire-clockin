@@ -73,9 +73,12 @@ function GlobalBoard() {
   const total = Math.max(1, ta.clockIns + tb.clockIns);
   return (
     <Well style={{ gap: 8 }}>
-      <View style={st.between}>
+      <View style={[st.between, { flexWrap: 'wrap', gap: 6 }]}>
         <Display size={18}>Global war · {CLUSTER_LABEL}</Display>
-        <Tag text="COMPUTED FROM CHAIN ON THIS PHONE" color={C.teal} />
+        <Tag
+          text={board ? 'COMPUTED FROM CHAIN ON THIS PHONE' : error ? 'CHAIN UNREACHABLE' : 'READING CHAIN…'}
+          color={board ? C.teal : error ? C.red : C.dim}
+        />
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <Coin t={a} size={36} />

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Image, Linking, Pressable, StyleSheet, Switch, View } from 'react-native';
-import { explorerAddr, explorerTx, short } from '../chain/solana';
+import { explorerTx } from '../chain/solana';
 import { FEE_FLOAT_LAMPORTS, SESSION_DAYS } from '../chain/session';
 import { haptic } from '../notify';
 import { useUi } from '../state/ui';
@@ -75,20 +75,15 @@ export function SessionCard() {
       </View>
       {cur ? (
         <>
-          <View style={[st.row, { marginTop: 6, gap: 6, flexWrap: 'wrap' }]}>
-            <Pressable onPress={() => void Linking.openURL(explorerAddr(cur.session))} hitSlop={8} accessibilityRole="link">
-              <Tag text={`key ${short(cur.session, 4)} ↗`} color={C.teal} />
+          <View style={[st.row, { marginTop: 6, gap: 8, flexWrap: 'wrap' }]}>
+            <Pressable onPress={() => void Linking.openURL(explorerTx(cur.linkSig))} hitSlop={8} accessibilityRole="link" accessibilityLabel="Open the session link on Solana Explorer">
+              <Tag text={onChain ? 'LINKED ON CHAIN ✓ ↗' : 'LINK ↗'} color={onChain ? C.teal : C.goldHi} />
             </Pressable>
-            <Pressable onPress={() => void Linking.openURL(explorerTx(cur.linkSig))} hitSlop={8} accessibilityRole="link">
-              <Tag text={`link ${short(cur.linkSig, 4)} ↗`} color={onChain ? C.teal : C.goldHi} />
-            </Pressable>
-            <Tag text={`float ${lamports === null ? '…' : (lamports / 1e9).toFixed(6)} SOL`} color={C.dim} />
+            <Body size={11} color={C.dimOnWood}>
+              {onChain ? `${chain!.accepted} Clock-In${chain!.accepted === 1 ? '' : 's'} with no prompt` : ''}
+              {lamports !== null ? `${onChain ? ' · ' : ''}${(lamports / 1e9).toFixed(4)} SOL set aside for fees` : ''}
+            </Body>
           </View>
-          <Body size={11} color={C.dimOnWood} style={{ marginTop: 4 }}>
-            {onChain ? `Ledger: link signed by your wallet, verified on chain · ${chain!.accepted} session Clock-In${chain!.accepted === 1 ? '' : 's'} accepted`
-              : chain?.live === null && chain ? 'Ledger: no live link found on chain yet (it may still be confirming).'
-              : 'Ledger: reading the link back from chain…'}
-          </Body>
           <Btn
             label={expired ? 'REVOKE · RETURN FLOAT' : 'REVOKE'}
             sub="memo on chain · the float goes back to your wallet"

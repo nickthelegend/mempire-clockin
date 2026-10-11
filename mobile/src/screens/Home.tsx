@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { UI_ART } from '../data/art';
 import { CHESTS, QUESTS, QUEST_BONUS, RIVALS, WEEK, dayKey, msToUtcMidnight, rolloverLabel, streakState } from '../game/rules';
 import { challengeMessage, claimQuest, doClockIn, openChest, prepareMatch, startUnlock } from '../game/actions';
-import { CLUSTER_LABEL, explorerTx, short } from '../chain/solana';
+import { CLUSTER_LABEL, explorerTx } from '../chain/solana';
 import { SKR_LABEL, SKR_LIVE } from '../chain/skr';
 import { useGame, avgDeckLevel, slotsOf } from '../state/game';
 import { SEASON, claimable, tierFor, tierProgress } from '../game/season';
@@ -20,7 +20,7 @@ import { SessionCard } from './SessionCard';
 import { useSession } from '../wallet/sessionKey';
 import { blinkMessage } from '../game/blink';
 import { readableError } from '../chain/send';
-import { CHAR_ART, UI_ICON } from '../data/cosmeticArt';
+import { CHAR_ART, FEATURE_ART, REWARD_ART, UI_ICON } from '../data/cosmeticArt';
 
 const QUEST_ICON = { clockin: UI_ICON.questClockin, win: UI_ICON.questWin, deploy: UI_ICON.questDeploy } as const;
 
@@ -140,23 +140,23 @@ function ClockIn() {
         </Body>
         {last?.day === dayKey() && last.sig ? (
           <Pressable onPress={() => void Linking.openURL(explorerTx(last.sig!))} hitSlop={14} accessibilityRole="link" accessibilityLabel="Open the Clock-In proof on Solana Explorer">
-            <Tag text={`proof ${short(last.sig, 4)} ↗`} color={C.teal} />
+            <Tag text="ON CHAIN ✓ ↗" color={C.teal} />
           </Pressable>
         ) : last?.day === dayKey() && last.offlineReason ? (
           <Tag text="saved on device" color={C.goldHi} />
         ) : null}
       </View>
-      <Body size={11} color={C.dimOnWood} style={{ marginTop: 4 }}>
-        {ledger === undefined
-          ? `Chain ledger: reading ${CLUSTER_LABEL}…`
-          : ledger === null
-          ? `Chain ledger: could not reach ${CLUSTER_LABEL}.`
-          : ledger[0]?.via === 'program'
-            ? `On-chain record (mempire_pass): streak ${chainState?.streak ?? ledger[0].streak} · best ${chainState?.best ?? '–'} · ${chainState?.total ?? '–'} Clock-In${chainState?.total === 1 ? '' : 's'} · last ${ledger[0].day} UTC${ledger.some((l) => l.via === 'session') ? ` · ${ledger.filter((l) => l.via === 'session').length} by session key` : ''}`
-          : ledger.length
-            ? `Chain ledger: ${ledger.length} signed Clock-In${ledger.length === 1 ? '' : 's'} on ${CLUSTER_LABEL}${ledger.some((l) => l.via === 'session') ? ` (${ledger.filter((l) => l.via === 'session').length} by session key)` : ''} · latest: day ${ledger[0].day}, streak ${ledger[0].streak}`
-            : 'Chain ledger: no signed Clock-Ins yet — they appear once the wallet has devnet SOL.'}
-      </Body>
+      {ledger === undefined ? null : (
+        <Body size={11} color={C.dimOnWood} style={{ marginTop: 4 }}>
+          {ledger === null
+            ? 'Your streak is safe on this phone; it syncs with the chain when devnet answers.'
+            : ledger[0]?.via === 'program'
+              ? `Kept on Solana: streak ${chainState?.streak ?? ledger[0].streak}, best ${chainState?.best ?? '–'}, ${chainState?.total ?? '–'} Clock-In${chainState?.total === 1 ? '' : 's'}${ledger.some((l) => l.via === 'session') ? `, ${ledger.filter((l) => l.via === 'session').length} with no prompt` : ''}.`
+            : ledger.length
+              ? `Kept on Solana: ${ledger.length} signed Clock-In${ledger.length === 1 ? '' : 's'}, latest streak ${ledger[0].streak}.`
+              : 'Your Clock-Ins go on chain once the wallet has devnet SOL.'}
+        </Body>
+      )}
       <SessionCard />
       {last?.day === dayKey() && last.offlineReason ? (
         <Body size={11} color={C.dimOnWood} style={{ marginTop: 4 }}>
@@ -378,6 +378,7 @@ function Battle() {
         />
         <Btn
           label="SHARE BLINK"
+          icon={FEATURE_ART.blink}
           tone="blue"
           size="sm"
           style={{ flex: 1 }}
@@ -399,6 +400,7 @@ function PassTeaser() {
   return (
     <Pressable onPress={() => { haptic.tap(); setPass(true); }} accessibilityRole="button" accessibilityLabel={`Season Pass, tier ${tier} of ${SEASON.tiers}${ready ? `, ${ready} rewards to claim` : ''}`} style={({ pressed }) => pressed && st.pressed}>
       <LinearGradient colors={premium ? ['#7a4a22', '#c8890b'] : ['#14418f', '#2b1a5e']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.coach}>
+        <Image source={REWARD_ART.pass} style={{ width: 56, height: 56 }} resizeMode="contain" accessibilityLabel="Season Pass" />
         <View style={{ flex: 1, gap: 4 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Display size={20}>Season Pass</Display>
