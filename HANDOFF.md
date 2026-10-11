@@ -49,6 +49,44 @@ Also verified: the shared battle sim is deterministic (`npx tsx app/scripts/sim-
   dApp Store, must be signed with this key.
 - `apksigner` certificate: CN=Mempire, O=Mempire, C=IN; cert SHA-256 510a32d604173681a92bd6cb9c9b3809c4042c7d59a3fbbaf02316769fc3d943
 
+## On-chain session delegate, Clock-In record and chest commits (Oct 11)
+
+The two weakest tech pieces now run on chain.
+
+**`mempire_pass` gains three instructions** (same program id; redeploy needed):
+
+| Instruction | What it does |
+|---|---|
+| `create_session(session_key, expires_at)` | Owner-signed. Creates the `SessionRecord` PDA `[session, owner, key]` (max 8 days) and the owner's `ClockInState` PDA, so the session key's float never pays rent. |
+| `revoke_session` | Signed by the owner or the session key. Closes the record and returns the rent to the owner. |
+| `clock_in(day, streak, war_side)` | Signed by the owner, or by a session key whose record belongs to that owner and has not expired. The day must be today in UTC (computed on chain), or yesterday across midnight, and there is one per day. The program keeps its own consecutive-day streak, best, total and war side in `ClockInState`, and emits `ClockedIn`. |
+
+`anchor test` passes 17/17. The new cases cover a wrong signer, another owner's session record, an expired session, a revoked session, a stranger revoking, a session longer than 8 days, the wrong day and a double Clock-In.
+
+**App changes:**
+
+- The "Approve once" toggle sends `create_session` together with the link memo and the fee float, in one approval.
+- Revoke closes the record.
+- Every Clock-In (session or wallet) carries `clock_in` when the program is on the cluster.
+- The ledger read-back prefers the `ClockInState` PDA, and Home shows "On-chain record (mempire_pass): streak / best / total". The memo path stays for old data and the Season War index.
+
+**Chest commits on chain.** When a chest is earned, `mempire:chest-commit:v1:<chestId>:<targetSlot>:owner=<owner>` is posted:
+
+- silently by the session key when one is live;
+- otherwise it is batched (and re-targeted to a later slot) into the next owner-signed Clock-In.
+
+The Verify panel shows the commit transaction. `verifyProof` rejects a commit that landed at or after the target slot, or that is not signed by the owner or one of their session keys (a SessionRecord, or the owner-signed link memo for a revoked one). A chest committed while offline still says "on this device only".
+
+**Verified:**
+
+- `cd mobile && bash scripts/verify-onchain.sh` on localnet: 12/12.
+- vitest: 122/122, including `app/tests/onchain-session.test.ts`.
+- On the iPhone 17 simulator against a local validator (`clockin/screens/onchain/`):
+  - One dev-wallet approval created the SessionRecord.
+  - A session-signed Clock-In wrote `ClockInState` (day 20261011, streak 1, total 1; read back with the CLI reader).
+  - The chest earned afterwards was committed on chain at slot 263, before its target 294.
+  - Verify → **MATCHES ✓**, with "On-chain commit checked: posted at slot 263, before slot 294".
+
 ## Solana Mobile tech pack (branch `solana-tech`, Oct 8)
 
 Five Seeker-native Solana features, each in its own commit with unit tests.
