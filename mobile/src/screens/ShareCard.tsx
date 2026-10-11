@@ -7,14 +7,15 @@ import { captureRef } from 'react-native-view-shot';
 import { CARD_ART, UI_ART } from '../data/art';
 import { challengeMessage } from '../game/actions';
 import { blinkMessage } from '../game/blink';
-import { useFrameColors } from '../game/cosmetics';
+import { useFrameKey } from '../game/cosmetics';
+import { EMOTE_ART, FEATURE_ART } from '../data/cosmeticArt';
 import { EMOTES } from '../game/season';
 import { useGame } from '../state/game';
 import { useUi, type MatchResult } from '../state/ui';
 import { useDisplayName } from '../state/identity';
 import { useWallet } from '../wallet/wallet';
 import { C, R } from '../theme';
-import { Body, Btn, Display } from '../ui/kit';
+import { Body, Btn, Display, FrameOverlay } from '../ui/kit';
 import { readableError } from '../chain/send';
 
 /**
@@ -26,9 +27,10 @@ import { readableError } from '../chain/send';
 export function ShareCardButton({ r }: { r: MatchResult }) {
   const ref = useRef<View>(null);
   const deck = useGame((s) => s.deck);
-  const emote = useGame((s) => EMOTES[s.equipped.emote] ?? EMOTES.gg);
+  const emoteKey = useGame((s) => (EMOTES[s.equipped.emote] ? s.equipped.emote : 'gg'));
+  const emote = EMOTES[emoteKey];
   const side = useGame((s) => s.warSide);
-  const frame = useFrameColors();
+  const frame = useFrameKey();
   const say = useUi((s) => s.say);
   const [busy, setBusy] = useState(false);
   const who = useDisplayName(useWallet((s) => s.address));
@@ -58,7 +60,7 @@ export function ShareCardButton({ r }: { r: MatchResult }) {
   return (
     <View style={{ width: '88%', marginTop: 12, gap: 8 }}>
       <View ref={ref} collapsable={false}>
-        <LinearGradient colors={frame ?? ['#ffc422', '#7a4a22']} style={st.edge}>
+        <LinearGradient colors={['#ffc422', '#7a4a22']} style={st.edge}>
           <LinearGradient colors={['#14418f', '#0d2a5c']} style={st.card}>
             <View style={st.top}>
               <Image source={UI_ART.logo} style={{ width: 96, height: 30 }} resizeMode="contain" />
@@ -72,12 +74,13 @@ export function ShareCardButton({ r }: { r: MatchResult }) {
                 <Display size={30} color={r.won ? C.gold : r.draw ? '#fff' : C.red}>{title}</Display>
                 <Body size={12} color="#fff">vs {r.rival.replace(' (AI)', '')} · {r.crowns[0]}–{r.crowns[1]} crowns</Body>
               </View>
-              <Display size={36}>{emote.glyph}</Display>
+              <Image source={EMOTE_ART[emoteKey] ?? EMOTE_ART.gg} style={{ width: 52, height: 52 }} accessibilityLabel={`${emote.label} emote`} />
             </View>
             <View style={st.fighters}>
               {deck.slice(0, 4).map((t) => (
                 <View key={t} style={st.fighter}>
                   <Image source={CARD_ART[t]} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                  {frame ? <FrameOverlay frame={frame} inset={0} /> : null}
                 </View>
               ))}
             </View>
@@ -89,7 +92,7 @@ export function ShareCardButton({ r }: { r: MatchResult }) {
       </View>
       <View style={{ flexDirection: 'row', gap: 8 }}>
         <Btn label="SHARE CARD" sub="image + challenge link" tone="gold" size="sm" busy={busy} style={{ flex: 1 }} onPress={() => void share()} />
-        <Btn label="AS BLINK" sub="Solana Action" tone="blue" size="sm" style={{ flex: 0.8 }} onPress={() => { void Share.share({ message: blinkMessage(r.rivalIndex) }).catch(() => {}); }} />
+        <Btn label="AS BLINK" sub="Solana Action" icon={FEATURE_ART.blink} tone="blue" size="sm" style={{ flex: 0.8 }} onPress={() => { void Share.share({ message: blinkMessage(r.rivalIndex) }).catch(() => {}); }} />
       </View>
     </View>
   );

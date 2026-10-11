@@ -13,6 +13,7 @@ import { useWallet } from '../wallet/wallet';
 import { C } from '../theme';
 import { Body, Btn, Display, Panel, Tag, Well } from '../ui/kit';
 import type { DuelTx } from '../chain/duels';
+import { CHAR_ART, FEATURE_ART } from '../data/cosmeticArt';
 
 const ago = (t: number) => {
   if (!t) return '';
@@ -49,7 +50,10 @@ function OpenCard() {
   return (
     <Panel>
       <View style={st.row}>
-        <Display size={22}>Ghost challenge</Display>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 }}>
+          <Image source={CHAR_ART.ghost} style={{ width: 52, height: 52 }} resizeMode="contain" accessibilityLabel="The ghost" />
+          <Display size={22}>Ghost challenge</Display>
+        </View>
         <Btn label="✕" tone="ghost" size="sm" onPress={close} />
       </View>
       <View style={[st.row, { justifyContent: 'flex-start', gap: 6 }]}>
@@ -209,7 +213,10 @@ export function DuelsScreen() {
   return (
     <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       <View>
-        <Display size={30}>Ghost Duels</Display>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <Image source={FEATURE_ART.ghostduel} style={{ width: 56, height: 56 }} resizeMode="contain" accessibilityLabel="Ghost Duels" />
+          <Display size={30}>Ghost Duels</Display>
+        </View>
         <Body size={13}>
           Async PvP. Any native-arena match can be sent as a ghost: your exact deploys, replayed on the same seed. A friend fights it whenever they like, and the result goes on chain with a state hash anyone can re-simulate.
         </Body>

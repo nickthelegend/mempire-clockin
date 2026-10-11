@@ -12,7 +12,7 @@ import { hasPremium, usePassChain } from '../chain/pass';
 import { SeasonWarBanner } from './Board';
 import { useUi } from '../state/ui';
 import { C, F, R } from '../theme';
-import { Body, Btn, ChestArt, Display, Panel, PressScale, Progress, Rise, Tag, TierGlow, Well } from '../ui/kit';
+import { Body, Btn, ChestArt, Display, Panel, PressScale, Progress, Rise, Tag, TierGlow, Well, SkrIcon } from '../ui/kit';
 import { EASE_OUT, reduceMotion, useCountUp } from '../motion';
 import { sfx } from '../sound';
 import { haptic } from '../notify';
@@ -20,6 +20,9 @@ import { SessionCard } from './SessionCard';
 import { useSession } from '../wallet/sessionKey';
 import { blinkMessage } from '../game/blink';
 import { readableError } from '../chain/send';
+import { CHAR_ART, UI_ICON } from '../data/cosmeticArt';
+
+const QUEST_ICON = { clockin: UI_ICON.questClockin, win: UI_ICON.questWin, deploy: UI_ICON.questDeploy } as const;
 
 function useNow(ms = 1000) {
   const [now, setNow] = useState(Date.now());
@@ -114,7 +117,7 @@ function ClockIn() {
           return (
             <View key={d.day} style={[st.day, claimed && st.dayDone, today && st.dayToday]}>
               <Body size={10} color={today ? C.ink : '#fff'} bold>D{d.day}</Body>
-              {d.chest ? <ChestArt tier={d.chest} size={26} /> : <View style={st.skrDot}><Body size={9} color={C.ink} bold>SKR</Body></View>}
+              {d.chest ? <ChestArt tier={d.chest} size={26} /> : <SkrIcon size={28} />}
               <Body size={10} color={today ? C.ink : C.dim} bold>+{sgt ? d.skr * 2 : d.skr}</Body>
             </View>
           );
@@ -275,6 +278,7 @@ function Quests() {
         const ready = !claimed && p >= q.goal;
         return (
           <View key={q.id} style={st.quest} accessible accessibilityLabel={`${q.title}. ${p} of ${q.goal}. ${claimed ? 'Claimed' : ready ? 'Ready to claim' : ''}`}>
+            <Image source={QUEST_ICON[q.id]} style={{ width: 36, height: 36, opacity: claimed ? 0.5 : 1 }} resizeMode="contain" />
             <View style={{ flex: 1, gap: 4 }}>
               <View style={st.rowBetween}>
                 <Body size={13} bold color={claimed ? C.dim : '#fff'}>{q.title}</Body>
@@ -415,6 +419,7 @@ function CoachTeaser() {
   return (
     <Pressable onPress={() => { haptic.tap(); setCoach(true); }} accessibilityRole="button" accessibilityLabel="Open the AI coach" style={({ pressed }) => pressed && st.pressed}>
       <LinearGradient colors={['#2b1a5e', '#14418f']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.coach}>
+        <Image source={CHAR_ART.coach} style={{ width: 64, height: 64 }} resizeMode="contain" accessibilityLabel="AI Coach" />
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Display size={20}>AI Coach</Display>
@@ -480,7 +485,6 @@ const st = StyleSheet.create({
   },
   dayDone: { backgroundColor: 'rgba(20,241,149,0.25)', borderColor: C.teal },
   dayToday: { backgroundColor: C.gold, borderColor: '#fff' },
-  skrDot: { width: 26, height: 26, borderRadius: 13, backgroundColor: C.skr, alignItems: 'center', justifyContent: 'center' },
   chestRow: { flexDirection: 'row', gap: 8 },
   chest: {
     flex: 1, height: 96, borderRadius: R.card, alignItems: 'center', justifyContent: 'center',

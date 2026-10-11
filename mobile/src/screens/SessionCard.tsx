@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Linking, Pressable, StyleSheet, Switch, View } from 'react-native';
+import { Image, Linking, Pressable, StyleSheet, Switch, View } from 'react-native';
 import { explorerAddr, explorerTx, short } from '../chain/solana';
 import { FEE_FLOAT_LAMPORTS, SESSION_DAYS } from '../chain/session';
 import { haptic } from '../notify';
@@ -9,6 +9,7 @@ import { Body, Btn, Tag } from '../ui/kit';
 import { useSession } from '../wallet/sessionKey';
 import { useWallet } from '../wallet/wallet';
 import { readableError } from '../chain/send';
+import { FEATURE_ART } from '../data/cosmeticArt';
 
 const left = (sec: number) => {
   if (sec <= 0) return 'expired';
@@ -55,6 +56,7 @@ export function SessionCard() {
   return (
     <View style={st.box} accessible={false}>
       <View style={st.row}>
+        <Image source={FEATURE_ART.session} style={{ width: 36, height: 36 }} resizeMode="contain" accessibilityLabel="Session key" />
         <View style={{ flex: 1 }}>
           <Body size={13} bold color="#fff">Approve once · {SESSION_DAYS} days</Body>
           <Body size={11} color={C.dimOnWood}>

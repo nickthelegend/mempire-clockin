@@ -34,3 +34,21 @@ export function useFrameColors(): [string, string] | null {
   const held = usePassChain((s) => s.held);
   return frameColorsFor(eq, { status, held }, unlocked);
 }
+
+/**
+ * The equipped card frame's key (art in FRAME_ART), or null for the default
+ * frame. Same ownership rules as above.
+ */
+export function frameKeyFor(eq: Equipped, chain: ChainView, unlocked: string[]): string | null {
+  const chainFrame = FRAME_SKINS.find((x) => x.key === eq.frame);
+  if (chainFrame) return ownsSkin(chain, chainFrame.id) ? chainFrame.key : null;
+  return PASS_FRAMES[eq.frame] && unlocked.includes(eq.frame) ? eq.frame : null;
+}
+
+export function useFrameKey(): string | null {
+  const eq = useGame((s) => s.equipped);
+  const unlocked = useGame((s) => s.cosmetics.frames);
+  const status = usePassChain((s) => s.status);
+  const held = usePassChain((s) => s.held);
+  return frameKeyFor(eq, { status, held }, unlocked);
+}

@@ -1,6 +1,6 @@
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Linking, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Alert, Animated, Linking, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { CHESTS, rollChest } from '../game/rules';
 import { WIN_SKR, postChallenge, postDuelResult } from '../game/actions';
 import { duelMessage } from '../game/blink';
@@ -24,6 +24,7 @@ import { ShareCardButton } from './ShareCard';
 import { Qr } from '../ui/Qr';
 import { duelScanLink, solanaPayDuelUrl } from '../game/blink';
 import { readableError } from '../chain/send';
+import { CHAR_ART } from '../data/cosmeticArt';
 
 /** Chest opening: shake, burst, then the fighters land one by one. */
 export function RevealSheet() {
@@ -238,7 +239,10 @@ function DuelResult({ r }: { r: MatchResult }) {
   }, [d]);
   return (
     <Panel style={{ width: '88%', marginTop: 12, gap: 6 }}>
-      <Display size={20}>Ghost duel</Display>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Image source={CHAR_ART.ghost} style={{ width: 48, height: 48 }} resizeMode="contain" accessibilityLabel="The ghost" />
+        <Display size={20}>Ghost duel</Display>
+      </View>
       <Body size={12} color={C.dimOnWood}>
         {d.winner === 'o' ? 'You beat the ghost.' : d.winner === 'c' ? 'The ghost won.' : 'A draw.'} Final state hash {d.stateHash.toString(16).padStart(8, '0')}.
       </Body>
@@ -393,7 +397,7 @@ export function WalletSheet() {
                 try { await airdrop(address, 0.5); await refresh(); say('0.5 devnet SOL received', 'ok'); } catch (e) { say(readableError(e), 'err'); } finally { setBusy(false); }
               }}
             />
-            <Btn label="ON-CHAIN STATUS" sub="every Solana feature, live from the cluster" tone="blue" size="sm" onPress={() => { setOpen(false); useUi.getState().setOnchain(true); }} />
+            <Btn label="ON-CHAIN STATUS" sub="every Solana feature, live from the cluster" tone="blue" size="sm" onPress={() => useUi.getState().setOnchain(true)} />
             <Btn label="VIEW ON EXPLORER" tone="ghost" size="sm" onPress={() => void Linking.openURL(explorerAddr(address))} />
             <SoundSetting />
             <RendererSetting />

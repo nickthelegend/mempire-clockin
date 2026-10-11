@@ -2,9 +2,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, type ReactNode } from 'react';
 import {
   ActivityIndicator, Animated, Image, Pressable, StyleSheet, Text, View,
-  type StyleProp, type TextStyle, type ViewStyle,
+  type ImageSourcePropType, type ImageStyle, type StyleProp, type TextStyle, type ViewStyle,
 } from 'react-native';
 import { UI_ART, CARD_ART } from '../data/art';
+import { FRAME_ART, REWARD_ART } from '../data/cosmeticArt';
 import { BY_TICKER, COPIES_TO_LEVEL, MAX_LEVEL, type OwnedCard } from '../game/rules';
 import { haptic } from '../notify';
 import { EASE_OUT, reduceMotion } from '../motion';
@@ -73,10 +74,12 @@ const TONES: Record<Tone, { top: string; bottom: string; edge: string; text: str
  * tick. Every primary action in the app is one of these.
  */
 export function Btn({
-  label, onPress, tone = 'gold', disabled, busy, size = 'md', style, sub,
+  label, onPress, tone = 'gold', disabled, busy, size = 'md', style, sub, icon,
 }: {
   label: string; onPress?: () => void; tone?: Tone; disabled?: boolean; busy?: boolean;
   size?: 'sm' | 'md' | 'lg'; style?: StyleProp<ViewStyle>; sub?: string;
+  /** Art drawn before the label (feature icons). */
+  icon?: ImageSourcePropType;
 }) {
   const press = useRef(new Animated.Value(0)).current;
   const t = TONES[tone];
@@ -105,7 +108,10 @@ export function Btn({
           >
             {busy ? <ActivityIndicator color={t.text} /> : (
               <>
-                <Text maxFontSizeMultiplier={1.3} style={{ fontFamily: F.display, fontSize: fs, color: t.text, letterSpacing: 0.6, textAlign: 'center' }}>{label}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  {icon ? <Image source={icon} style={{ width: fs * 1.4, height: fs * 1.4 }} resizeMode="contain" /> : null}
+                  <Text maxFontSizeMultiplier={1.3} style={{ fontFamily: F.display, fontSize: fs, color: t.text, letterSpacing: 0.6, textAlign: 'center' }}>{label}</Text>
+                </View>
                 {sub ? <Text maxFontSizeMultiplier={1.3} style={{ fontFamily: F.uiBold, fontSize: 11, color: t.text, opacity: 0.85, textAlign: 'center' }}>{sub}</Text> : null}
               </>
             )}
@@ -158,13 +164,18 @@ export function PressScale({
   );
 }
 
-export function Chip({ label, value, color = C.gold, onPress, tag }: {
+export function Chip({ label, value, color = C.gold, onPress, tag, icon }: {
   label: string; value: string; color?: string; onPress?: () => void; tag?: string;
+  /** A small coin/badge drawn before the value (e.g. the SKR coin). */
+  icon?: ImageSourcePropType;
 }) {
   return (
     <PressScale onPress={onPress} style={s.chip} accessibilityLabel={`${label} ${value}${tag ? `, ${tag}` : ''}`}>
       <Text maxFontSizeMultiplier={1.2} style={{ fontFamily: F.uiBold, fontSize: 11, color, letterSpacing: 0.5 }}>{label}</Text>
-      <Text maxFontSizeMultiplier={1.2} style={{ fontFamily: F.display, fontSize: 16, color: '#fff' }}>{value}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+        {icon ? <Image source={icon} style={{ width: 15, height: 15 }} /> : null}
+        <Text maxFontSizeMultiplier={1.2} style={{ fontFamily: F.display, fontSize: 16, color: '#fff' }}>{value}</Text>
+      </View>
       {tag ? <Text maxFontSizeMultiplier={1.2} style={{ fontFamily: F.ui, fontSize: 9, color: C.dim }}>{tag}</Text> : null}
     </PressScale>
   );
@@ -185,12 +196,31 @@ export function ArchIcon({ arch, size = 18 }: { arch: number; size?: number }) {
 }
 
 /** A fighter card: art, level, archetype, copy progress. */
+/**
+ * A card frame cosmetic: the frame art stretched over the card it decorates
+ * (the art is portrait with a hollow centre, so it scales to any card shape).
+ */
+export function FrameOverlay({ frame, inset = -3 }: { frame: string; inset?: number }) {
+  const src = FRAME_ART[frame];
+  if (!src) return null;
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', left: inset, right: inset, top: inset, bottom: inset }} accessibilityElementsHidden importantForAccessibility="no">
+      <Image source={src} resizeMode="stretch" style={{ width: '100%', height: '100%' }} />
+    </View>
+  );
+}
+
+/** The SKR coin. */
+export function SkrIcon({ size = 18, style }: { size?: number; style?: StyleProp<ImageStyle> }) {
+  return <Image source={REWARD_ART.skr} style={[{ width: size, height: size }, style]} accessibilityLabel="SKR" />;
+}
+
 export function CardTile({
   ticker, owned, width = 100, onPress, selected, dim, frame,
 }: {
   ticker: string; owned?: OwnedCard; width?: number; onPress?: () => void; selected?: boolean; dim?: boolean;
-  /** An equipped card frame's two colours (cosmetic). */
-  frame?: [string, string] | null;
+  /** The equipped card frame's key (cosmetic art drawn over the card). */
+  frame?: string | null;
 }) {
   const f = BY_TICKER.get(ticker);
   if (!f) return null;
@@ -211,17 +241,7 @@ export function CardTile({
         <View style={s.cardTop}>
           <ArchIcon arch={f.archetype} size={18} />
         </View>
-        {frame && !selected ? (
-          <LinearGradient
-            colors={frame}
-            pointerEvents="none"
-            style={[StyleSheet.absoluteFill, { borderRadius: R.card, opacity: 0.9, padding: 3 }]}
-          >
-            <View style={{ flex: 1, borderRadius: R.card - 3, overflow: 'hidden' }}>
-              <Image source={CARD_ART[ticker]} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-            </View>
-          </LinearGradient>
-        ) : null}
+        {frame && !selected ? <FrameOverlay frame={frame} inset={0} /> : null}
         {owned ? (
           <View style={s.cardLevel}><Text maxFontSizeMultiplier={1.2} style={{ fontFamily: F.display, fontSize: 12, color: '#fff' }}>Lv {owned.level}</Text></View>
         ) : null}

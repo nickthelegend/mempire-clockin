@@ -113,7 +113,29 @@ interface UiState {
 
 let toastId = 0;
 
-export const useUi = create<UiState>((set) => ({
+const NO_SHEETS = { coachOpen: false, passOpen: false, boardOpen: false, onchainOpen: false, walletOpen: false };
+type SheetKey = keyof typeof NO_SHEETS;
+let sheetTimer: ReturnType<typeof setTimeout> | null = null;
+/**
+ * Open one sheet, closing any other first. When another was up, the new one
+ * opens after the old one's dismissal (iOS refuses to present mid-dismiss).
+ */
+function openSheet(
+  set: (p: Partial<Record<SheetKey, boolean>>) => void,
+  get: () => Record<SheetKey, boolean>,
+  key: SheetKey,
+  open: boolean,
+): void {
+  if (sheetTimer) { clearTimeout(sheetTimer); sheetTimer = null; }
+  if (!open) { set({ [key]: false }); return; }
+  const st = get();
+  const other = (Object.keys(NO_SHEETS) as SheetKey[]).some((k) => k !== key && st[k]);
+  if (!other) { set({ [key]: true }); return; }
+  set({ ...NO_SHEETS });
+  sheetTimer = setTimeout(() => { sheetTimer = null; set({ [key]: true }); }, 450);
+}
+
+export const useUi = create<UiState>((set, get) => ({
   rendererPref: 'auto',
   setRendererPref: (rendererPref) => {
     set({ rendererPref });
@@ -130,16 +152,20 @@ export const useUi = create<UiState>((set) => ({
   showReveal: (reveal) => set({ reveal }),
   introOpen: false,
   setIntro: (introOpen) => set({ introOpen }),
+  // The sheets are sibling Modals, and iOS presents one at a time: opening a
+  // second while another is up silently fails and leaves its flag stuck true
+  // (it then never opens, even after the first closes). Opening one closes
+  // the others.
   coachOpen: false,
-  setCoach: (coachOpen) => set({ coachOpen }),
+  setCoach: (coachOpen) => openSheet(set, get, 'coachOpen', coachOpen),
   passOpen: false,
-  setPass: (passOpen) => set({ passOpen }),
+  setPass: (passOpen) => openSheet(set, get, 'passOpen', passOpen),
   boardOpen: false,
-  setBoard: (boardOpen) => set({ boardOpen }),
+  setBoard: (boardOpen) => openSheet(set, get, 'boardOpen', boardOpen),
   onchainOpen: false,
-  setOnchain: (onchainOpen) => set({ onchainOpen }),
+  setOnchain: (onchainOpen) => openSheet(set, get, 'onchainOpen', onchainOpen),
   walletOpen: false,
-  setWalletOpen: (walletOpen) => set({ walletOpen }),
+  setWalletOpen: (walletOpen) => openSheet(set, get, 'walletOpen', walletOpen),
   toast: null,
   say: (text, tone = 'info') => set({ toast: { text, tone, id: ++toastId } }),
   sgt: null,

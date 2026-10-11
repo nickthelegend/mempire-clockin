@@ -31,6 +31,7 @@ import { setPerf } from './src/arena/perf';
 import { ensureChannel, ensureStreakReminder, haptic } from './src/notify';
 import { C } from './src/theme';
 import { Body, Btn, Chip, Display } from './src/ui/kit';
+import { REWARD_ART } from './src/data/cosmeticArt';
 import { ConnectScreen } from './src/screens/Connect';
 import { HomeScreen } from './src/screens/Home';
 import { CardsScreen } from './src/screens/Cards';
@@ -101,6 +102,7 @@ function Header() {
         <Chip label="SOL" value={sol === null ? '…' : sol.toFixed(2)} color={C.bluePale} onPress={() => setWalletOpen(true)} tag={CLUSTER_LABEL} />
         <Chip
           label="SKR"
+          icon={REWARD_ART.skr}
           value={SKR_LIVE && skr === null ? '…' : String(shownSkr)}
           color={C.skr}
           tag={SKR_LIVE ? 'stand-in' : 'sim'}

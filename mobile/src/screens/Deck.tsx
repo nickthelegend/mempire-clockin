@@ -7,7 +7,9 @@ import { haptic } from '../notify';
 import { ARCH_NAMES, C } from '../theme';
 import { ArchIcon, Body, Btn, CardTile, Display, Panel, Rise, Tag, Well } from '../ui/kit';
 import { ARENA_SKINS, FRAME_SKINS, ownsSkin, usePassChain } from '../chain/pass';
-import { useFrameColors } from '../game/cosmetics';
+import { useFrameKey } from '../game/cosmetics';
+import { EMOTE_ART } from '../data/cosmeticArt';
+import { Image } from 'react-native';
 import { EMOTES, PASS_FRAMES } from '../game/season';
 import { SkinPreview } from './Shop';
 
@@ -33,7 +35,7 @@ function Wardrobe() {
     >
       {preview}
       <Body size={11} color="#fff" bold numberOfLines={1}>{label}</Body>
-      <Body size={9} color={on ? C.gold : C.dim} bold>{on ? 'EQUIPPED' : owned ? 'TAP' : '🔒'}</Body>
+      <Body size={9} color={on ? C.gold : C.dim} bold>{on ? 'EQUIPPED' : owned ? 'TAP' : 'LOCKED'}</Body>
     </Pressable>
   );
   return (
@@ -50,13 +52,14 @@ function Wardrobe() {
       <Body size={11} color={C.dim}>Card frame</Body>
       <View style={st.opts}>
         {opt('f-default', 'Classic', equipped.frame === 'default', true, () => equip({ frame: 'default' }))}
-        {FRAME_SKINS.map((s) => opt(`f-${s.key}`, s.name, equipped.frame === s.key, ownsSkin(pc, s.id), () => equip({ frame: s.key }), <SkinPreview skin={s} kind="frame" size={40} />))}
+        {FRAME_SKINS.map((s) => opt(`f-${s.key}`, s.name, equipped.frame === s.key, ownsSkin(pc, s.id), () => equip({ frame: s.key }), <SkinPreview skin={s} kind="frame" size={52} />))}
         {Object.entries(PASS_FRAMES).map(([k, f]) => opt(`p-${k}`, f.name, equipped.frame === k, unlocked.frames.includes(k), () => equip({ frame: k }),
-          <SkinPreview skin={{ id: 0, key: k, name: f.name, symbol: '', price: 0, colors: f.colors }} kind="frame" size={40} />))}
+          <SkinPreview skin={{ id: 0, key: k, name: f.name, symbol: '', price: 0, colors: f.colors }} kind="frame" size={52} />))}
       </View>
       <Body size={11} color={C.dim}>Emote (shown on your result card)</Body>
       <View style={st.opts}>
-        {Object.entries(EMOTES).map(([k, e]) => opt(`e-${k}`, `${e.glyph} ${e.label}`, equipped.emote === k, unlocked.emotes.includes(k), () => equip({ emote: k })))}
+        {Object.entries(EMOTES).map(([k, e]) => opt(`e-${k}`, e.label, equipped.emote === k, unlocked.emotes.includes(k), () => equip({ emote: k }),
+          <Image source={EMOTE_ART[k]} style={{ width: 40, height: 40 }} accessibilityLabel={`${e.label} emote`} />))}
       </View>
       <Btn label="GET SKINS IN THE SHOP" tone="ghost" size="sm" onPress={() => setTab('shop')} />
     </Well>
@@ -69,7 +72,7 @@ export function DeckScreen() {
   const cards = useGame((s) => s.cards);
   const setDeckSlot = useGame((s) => s.setDeckSlot);
   const setCoach = useUi((s) => s.setCoach);
-  const frame = useFrameColors();
+  const frame = useFrameKey();
   const [slot, setSlot] = useState<number | null>(null);
   const { width } = useWindowDimensions();
   const tile = Math.floor((Math.min(width, 520) - 28 - 3 * 10) / 4);

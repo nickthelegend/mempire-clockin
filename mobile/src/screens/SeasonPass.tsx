@@ -1,6 +1,7 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
-import { Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { CHAR_ART, EMOTE_ART, REWARD_ART, UI_ICON } from '../data/cosmeticArt';
+import { CARD_ART } from '../data/art';
 import { hasPremium, passMint, usePassChain, SEASON_ID } from '../chain/pass';
 import { CLUSTER_LABEL, explorerAddr, explorerTx, short } from '../chain/solana';
 import { buySeasonPass, claimPassTier } from '../game/actions';
@@ -12,7 +13,7 @@ import { useGame } from '../state/game';
 import { useUi } from '../state/ui';
 import { useWallet } from '../wallet/wallet';
 import { C, R } from '../theme';
-import { Body, Btn, ChestArt, Display, Panel, Progress, Tag, Well } from '../ui/kit';
+import { Body, Btn, ChestArt, Display, FrameOverlay, Panel, Progress, Tag, Well } from '../ui/kit';
 import { readableError } from '../chain/send';
 
 function daysLeft(): number {
@@ -21,13 +22,20 @@ function daysLeft(): number {
 
 function RewardIcon({ r, size = 40 }: { r: Reward; size?: number }) {
   if (r.kind === 'chest') return <ChestArt tier={r.tier} size={size} />;
-  const glyph = r.kind === 'slot' ? '＋' : r.kind === 'shield' ? '🛡️' : r.kind === 'emote' ? EMOTES[r.id]?.glyph ?? '★' : '▣';
-  const colors: [string, string] = r.kind === 'frame' ? PASS_FRAMES[r.id]?.colors ?? [C.gold, C.wood] : [C.blueLit, C.blueDeep];
-  return (
-    <LinearGradient colors={colors} style={[st.icon, { width: size, height: size, borderRadius: size / 4 }]}>
-      <Body size={size * 0.45} color="#fff" bold>{glyph}</Body>
-    </LinearGradient>
-  );
+  if (r.kind === 'frame') {
+    // A frame thumbnail: the frame art over a sample card, portrait.
+    return (
+      <View style={{ width: size * 0.7, height: size }} accessibilityLabel={`${PASS_FRAMES[r.id]?.name ?? r.id} frame`}>
+        <View style={{ position: 'absolute', left: size * 0.08, right: size * 0.08, top: size * 0.07, bottom: size * 0.07, borderRadius: 4, overflow: 'hidden', backgroundColor: C.ink }}>
+          <Image source={CARD_ART.SOL} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+        </View>
+        <FrameOverlay frame={r.id} inset={0} />
+      </View>
+    );
+  }
+  const src = r.kind === 'slot' ? REWARD_ART.slot : r.kind === 'shield' ? REWARD_ART.shield : EMOTE_ART[r.id] ?? REWARD_ART.slot;
+  const label = r.kind === 'emote' ? `${EMOTES[r.id]?.label ?? r.id} emote` : r.kind === 'slot' ? 'Chest slot' : 'Streak Shield';
+  return <Image source={src} style={{ width: size, height: size }} resizeMode="contain" accessibilityLabel={label} />;
 }
 
 /** The premium card: live (owned / buy), preview (not deployed here), offline. */
@@ -57,7 +65,10 @@ function PremiumCard() {
   return (
     <Well style={{ gap: 8, borderColor: premium ? C.gold : 'rgba(0,0,0,0.35)', borderWidth: premium ? 2 : 1 }}>
       <View style={st.between}>
-        <Display size={20} color={premium ? C.gold : '#fff'}>Premium track</Display>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 }}>
+          <Image source={REWARD_ART.pass} style={{ width: 44, height: 44, opacity: premium ? 1 : 0.85 }} resizeMode="contain" accessibilityLabel="Season Pass" />
+          <Display size={20} color={premium ? C.gold : '#fff'}>Premium track</Display>
+        </View>
         <Tag
           text={premium ? 'PASS HELD · ON-CHAIN' : pc.status === 'live' ? `${price} SKR` : pc.status === 'preview' ? 'PREVIEW MODE' : pc.status === 'offline' ? 'CHAIN UNREACHABLE' : 'CHECKING…'}
           color={premium ? C.gold : pc.status === 'live' ? C.skr : C.dim}
@@ -123,11 +134,15 @@ function TierRow({ n, onClaim }: { n: number; onClaim: (n: number, t: Track) => 
         accessibilityLabel={`Tier ${n} ${track} reward: ${rewardLabel(r)}${claimed ? ', claimed' : can ? ', claim' : locked ? ', needs the pass' : ', locked'}`}
         style={[st.cell, track === 'premium' && st.cellPremium, can && st.cellReady, { opacity: claimed ? 0.45 : reached ? 1 : 0.7 }]}
       >
-        <RewardIcon r={r} size={34} />
+        <View>
+          <RewardIcon r={r} size={34} />
+          {locked && !claimed ? <Image source={UI_ICON.lock} style={st.lockBadge} accessibilityLabel="Needs the pass" /> : null}
+          {n === SEASON.tiers && track === 'premium' ? <Image source={CHAR_ART.trophy} style={st.trophyBadge} accessibilityLabel="Season 1 trophy tier" /> : null}
+        </View>
         <View style={{ flex: 1 }}>
           <Body size={11} color="#fff" bold numberOfLines={2}>{rewardLabel(r)}</Body>
           <Body size={10} color={can ? C.teal : C.dim} bold>
-            {claimed ? 'CLAIMED' : can ? 'TAP TO CLAIM' : locked ? '🔒 PASS' : reached ? '' : `TIER ${n}`}
+            {claimed ? 'CLAIMED' : can ? 'TAP TO CLAIM' : locked ? 'PASS' : reached ? '' : `TIER ${n}`}
           </Body>
         </View>
       </Pressable>
@@ -172,6 +187,7 @@ export function SeasonPassSheet() {
       <View style={st.wrap}>
         <ScrollView contentContainerStyle={{ padding: 14, gap: 12, paddingTop: 60, paddingBottom: 60 }}>
           <View style={st.between}>
+            <Image source={CHAR_ART.trophy} style={{ width: 64, height: 64, marginRight: 8 }} resizeMode="contain" accessibilityLabel="Season 1 trophy" />
             <View style={{ flex: 1 }}>
               <Display size={28}>Season Pass</Display>
               <Body size={12}>{SEASON.name} · {daysLeft()} days left</Body>
@@ -240,5 +256,7 @@ const st = StyleSheet.create({
   cellReady: { borderColor: C.teal, borderWidth: 2 },
   cellEmpty: { backgroundColor: 'rgba(9,22,48,0.35)' },
   icon: { alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.4)' },
+  lockBadge: { position: 'absolute', right: -6, bottom: -4, width: 18, height: 18 },
+  trophyBadge: { position: 'absolute', left: -8, top: -8, width: 20, height: 20 },
 });
 

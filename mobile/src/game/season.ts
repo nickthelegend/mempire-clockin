@@ -44,12 +44,13 @@ export const PASS_FRAMES: Record<string, { name: string; colors: [string, string
   laurel: { name: 'S1 Laurel', colors: ['#ffe38a', '#9945ff'] },
   clockwork: { name: 'Clockwork', colors: ['#f6e6cc', '#7a4a22'] },
 };
-export const EMOTES: Record<string, { label: string; glyph: string }> = {
-  gm: { label: 'gm', glyph: '☀️' },
-  gg: { label: 'GG', glyph: '🤝' },
-  lfg: { label: 'LFG', glyph: '🚀' },
-  wagmi: { label: 'WAGMI', glyph: '💎' },
-  hodl: { label: 'HODL', glyph: '🛡️' },
+/** Emote art lives in src/data/cosmeticArt.ts (EMOTE_ART), keyed the same. */
+export const EMOTES: Record<string, { label: string }> = {
+  gm: { label: 'gm' },
+  gg: { label: 'GG' },
+  lfg: { label: 'LFG' },
+  wagmi: { label: 'WAGMI' },
+  hodl: { label: 'HODL' },
 };
 
 const T = (n: number, free: Reward | null, premium: Reward): Tier => ({ n, free, premium });

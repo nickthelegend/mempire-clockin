@@ -8,19 +8,20 @@ import { useGame } from '../state/game';
 import { useUi } from '../state/ui';
 import { useWallet } from '../wallet/wallet';
 import { C } from '../theme';
-import { UI_ART } from '../data/art';
-import { Body, Btn, ChestArt, Display, Panel, Rise, Tag, Well } from '../ui/kit';
+import { CARD_ART, UI_ART } from '../data/art';
+import { Body, Btn, ChestArt, Display, FrameOverlay, Panel, Rise, SkrIcon, Tag, Well } from '../ui/kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ARENA_SKINS, FRAME_SKINS, ownsSkin, usePassChain, type SkinDef } from '../chain/pass';
 import { CLUSTER_LABEL } from '../chain/solana';
 import { buySkin } from '../game/actions';
 import { readableError } from '../chain/send';
+import { FEATURE_ART } from '../data/cosmeticArt';
 
 /**
  * Thumbnails of each arena skin, cropped from real renders of the native 3D
  * arena on the simulator (clockin/screens/season-pass/12-skins-compare.png).
  */
-const ARENA_THUMBS: Record<string, number> = {
+export const ARENA_THUMBS: Record<string, number> = {
   default: require('../../assets/skins/arena-default.png'),
   neon: require('../../assets/skins/arena-neon.png'),
   golden: require('../../assets/skins/arena-golden.png'),
@@ -30,12 +31,14 @@ const ARENA_THUMBS: Record<string, number> = {
 /** A small picture of what a skin does: a render of the skinned arena, or a card frame. */
 export function SkinPreview({ skin, kind, size = 64 }: { skin: SkinDef; kind: 'arena' | 'frame'; size?: number }) {
   if (kind === 'frame') {
+    // The frame art over a sample card, at the frame's own portrait shape.
     return (
-      <LinearGradient colors={skin.colors} style={{ width: size * 0.78, height: size, borderRadius: 10, padding: 4 }}>
-        <View style={{ flex: 1, borderRadius: 7, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center' }}>
-          {size >= 56 ? <Body size={10} color="#fff" bold>$SOL</Body> : null}
+      <View style={{ width: size * 0.66, height: size }} accessibilityLabel={`${skin.name} card frame preview`}>
+        <View style={{ position: 'absolute', left: size * 0.08, right: size * 0.08, top: size * 0.07, bottom: size * 0.07, borderRadius: 6, overflow: 'hidden', backgroundColor: C.ink }}>
+          <Image source={CARD_ART.SOL} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
         </View>
-      </LinearGradient>
+        <FrameOverlay frame={skin.key} inset={0} />
+      </View>
     );
   }
   const thumb = ARENA_THUMBS[skin.key];
@@ -196,7 +199,10 @@ export function ShopScreen() {
           <View style={st.between}>
             <View>
               <Body size={12} color={C.skr} bold>{SKR_LABEL.toUpperCase()}</Body>
-              <Display size={34} color="#fff">{SKR_LIVE && skrChain === null ? '…' : balance.toLocaleString()}</Display>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <SkrIcon size={34} />
+                <Display size={34} color="#fff">{SKR_LIVE && skrChain === null ? '…' : balance.toLocaleString()}</Display>
+              </View>
             </View>
             <Tag text={SKR_LIVE ? 'DEVNET SPL · 6 DEC' : 'SIMULATED'} color={SKR_LIVE ? C.skr : C.goldHi} />
           </View>
@@ -258,7 +264,10 @@ export function ShopScreen() {
       <Rise delay={240}>
         <Well style={{ gap: 6 }}>
           <View style={st.between}>
-            <Display size={18}>Seeker perks</Display>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Image source={FEATURE_ART.seeker} style={{ width: 32, height: 32 }} resizeMode="contain" />
+              <Display size={18}>Seeker perks</Display>
+            </View>
             <Tag text={sgt ? 'SEEKER VERIFIED' : sgtChecked ? 'NOT DETECTED' : 'CHECKING…'} color={sgt ? C.teal : C.dim} />
           </View>
           <Body size={12}>

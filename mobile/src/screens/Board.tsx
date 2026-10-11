@@ -13,6 +13,7 @@ import { CLUSTER_LABEL } from '../chain/solana';
 import { useWallet } from '../wallet/wallet';
 import { C, R } from '../theme';
 import { Body, Btn, Display, Panel, Tag, Well } from '../ui/kit';
+import { CHAR_ART, FEATURE_ART, UI_ICON } from '../data/cosmeticArt';
 
 function Coin({ t, size = 44 }: { t: string; size?: number }) {
   const f = BY_TICKER.get(t);
@@ -37,7 +38,10 @@ export function SeasonWarBanner() {
       <LinearGradient colors={['#ff7a2e', '#9945ff']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.banner}>
         <Coin t={a} />
         <View style={{ flex: 1, alignItems: 'center' }}>
-          <Body size={11} color="#fff" bold>SEASON WAR</Body>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Image source={FEATURE_ART.war} style={{ width: 20, height: 20 }} resizeMode="contain" />
+            <Body size={11} color="#fff" bold>SEASON WAR</Body>
+          </View>
           <Display size={22}>${a} vs ${b}</Display>
           <Body size={11} color="#fff">{side ? `You fight for $${side} · leaderboard ›` : 'Pick a side · leaderboard ›'}</Body>
         </View>
@@ -88,7 +92,9 @@ function GlobalBoard() {
       <Display size={16} style={{ marginTop: 6 }}>Top streaks</Display>
       {board && board.streaks.length ? board.streaks.slice(0, 10).map((r, i) => (
         <View key={r.wallet} style={st.row}>
-          <Body size={14} bold color={i < 3 ? C.gold : '#fff'} style={{ width: 26 }}>{i + 1}</Body>
+          {i === 0
+            ? <Image source={UI_ICON.crown} style={{ width: 26, height: 26 }} resizeMode="contain" accessibilityLabel="First place" />
+            : <Body size={14} bold color={i < 3 ? C.gold : '#fff'} style={{ width: 26 }}>{i + 1}</Body>}
           <StreakName wallet={r.wallet} />
           {r.side ? <Coin t={r.side} size={22} /> : null}
           <Body size={11} color={C.dim}>{r.claimed !== r.streak ? `claims ${r.claimed}` : ''}</Body>
@@ -132,7 +138,10 @@ export function BoardSheet() {
       <View style={st.wrap}>
         <ScrollView contentContainerStyle={{ padding: 14, gap: 12, paddingTop: 60, paddingBottom: 60 }}>
           <View style={st.between}>
-            <Display size={28}>Leaderboard</Display>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Image source={CHAR_ART.trophy} style={{ width: 52, height: 52 }} resizeMode="contain" accessibilityLabel="Season 1 trophy" />
+              <Display size={28}>Leaderboard</Display>
+            </View>
             <Btn label="✕" tone="ghost" size="sm" onPress={() => setBoard(false)} />
           </View>
 
@@ -149,7 +158,10 @@ export function BoardSheet() {
           </Well>
 
           <Panel>
-            <Display size={20}>Season War · {SEASON_WAR.title}</Display>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
+              <Image source={FEATURE_ART.war} style={{ width: 30, height: 30 }} resizeMode="contain" />
+              <Display size={20}>Season War · {SEASON_WAR.title}</Display>
+            </View>
             <Body size={12} color={C.dimOnWood} style={{ marginTop: 4 }}>
               Pick a coin. Every Clock-In you sign carries your pledge in its on-chain memo, and battles won with that coin in your deck add points.
             </Body>

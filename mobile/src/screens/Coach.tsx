@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Modal, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, Modal, ScrollView, StyleSheet, View } from 'react-native';
 import { BY_TICKER, RIVALS, rivalDeck } from '../game/rules';
 import { bestSwap, evaluate, verdict, type Evaluation, type SwapSuggestion, type CoachCard } from '../game/coach';
 import { useGame, avgDeckLevel } from '../state/game';
@@ -7,6 +7,7 @@ import { useUi } from '../state/ui';
 import { haptic } from '../notify';
 import { C } from '../theme';
 import { Body, Btn, CardTile, Display, Panel, Progress, Tag, Well } from '../ui/kit';
+import { CHAR_ART } from '../data/cosmeticArt';
 
 /**
  * The coach's screen: run the scouting, show the measurements, offer a swap.
@@ -75,7 +76,8 @@ export function CoachSheet() {
       <View style={st.wrap}>
         <ScrollView contentContainerStyle={{ padding: 14, gap: 12, paddingTop: 60, paddingBottom: 60 }}>
           <View style={st.between}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1, flexWrap: 'wrap' }}>
+              <Image source={CHAR_ART.coach} style={{ width: 60, height: 60 }} resizeMode="contain" accessibilityLabel="AI Coach" />
               <Display size={28}>AI Coach</Display>
               <Tag text="ON-DEVICE SIMULATION" color={C.teal} />
             </View>

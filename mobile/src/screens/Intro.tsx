@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Image, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CARD_ART, UI_ART } from '../data/art';
+import { REWARD_ART } from '../data/cosmeticArt';
 import { INTRO_FIGHTERS } from '../data/showcase';
 import { prepareMatch } from '../game/actions';
 import { EASE_OUT, reduceMotion } from '../motion';
@@ -60,7 +61,7 @@ function Art({ kind }: { kind: (typeof SLIDES)[number]['art'] }) {
   }
   return (
     <View style={st.artRow}>
-      <View style={st.skrCoin}><Display size={30} color={C.ink}>SKR</Display></View>
+      <Image source={REWARD_ART.skr} style={{ width: 110, height: 110 }} accessibilityLabel="SKR" />
       <Image source={UI_ART.chest_magic} style={st.chestLg} />
     </View>
   );
@@ -137,7 +138,6 @@ const st = StyleSheet.create({
   chestSm: { width: 84, height: 84 },
   chestLg: { width: 140, height: 140 },
   card: { width: 100, height: 132, borderRadius: 12, borderWidth: 2, borderColor: 'rgba(0,0,0,0.5)', marginHorizontal: -10, overflow: 'hidden' },
-  skrCoin: { width: 110, height: 110, borderRadius: 55, backgroundColor: C.skr, alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: '#6f8f00' },
   dots: { flexDirection: 'row', gap: 8, justifyContent: 'center' },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.3)' },
   dotOn: { width: 22, backgroundColor: C.gold },

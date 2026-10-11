@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { PublicKey } from '@solana/web3.js';
-import { Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, Linking, Modal, Pressable, ScrollView, StyleSheet, View, type ImageSourcePropType } from 'react-native';
+import { FEATURE_ART, REWARD_ART } from '../data/cosmeticArt';
+import { ARENA_THUMBS } from './Shop';
 import { ALL_SKINS, PASS_PROGRAM, hasPremium, ownsSkin, passMint, usePassChain, SEASON_ID } from '../chain/pass';
 import { clockStatePda, programLive, readClockState, readSessionRecord, type ClockState } from '../chain/clockin';
 import { CLUSTER_LABEL, connection, explorerAddr, explorerTx, short } from '../chain/solana';
@@ -26,12 +28,14 @@ import { Body, Btn, Display, Tag } from '../ui/kit';
 type Tone = 'live' | 'off' | 'pending' | 'info';
 const TONE: Record<Tone, string> = { live: C.teal, off: C.dim, pending: C.goldHi, info: C.bluePale };
 
-function Row({ title, chip, tone, children, links }: {
+function Row({ title, chip, tone, children, links, icon }: {
   title: string; chip: string; tone: Tone; children?: React.ReactNode; links?: { label: string; url: string }[];
+  icon?: ImageSourcePropType;
 }) {
   return (
     <View style={st.row}>
       <View style={st.head}>
+        {icon ? <Image source={icon} style={{ width: 34, height: 34 }} resizeMode="contain" /> : null}
         <Body size={14} bold color="#fff" style={{ flex: 1 }}>{title}</Body>
         <Tag text={chip} color={TONE[tone]} />
       </View>
@@ -63,11 +67,15 @@ export function OnChainSheet() {
   const warSide = useGame((s) => s.warSide);
   const war = useWar((s) => s.board);
   const duels = useDuels((s) => s.board);
+  const duelsLoaded = useDuels((s) => s.loadedAt);
+  const duelsErr = useDuels((s) => s.error);
   const sgt = useUi((s) => s.sgt);
   const sgtChecked = useUi((s) => s.sgtChecked);
   const skrName = useIdentity((s) => (address ? s.names[address] : undefined));
   const [live, setLive] = useState<boolean | null>(null);
   const [state, setState] = useState<ClockState | null | undefined>(undefined);
+  /** The Clock-In record read failed (RPC unreachable or rate-limited): not "no record". */
+  const [stateErr, setStateErr] = useState(false);
   const [passBlink, setPassBlink] = useState<'on' | 'off' | null>(null);
   /** Does this phone's session key have a SessionRecord on this cluster? */
   const [record, setRecord] = useState<boolean | null>(null);
@@ -78,7 +86,8 @@ export function OnChainSheet() {
     void programLive(connection).then((ok) => { if (!gone) setLive(ok); });
     const key = useSession.getState().cur?.session;
     if (key) void readSessionRecord(connection, address, key).then((r) => { if (!gone) setRecord(!!r); }).catch(() => { if (!gone) setRecord(null); });
-    void readClockState(connection, address).then((s) => { if (!gone) setState(s); }).catch(() => { if (!gone) setState(null); });
+    setStateErr(false);
+    void readClockState(connection, address).then((s) => { if (!gone) setState(s); }).catch(() => { if (!gone) { setState(undefined); setStateErr(true); } });
     void usePassChain.getState().refresh(address);
     if (!useWar.getState().board) void useWar.getState().refresh();
     if (!useDuels.getState().loadedAt) void useDuels.getState().refresh();
@@ -107,12 +116,13 @@ export function OnChainSheet() {
             <Btn label="✕" tone="ghost" size="sm" onPress={() => setOpen(false)} />
           </View>
 
-          <Row title="Sign In With Solana" tone={signIn ? 'live' : 'off'} chip={signIn ? 'VERIFIED ON THIS PHONE' : 'NOT SIGNED'}>
+          <Row icon={FEATURE_ART.siws} title="Sign In With Solana" tone={signIn ? 'live' : 'off'} chip={signIn ? 'VERIFIED ON THIS PHONE' : 'NOT SIGNED'}>
             <Line>{signIn ? `${signIn.method === 'dev-local' ? 'Dev wallet' : signIn.signer} · ${signIn.domain} · ${signIn.chainId ?? ''} · issued ${new Date(signIn.issuedAt).toLocaleString()}` : `${kind === 'mwa' ? 'Your wallet skipped the sign-in message.' : 'Sign out and in again to sign the SIWS message.'}`}</Line>
             <Line>Off-chain by design: a signed message, verified with ed25519 on the device.</Line>
           </Row>
 
           <Row
+            icon={FEATURE_ART.session}
             title="Session key (approve once)"
             tone={notDeployed || (session && record === false) ? 'pending' : session ? 'live' : 'off'}
             chip={session ? (notDeployed ? `MEMO LINK · ${final}` : record === false ? 'NO RECORD HERE · TOGGLE TO RE-LINK' : `EXPIRES ${new Date(session.expiresAt * 1000).toLocaleDateString()}`) : 'OFF'}
@@ -122,15 +132,17 @@ export function OnChainSheet() {
           </Row>
 
           <Row
+            icon={FEATURE_ART.clockin}
             title="Clock-In record (PDA)"
             tone={notDeployed ? 'pending' : state ? 'live' : 'off'}
-            chip={notDeployed ? final : state ? `STREAK ${state.streak} · BEST ${state.best}` : state === null ? 'NO CLOCK-IN YET' : 'READING…'}
+            chip={notDeployed ? final : state ? `STREAK ${state.streak} · BEST ${state.best}` : state === null ? 'NO CLOCK-IN YET' : stateErr ? 'CHAIN UNREACHABLE' : 'READING…'}
             links={notDeployed ? undefined : [{ label: `PDA ${short(clockStatePda(new PublicKey(address)).toBase58())}`, url: explorerAddr(clockStatePda(new PublicKey(address)).toBase58()) }]}
           >
-            <Line>{state ? `Last UTC day ${state.lastDay} · ${state.total} Clock-In(s) · war side ${['none', 'BONK', 'POPCAT'][state.warSide] ?? state.warSide}. Day and streak are computed by the program.` : notDeployed ? 'Until mempire_pass is on this cluster, Clock-Ins are signed memos (still on chain, rebuilt from history).' : 'Your first Clock-In creates it.'}</Line>
+            <Line>{state ? `Last UTC day ${state.lastDay} · ${state.total} Clock-In(s) · war side ${['none', 'BONK', 'POPCAT'][state.warSide] ?? state.warSide}. Day and streak are computed by the program.` : notDeployed ? 'Until mempire_pass is on this cluster, Clock-Ins are signed memos (still on chain, rebuilt from history).' : state === null ? 'Your first Clock-In creates it.' : stateErr ? `Could not read ${CLUSTER_LABEL} right now. Close and reopen to retry.` : `Reading the record from ${CLUSTER_LABEL}…`}</Line>
           </Row>
 
           <Row
+            icon={FEATURE_ART.commit}
             title="Chest commits"
             tone={commit ? 'live' : 'off'}
             chip={commit ? `SLOT ${commit.commitTxSlot ?? '?'} → ${commit.targetSlot}` : 'NONE ON CHAIN YET'}
@@ -140,6 +152,7 @@ export function OnChainSheet() {
           </Row>
 
           <Row
+            icon={REWARD_ART.pass}
             title="Season Pass (Token-2022, soulbound)"
             tone={pc.status === 'preview' ? 'pending' : hasPremium(pc) ? 'live' : 'off'}
             chip={pc.status === 'preview' ? final : pc.status !== 'live' ? 'CHECKING…' : hasPremium(pc) ? 'HELD' : 'NOT HELD'}
@@ -149,13 +162,15 @@ export function OnChainSheet() {
           </Row>
 
           <Row
+            icon={ARENA_THUMBS.neon}
             title="Skins (Token-2022)"
             tone={pc.status === 'preview' ? 'pending' : heldSkins.length ? 'live' : 'off'}
-            chip={pc.status === 'preview' ? final : `${heldSkins.length} / ${ALL_SKINS.length} HELD`}
+            chip={pc.status === 'preview' ? final : pc.status === 'live' ? `${heldSkins.length} / ${ALL_SKINS.length} HELD` : pc.status === 'offline' ? 'CHAIN UNREACHABLE' : 'CHECKING…'}
             links={heldSkins.slice(0, 3).map((s) => ({ label: s.name, url: explorerAddr(pc.chain!.skins[s.id].mint.toBase58()) }))}
           />
 
           <Row
+            icon={REWARD_ART.skr}
             title="SKR"
             tone={SKR_LIVE ? 'live' : 'pending'}
             chip={SKR_LIVE ? 'DEVNET STAND-IN' : `SIMULATED · ${final}`}
@@ -164,21 +179,21 @@ export function OnChainSheet() {
             <Line>Classic SPL, 6 decimals, minted by the public spl-token-faucet program. Real SKR stays on mainnet.</Line>
           </Row>
 
-          <Row title="Ghost duels" tone={myChallenges.length ? 'live' : 'off'} chip={`${myChallenges.length} SENT · ${received.length} RESULTS IN`}
+          <Row icon={FEATURE_ART.ghostduel} title="Ghost duels" tone={myChallenges.length ? 'live' : 'off'} chip={duelsLoaded ? `${myChallenges.length} SENT · ${received.length} RESULTS IN` : duelsErr ? 'CHAIN UNREACHABLE' : 'READING…'}
             links={myChallenges.slice(0, 2).map((s) => ({ label: `challenge ${short(s)}`, url: explorerTx(s) }))}>
             <Line>Replays, results and accepts are memos on a shared reference key, re-simulated on the phone.</Line>
           </Row>
 
-          <Row title={`Season War · ${SEASON_WAR.title}`} tone={war ? 'live' : 'off'}
+          <Row icon={FEATURE_ART.war} title={`Season War · ${SEASON_WAR.title}`} tone={war ? 'live' : 'off'}
             chip={war ? SEASON_WAR.sides.map((s) => `${s} ${war.sides[s]?.clockIns ?? 0}`).join(' · ') : 'READING…'}>
             <Line>{`Pledged Clock-Ins per side, tallied from chain by every phone.${warSide ? ` You fight for $${warSide}.` : ''}`}</Line>
           </Row>
 
-          <Row title="Blinks (Solana Actions)" tone={passBlink === 'on' ? 'live' : 'info'}
+          <Row icon={FEATURE_ART.blink} title="Blinks (Solana Actions)" tone={passBlink === 'on' ? 'live' : 'info'}
             chip={passBlink === 'on' ? 'SEASON PASS BLINK LIVE' : passBlink === 'off' ? `CHALLENGE LIVE · PASS ${final}` : 'CHALLENGE LIVE'}
             links={[{ label: 'challenge Blink', url: blinkUrl(1) }, { label: 'action', url: actionUrl(1) }, { label: 'actions.json', url: `${ACTIONS_BASE}/actions.json` }]} />
 
-          <Row title="Seeker identity" tone={sgt || skrName ? 'live' : 'off'}
+          <Row icon={FEATURE_ART.seeker} title="Seeker identity" tone={sgt || skrName ? 'live' : 'off'}
             chip={sgt ? 'GENESIS TOKEN ✓' : sgtChecked ? 'NO GENESIS TOKEN' : kind === 'dev' ? 'DEV WALLET' : 'CHECKING…'}
             links={sgt ? [{ label: 'Genesis Token', url: `https://explorer.solana.com/address/${sgt}` }] : undefined}>
             <Line>{skrName ? `${skrName} (.skr, AllDomains, mainnet read)` : 'No .skr name for this wallet.'} · Seeker Genesis Token holders earn double SKR (read-only mainnet check).</Line>

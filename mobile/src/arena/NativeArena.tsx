@@ -28,6 +28,7 @@ import { C, F } from '../theme';
 import {
   forfeit, playCard, recording, setPaused, startNativeArena, teardown, toMatchCard, useNativeMatch,
 } from './match';
+import { UI_ICON } from '../data/cosmeticArt';
 
 /**
  * The 3D battle, fully native: the web game's own scene (app/src/three) in a
@@ -232,7 +233,7 @@ function Hud({ onQuit, onHeight }: { onQuit: () => void; onHeight: (h: number) =
       <View style={{ alignItems: 'flex-end', gap: 4 }}>
       <View style={st.crowns}>
         <Text maxFontSizeMultiplier={1.15} style={[st.crown, { color: C.teal }]}>{crowns[0]}</Text>
-        <Text maxFontSizeMultiplier={1.15} style={st.crownVs}>CROWNS</Text>
+        <Image source={UI_ICON.crown} style={{ width: 22, height: 22 }} resizeMode="contain" accessibilityLabel="crowns" />
         <Text maxFontSizeMultiplier={1.15} style={[st.crown, { color: C.red }]}>{crowns[1]}</Text>
       </View>
       <MuteButton />
@@ -635,7 +636,6 @@ const st = StyleSheet.create({
   sub: { color: C.dim, fontFamily: F.uiBold, fontSize: 11, letterSpacing: 1 },
   crowns: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4 },
   crown: { fontFamily: F.display, fontSize: 22 },
-  crownVs: { color: C.goldHi, fontFamily: F.uiBold, fontSize: 9, letterSpacing: 1 },
   tray: { paddingTop: 8, paddingHorizontal: 10, borderTopWidth: 3, borderTopColor: C.woodEdge },
   elixirRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   elixirBar: { flex: 1, height: 18, flexDirection: 'row', gap: 2, backgroundColor: C.ink, borderRadius: 9, padding: 2, borderWidth: 2, borderColor: 'rgba(0,0,0,0.5)' },
