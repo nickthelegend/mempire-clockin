@@ -11,6 +11,8 @@ import { look as skinLook } from './skin';
 import { TowerMesh } from './Towers';
 import { UnitsBillboard } from './UnitsBillboard';
 import { vfx } from './vfx';
+import { fitArenaCamera, type FitInsets } from './fit';
+import { create } from 'zustand';
 
 const W = ARENA_W / FP; // 18
 const H = 32; // ARENA_H in tiles
@@ -26,6 +28,18 @@ let activeCamera: THREE.Camera | null = null;
  */
 let viewSeat: 0 | 1 = 0;
 export function setViewSeat(seat: 0 | 1): void { viewSeat = seat; }
+
+/**
+ * How much of the canvas the host's HUD covers (fractions of its height). The
+ * camera fits the board into what is left; each host reports its own layout.
+ */
+const useViewInsets = create<FitInsets>(() => ({ top: 0.18, bottom: 0 }));
+export function setViewInsets(insets: FitInsets): void {
+  const cur = useViewInsets.getState();
+  const top = Math.round(insets.top * 1000) / 1000;
+  const bottom = Math.round(insets.bottom * 1000) / 1000;
+  if (cur.top !== top || cur.bottom !== bottom) useViewInsets.setState({ top, bottom });
+}
 
 /**
  * The sun, and the one light that casts.
@@ -114,17 +128,26 @@ function CameraRig({ seat }: { seat: 0 | 1 }) {
     camera.position.addVectors(home.current, shake.current);
   });
 
+  const insetTop = useViewInsets((st) => st.top);
+  const insetBottom = useViewInsets((st) => st.bottom);
   useEffect(() => {
-    // Pulled back and raised so the wood frame encloses the whole board rather
-    // than running off the bottom of a portrait screen. Seat 1 gets the exact
-    // mirror about the river line, so both players fight "uphill".
-    poseCamera(camera, seat, home.current);
-    (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
+    // Fitted to this viewport: the whole board, river to both king towers,
+    // fills the space between the top HUD and the card hand on any phone
+    // shape. Seat 1 gets the exact mirror about the river line, so both
+    // players fight "uphill".
+    const cam = camera as THREE.PerspectiveCamera;
+    const aspect = size.width > 0 && size.height > 0 ? size.width / size.height : cam.aspect;
+    const fit = fitArenaCamera(W, H, aspect, cam.fov, { top: insetTop, bottom: insetBottom }, seat);
+    home.current.copy(fit.position);
+    camera.position.copy(fit.position);
+    camera.lookAt(fit.target);
+    cam.updateProjectionMatrix();
+    camera.updateMatrixWorld(true);
     // Deliberately never cleared: StrictMode double-invokes effect cleanup in
     // dev, and nulling here left deploy raycasts with no camera to project
     // through, silently swallowing every card the player dropped.
     activeCamera = camera;
-  }, [camera, size, seat]);
+  }, [camera, size, seat, insetTop, insetBottom]);
   return null;
 }
 

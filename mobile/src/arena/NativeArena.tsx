@@ -2,7 +2,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber/native';
 import { setArenaSkin } from '../../../app/src/three/skin';
 import { Component, memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  Alert, Animated, AppState, Image, Modal, PanResponder, Pressable, StyleSheet, Text, View,
+  Alert, Animated, AppState, Image, Modal, PanResponder, Pressable, StyleSheet, Text, View, useWindowDimensions,
   type GestureResponderEvent, type LayoutChangeEvent,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -10,7 +10,7 @@ import * as Device from 'expo-device';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as THREE from 'three';
 import {
-  SCENE_CAMERA, SCENE_GL, SceneContents, dropDecision, groundHitNdc, isLegalDrop, setViewSeat,
+  SCENE_CAMERA, SCENE_GL, SceneContents, dropDecision, groundHitNdc, isLegalDrop, setViewInsets, setViewSeat,
 } from '../../../app/src/three/BattleScene';
 import { ARCHETYPES } from '../../../app/src/sim/archetypes';
 import { FP, fp } from '../../../app/src/sim/fixed';
@@ -208,7 +208,7 @@ const ArenaCanvas = memo(function ArenaCanvas({ perspective, placing, marker, on
   );
 });
 
-function Hud({ onQuit }: { onQuit: () => void }) {
+function Hud({ onQuit, onHeight }: { onQuit: () => void; onHeight: (h: number) => void }) {
   countRender('Hud');
   const insets = useSafeAreaInsets();
   useNativeMatch((s) => s.version); // re-render at the sim's 20 Hz
@@ -221,19 +221,19 @@ function Hud({ onQuit }: { onQuit: () => void }) {
   const left = overtime ? f.regulationTicks + f.overtimeTicks - sim.tick : f.regulationTicks - sim.tick;
   const double = sim.tick >= f.doubleElixirAt;
   return (
-    <View pointerEvents="box-none" style={[st.top, { paddingTop: insets.top + 4 }]}>
+    <View pointerEvents="box-none" style={[st.top, { paddingTop: insets.top + 4 }]} onLayout={(e) => onHeight(e.nativeEvent.layout.height)}>
       <Pressable onPress={onQuit} style={st.quit} accessibilityLabel="Leave battle" hitSlop={10}>
-        <Text style={st.quitX}>✕</Text>
+        <Text maxFontSizeMultiplier={1.15} style={st.quitX}>✕</Text>
       </Pressable>
       <View style={{ alignItems: 'center' }}>
-        <Text style={[st.clock, overtime && { color: C.red }]}>{fmtClock(left)}</Text>
-        <Text style={st.sub}>{overtime ? 'OVERTIME' : double ? '2× ELIXIR' : `vs ${rival}`}</Text>
+        <Text maxFontSizeMultiplier={1.15} style={[st.clock, overtime && { color: C.red }]}>{fmtClock(left)}</Text>
+        <Text maxFontSizeMultiplier={1.15} style={st.sub}>{overtime ? 'OVERTIME' : double ? '2× ELIXIR' : `vs ${rival}`}</Text>
       </View>
       <View style={{ alignItems: 'flex-end', gap: 4 }}>
       <View style={st.crowns}>
-        <Text style={[st.crown, { color: C.teal }]}>{crowns[0]}</Text>
-        <Text style={st.crownVs}>CROWNS</Text>
-        <Text style={[st.crown, { color: C.red }]}>{crowns[1]}</Text>
+        <Text maxFontSizeMultiplier={1.15} style={[st.crown, { color: C.teal }]}>{crowns[0]}</Text>
+        <Text maxFontSizeMultiplier={1.15} style={st.crownVs}>CROWNS</Text>
+        <Text maxFontSizeMultiplier={1.15} style={[st.crown, { color: C.red }]}>{crowns[1]}</Text>
       </View>
       <MuteButton />
       </View>
@@ -412,7 +412,28 @@ export function NativeArena() {
     ]);
   }, [ended, closeBattle]);
 
-  const onLayout = useCallback((_e: LayoutChangeEvent) => {
+  // Camera fit: the share of the arena view the top HUD covers. Before the
+  // first HUD layout, the safe area plus the HUD's usual height.
+  const [sceneH, setSceneH] = useState(0);
+  const [hudH, setHudH] = useState(0);
+  useEffect(() => {
+    if (sceneH <= 0) return;
+    const top = (hudH > 0 ? hudH : insets.top + 66) / sceneH;
+    setViewInsets({ top: Math.min(0.45, top), bottom: 0 });
+  }, [sceneH, hudH, insets.top]);
+
+  // The hand always fits the screen: four cards plus NEXT, sized from the
+  // width actually available (safe areas, tray padding, gaps), never fixed.
+  const { width: winW, height: winH } = useWindowDimensions();
+  const handGap = 8;
+  const nextW = 42;
+  const trayPadX = 10;
+  const handAvail = winW - insets.left - insets.right - 2 * trayPadX - nextW - handGap * HAND_SIZE;
+  const cardW = Math.max(48, Math.floor(Math.min(handAvail / HAND_SIZE, 104, (winH * 0.17) * 0.78)));
+  const cardH = Math.round(cardW / 0.78);
+
+  const onLayout = useCallback((e: LayoutChangeEvent) => {
+    setSceneH(e.nativeEvent.layout.height);
     view.current?.measureInWindow((x, y, w, h) => { frame.current = { x, y, w, h }; });
   }, []);
 
@@ -512,9 +533,9 @@ export function NativeArena() {
           </View>
         </Animated.View>
 
-        <Hud onQuit={quit} />
+        <Hud onQuit={quit} onHeight={setHudH} />
 
-        <LinearGradient colors={['#8a5a2b', C.wood, C.woodDark]} style={[st.tray, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+        <LinearGradient colors={['#8a5a2b', C.wood, C.woodDark]} style={[st.tray, { paddingBottom: Math.max(insets.bottom, 10), paddingLeft: trayPadX + insets.left, paddingRight: trayPadX + insets.right }]}>
           <View style={st.elixirRow}>
             <View style={st.elixirBar}>
               {Array.from({ length: 10 }, (_, i) => (
@@ -523,7 +544,7 @@ export function NativeArena() {
                 </View>
               ))}
             </View>
-            <Text style={st.elixirNum}>{Math.floor(elixir)}</Text>
+            <Text maxFontSizeMultiplier={1.15} style={st.elixirNum}>{Math.floor(elixir)}</Text>
           </View>
           <View style={st.hand}>
             {hand.map((deckIndex, i) => {
@@ -535,23 +556,23 @@ export function NativeArena() {
                 <View
                   key={`slot-${i}`}
                   {...responders[i]?.panHandlers}
-                  style={[st.card, !ok && { opacity: 0.5 }, selected === i && st.cardSel, lifted && { opacity: 0.35 }]}
+                  style={[st.card, { width: cardW, height: cardH }, !ok && { opacity: 0.5 }, selected === i && st.cardSel, lifted && { opacity: 0.35 }]}
                   accessibilityLabel={`${card?.name} costs ${cost}`}
                 >
                   <Image source={CARD_ART[card?.name ?? '']} style={st.cardArt} resizeMode="contain" />
-                  <View style={st.cost}><Text style={st.costText}>{cost}</Text></View>
-                  <Text style={st.cardName} numberOfLines={1}>${card?.name}</Text>
+                  <View style={st.cost}><Text maxFontSizeMultiplier={1.15} style={st.costText}>{cost}</Text></View>
+                  <Text style={st.cardName} numberOfLines={1} maxFontSizeMultiplier={1.1} adjustsFontSizeToFit minimumFontScale={0.7}>${card?.name}</Text>
                 </View>
               );
             })}
             <View style={st.next}>
-              <Text style={st.nextLabel}>NEXT</Text>
+              <Text maxFontSizeMultiplier={1.15} style={st.nextLabel}>NEXT</Text>
               {next !== undefined && playerDeck[next]
                 ? <Image source={CARD_ART[playerDeck[next].name]} style={st.nextArt} resizeMode="contain" />
                 : null}
             </View>
           </View>
-          <Text style={st.help}>
+          <Text maxFontSizeMultiplier={1.15} style={st.help}>
             {selected !== null ? 'tap the arena to deploy' : drag ? (marker?.legal ? 'release to deploy' : 'drop on your half') : 'drag a card onto your half of the arena'}
           </Text>
         </LinearGradient>
@@ -581,10 +602,10 @@ export function NativeArena() {
         ) : null}
         {!sceneReady ? (
           <View pointerEvents="box-none" style={st.preparing}>
-            <Text style={st.prepTitle}>vs {match.rival}</Text>
-            <Text style={st.prepSub}>Preparing the arena…</Text>
+            <Text maxFontSizeMultiplier={1.15} style={st.prepTitle}>vs {match.rival}</Text>
+            <Text maxFontSizeMultiplier={1.15} style={st.prepSub}>Preparing the arena…</Text>
             <Pressable onPress={quit} style={[st.leaveBtn, { marginTop: 18 }]} accessibilityRole="button" accessibilityLabel="Cancel and go back">
-              <Text style={st.leaveText}>Cancel</Text>
+              <Text maxFontSizeMultiplier={1.15} style={st.leaveText}>Cancel</Text>
             </Pressable>
           </View>
         ) : null}
@@ -621,9 +642,9 @@ const st = StyleSheet.create({
   elixirCell: { flex: 1, backgroundColor: 'rgba(216,56,216,0.18)', borderRadius: 4, overflow: 'hidden' },
   elixirFill: { height: '100%', backgroundColor: '#d838d8' },
   elixirNum: { color: '#ff9cff', fontFamily: F.display, fontSize: 24, width: 30, textAlign: 'center' },
-  hand: { flexDirection: 'row', gap: 8, alignItems: 'flex-end' },
+  hand: { flexDirection: 'row', gap: 8, alignItems: 'flex-end', justifyContent: 'center' },
   card: {
-    flex: 1, aspectRatio: 0.78, borderRadius: 10, backgroundColor: '#3a2a6e', borderWidth: 2.5, borderColor: '#1b2c55',
+    flexShrink: 0, borderRadius: 10, backgroundColor: '#3a2a6e', borderWidth: 2.5, borderColor: '#1b2c55',
     alignItems: 'center', justifyContent: 'flex-end', overflow: 'visible',
   },
   cardSel: { borderColor: C.gold, transform: [{ translateY: -8 }] },

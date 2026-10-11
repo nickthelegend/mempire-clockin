@@ -10,7 +10,7 @@ import { fmtClock, fmtSol } from '../lib/format';
 import { EASE_SNAP, prefersReducedMotion } from '../lib/motion';
 import { ARCHETYPES } from '../sim/archetypes';
 import { FP, fp } from '../sim/fixed';
-import { BattleScene, dropDecision, isLegalDrop, resolveGroundHit } from '../three/BattleScene';
+import { BattleScene, dropDecision, isLegalDrop, resolveGroundHit, setViewInsets } from '../three/BattleScene';
 import type { MatchCard } from '../sim/types';
 import { CHESTS } from '../state/economy';
 import { useEscrow } from '../state/escrow';
@@ -402,6 +402,26 @@ export function Battle() {
   const [, setMuteTick] = useState(0); // re-render the mute glyph
   const sceneEl = useRef<HTMLDivElement>(null);
   const shakeEl = useRef<HTMLDivElement>(null);
+  // The canvas is full-screen under both HUD bars: tell the camera how much of
+  // it they cover, so the board fills the space between them on any phone.
+  const rootEl = useRef<HTMLDivElement>(null);
+  const topBarEl = useRef<HTMLDivElement>(null);
+  const bottomHudEl = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const measure = () => {
+      const h = rootEl.current?.clientHeight ?? 0;
+      if (h <= 0) return;
+      // The top bar fades out over its lower part: count the solid two thirds.
+      const top = (topBarEl.current?.offsetHeight ?? 0) * 0.8;
+      const bottom = bottomHudEl.current?.offsetHeight ?? 0;
+      setViewInsets({ top: Math.min(0.45, top / h), bottom: Math.min(0.45, bottom / h) });
+    };
+    measure();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    for (const el of [rootEl.current, topBarEl.current, bottomHudEl.current]) if (el && ro) ro.observe(el);
+    window.addEventListener('resize', measure);
+    return () => { ro?.disconnect(); window.removeEventListener('resize', measure); setViewInsets({ top: 0.18, bottom: 0 }); };
+  }, []);
   const shockId = match.shock?.id ?? 0;
 
   // Tower-fall impact. Driven off a ref so the WebGL context is never remounted.
@@ -501,9 +521,9 @@ export function Battle() {
   const dragCard = drag ? hand[drag.handIndex]?.card : null;
 
   return (
-    <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
+    <div ref={rootEl} style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
       {/* top bar */}
-      <div style={{
+      <div ref={topBarEl} style={{
         position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
         padding: '6px 8px 14px',
         background: 'linear-gradient(rgba(6,16,38,.95), rgba(6,16,38,.55) 62%, transparent)',
@@ -622,7 +642,7 @@ export function Battle() {
       )}
 
       {/* bottom HUD */}
-      <div className="wood" style={{
+      <div ref={bottomHudEl} className="wood" style={{
         position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 10,
         padding: '9px 10px calc(10px + env(safe-area-inset-bottom))',
         borderTop: '3px solid var(--wood-edge)',

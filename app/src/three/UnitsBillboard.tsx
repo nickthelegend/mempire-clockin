@@ -39,8 +39,10 @@ import { vfx } from './vfx';
  * treatment, and the reason particle systems do the same thing.
  */
 
-const OWN_TINT = new THREE.Color('#bcd8ff');
-const ENEMY_TINT = new THREE.Color('#ffc0b6');
+// Team tints are a hint, not a wash: the art must stay readable when several
+// enemy units bunch up (the stronger red read as one red blob).
+const OWN_TINT = new THREE.Color('#d2e5ff');
+const ENEMY_TINT = new THREE.Color('#ffd8d0');
 const WHITE = new THREE.Color('#ffffff');
 /** Wind-up tint: a warm charge, distinct from the white of taking a hit. */
 const CHARGE = new THREE.Color('#ffe6a8');
@@ -49,6 +51,12 @@ const OWN_HEX = '#3fa9ff';
 const ENEMY_HEX = '#ff5a4a';
 
 const SPAWN_POP = 0.34;
+
+/** Deterministic visual offset in tiles, -0.3..0.3, from the unit id. */
+function spreadOf(id: number): number {
+  const h = Math.imul(id ^ 0x9e3779b9, 2654435761) >>> 0;
+  return ((h % 13) / 12 - 0.5) * 0.6;
+}
 const HIT_FLASH = 0.16;
 const DEATH_TIME = 0.55;
 /** How long a strike takes to recover. Short — a blow is not a pose. */
@@ -338,7 +346,10 @@ export function UnitsBillboard() {
         root.current.add(lu.group);
       }
 
-      const tx = u.x / FP;
+      // A small, fixed sideways offset per unit (visual only; the sim is
+      // untouched). Units queueing single-file on a bridge share one x, and
+      // drawn exactly on top of each other they read as one tinted blob.
+      const tx = u.x / FP + spreadOf(u.id);
       const tz = u.y / FP;
       const beforeX = lu.group.position.x;
       const beforeZ = lu.group.position.z;
@@ -601,7 +612,10 @@ export function UnitsBillboard() {
       // Nearer units must draw last. With depthWrite off, three.js sorts these
       // by distance but ties resolve arbitrarily and neighbours visibly swap
       // layers; an explicit order keyed on depth makes it stable.
-      lu.group.renderOrder = 10 + Math.round(lu.group.position.z * 4);
+      // Keyed on distance from the camera, not on world z: from seat 0 the
+      // camera is at the low-z end, so ordering by z drew far units over near
+      // ones (heads under feet). Nearer = larger order = drawn last.
+      lu.group.renderOrder = 10 + Math.max(0, Math.round((160 - lu.group.position.distanceTo(camera.position)) * 4));
     }
 
     // Deaths: topple, sink and fade rather than vanishing mid-field.
