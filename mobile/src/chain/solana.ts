@@ -5,6 +5,7 @@ export type { ChainClockIn } from './clockInLedger';
 import {
   Connection, LAMPORTS_PER_SOL, PublicKey, TransactionInstruction,
 } from '@solana/web3.js';
+import { getTxsBySig } from './txs';
 
 /**
  * Devnet, always. The app has no mainnet write path at all; the only mainnet
@@ -79,9 +80,7 @@ export async function readClockIns(address: string, limit = 60): Promise<ChainCl
   const sigs = await connection.getSignaturesForAddress(new PublicKey(address), { limit });
   const candidates = sigs.filter((s) => !s.err && s.memo?.includes(PREFIX) && !/:owner=/.test(s.memo));
   if (!candidates.length) return [];
-  const txs = await connection.getTransactions(candidates.map((s) => s.signature), {
-    maxSupportedTransactionVersion: 0, commitment: 'confirmed',
-  });
+  const txs = await getTxsBySig(connection, candidates.map((s) => s.signature));
   return candidates.flatMap((s, i) => {
     const entry = ownerClockIn(address, s.signature, txs[i]);
     return entry ? [entry] : [];

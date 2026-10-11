@@ -1,6 +1,7 @@
 import type { Connection } from '@solana/web3.js';
 import { WAR_REF, memoTexts, signersOf } from './refs';
 import { parseSessionMemo, validateLedger, type LedgerEvent } from './session';
+import { getTxsBySig } from './txs';
 
 /**
  * The global Season War tally and streak board, computed from chain on the
@@ -117,7 +118,7 @@ export async function readWarPage(conn: Connection, opts: { before?: string; unt
   const raw: RawEvent[] = [];
   for (let i = 0; i < ok.length; i += 25) {
     const chunk = ok.slice(i, i + 25);
-    const txs = await conn.getTransactions(chunk.map((s) => s.signature), { maxSupportedTransactionVersion: 0, commitment: 'confirmed' });
+    const txs = await getTxsBySig(conn, chunk.map((s) => s.signature));
     txs.forEach((tx, j) => {
       if (!tx || tx.meta?.err) return;
       raw.push({ sig: chunk[j].signature, slot: tx.slot, time: tx.blockTime ?? 0, signers: signersOf(tx), memos: memoTexts(tx) });

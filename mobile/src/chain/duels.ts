@@ -5,6 +5,7 @@ import {
 } from '../game/duel';
 
 import { DUEL_REF, MEMO_PROGRAM, MEMO_V1, dataIx, memoIx, memoTexts, refIx } from './refs';
+import { getTxsBySig } from './txs';
 
 /**
  * Ghost Duels on chain. Every duel transaction carries the duel reference
@@ -48,7 +49,7 @@ export async function readDuelBoard(conn: Connection, limit = 40, before?: strin
   const sigs = await conn.getSignaturesForAddress(DUEL_REF, { limit, before });
   const ok = sigs.filter((s) => !s.err);
   const txs = ok.length
-    ? await conn.getTransactions(ok.map((s) => s.signature), { maxSupportedTransactionVersion: 0, commitment: 'confirmed' })
+    ? await getTxsBySig(conn, ok.map((s) => s.signature))
     : [];
   return {
     txs: ok.map((s, i) => toDuelTx(s.signature, txs[i])).filter((x): x is DuelTx => !!x),

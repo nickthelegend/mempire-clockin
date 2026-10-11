@@ -30,7 +30,11 @@ interface DuelsState {
   loadedAt: number | null;
   open: OpenDuel | null;
   checks: Record<string, Check>;
+  /** Our own just-posted transactions, shown until the board's chain read includes them. */
+  pending: DuelTx[];
   refresh: () => Promise<void>;
+  /** Show a transaction this phone just posted, then re-read the board until the chain lists it. */
+  posted: (t: DuelTx) => void;
   openLink: (sig: string | null, payload: string | null) => Promise<void>;
   closeOpen: () => void;
   verify: (resultSig: string) => Promise<void>;
@@ -47,13 +51,18 @@ export const useDuels = create<DuelsState>((set, get) => ({
   loadedAt: null,
   open: null,
   checks: {},
+  pending: [],
 
   refresh: async () => {
     if (get().loading) return;
     set({ loading: true, error: null });
     try {
       const { txs } = await readDuelBoard(connection, 40);
-      set({ board: txs, loadedAt: Date.now() });
+      // The RPC's signature index can trail a confirmed transaction by a few
+      // seconds; keep our own fresh posts on the board until it catches up.
+      const seen = new Set(txs.map((t) => t.sig));
+      const pending = get().pending.filter((p) => !seen.has(p.sig) && Date.now() / 1000 - p.time < 600);
+      set({ board: [...pending, ...txs], pending, loadedAt: Date.now() });
       // Verify the newest few results right away; the rest on tap.
       for (const t of txs.filter((x) => x.memo.kind === 'result').slice(0, 4)) {
         if (!get().checks[t.sig]) void get().verify(t.sig);
@@ -63,6 +72,15 @@ export const useDuels = create<DuelsState>((set, get) => ({
     } finally {
       set({ loading: false });
     }
+  },
+
+  posted: (t) => {
+    const pending = [t, ...get().pending.filter((p) => p.sig !== t.sig)];
+    set({ pending, board: [t, ...get().board.filter((b) => b.sig !== t.sig)] });
+    const reread = (n: number) => setTimeout(() => {
+      void get().refresh().then(() => { if (n > 1 && get().pending.some((p) => p.sig === t.sig)) reread(n - 1); });
+    }, 2500);
+    reread(4);
   },
 
   openLink: async (sig, payload) => {

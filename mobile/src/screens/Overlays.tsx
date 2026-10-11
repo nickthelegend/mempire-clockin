@@ -4,7 +4,7 @@ import { Image, Alert, Animated, Linking, Modal, Pressable, ScrollView, Share, S
 import { CHESTS, rollChest } from '../game/rules';
 import { WIN_SKR, postChallenge, postDuelResult } from '../game/actions';
 import { duelMessage } from '../game/blink';
-import { decodeDuel, fromB64url, verifyResult } from '../game/duel';
+import { commitHex, decodeDuel, fromB64url, verifyResult } from '../game/duel';
 import { useDuels } from '../state/duels';
 import { sfx, useSound } from '../sound';
 import { EASE_IN_OUT, reduceMotion } from '../motion';
@@ -191,6 +191,11 @@ function DuelAFriend({ ghost, rush }: { ghost: string; rush: boolean }) {
             setSig(s);
             haptic.success();
             say('Ghost duel posted on chain', 'ok');
+            const me = useWallet.getState().address;
+            if (me) {
+              const bytes = fromB64url(ghost);
+              useDuels.getState().posted({ sig: s, slot: 0, time: Math.floor(Date.now() / 1000), signer: me, memo: { kind: 'challenge', commit: commitHex(bytes), seed: decodeDuel(bytes).seed >>> 0, data: ghost } });
+            }
             share(s);
           } catch (e) {
             const m = readableError(e);
@@ -276,7 +281,10 @@ function DuelResult({ r }: { r: MatchResult }) {
               haptic.success();
               say('Duel result posted on chain', 'ok');
               show({ ...r, duel: { ...d, posted: sig } });
-              void useDuels.getState().refresh();
+              const me = useWallet.getState().address;
+              if (me && d.challengeSig) {
+                useDuels.getState().posted({ sig, slot: 0, time: Math.floor(Date.now() / 1000), signer: me, memo: { kind: 'result', challengeSig: d.challengeSig, winner: d.winner, stateHash: d.stateHash >>> 0, data: d.mine } });
+              } else void useDuels.getState().refresh();
             } catch (e) { say(readableError(e), 'err'); } finally { setBusy(false); }
           }}
         />

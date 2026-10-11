@@ -2,6 +2,7 @@ import { Buffer } from 'buffer';
 import {
   PublicKey, SystemProgram, TransactionInstruction, type Connection,
 } from '@solana/web3.js';
+import { getTxsBySig } from './txs';
 
 /**
  * "Approve once, play all week": a session key for daily Clock-Ins.
@@ -182,7 +183,7 @@ async function eventsFor(conn: Connection, address: string, want: (m: SessionMem
     .filter((x): x is { s: typeof x.s; memo: SessionMemo } => !!x.memo && want(x.memo));
   if (!hits.length) return [];
   // Who signed each one: the signature list alone does not say.
-  const txs = await conn.getTransactions(hits.map((h) => h.s.signature), { maxSupportedTransactionVersion: 0, commitment: 'confirmed' });
+  const txs = await getTxsBySig(conn, hits.map((h) => h.s.signature));
   const out: LedgerEvent[] = [];
   hits.forEach((h, i) => {
     const tx = txs[i];
