@@ -7,7 +7,7 @@ plays your deck before you do.
 
 - **Repo:** https://github.com/nickthelegend/mempire-clockin
 - **APK:** `mempire-clockin.apk` (release, signed with a dedicated release key).
-  sha256 `f29f8879260e9a51ac8f66a3912d0c7cdac2112549c70bbad75ceb95e5917a6a`, 72,147,709 bytes (68.8 MiB), version 1.6.2 (versionCode 15). See *Install* below for how to download it.
+  sha256 `d3928c765feec83f3adb600f6e08f73db1be857117c623cad614fdc0d88f383f`, 72,157,933 bytes (68.8 MiB), version 1.6.3 (versionCode 16). See *Install* below for how to download it.
 - **Network:** Solana **devnet** only. No real funds move.
 - **Team:** Nivesh Gajengi (@nickthelegend).
 
@@ -190,4 +190,7 @@ is no LLM and no server.
 ## Screens
 
 See `clockin/screens/`. These were captured on the iOS simulator (iPhone 17),
-running the release build of this repo.
+running the release build of this repo. The current look (1.6.3, live devnet) is in
+`clockin/screens/e2e/final-*.png`: home, cards, deck and wardrobe, shop, duels and the
+duel board, Season Pass, Chain Powers and a proof sheet, leaderboard, coach, profile,
+connect and intro, the battle HUD, win and loss results, the chest reveal and the share card.

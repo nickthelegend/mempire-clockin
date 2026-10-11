@@ -1,6 +1,6 @@
 # HANDOFF — Mempire for Seeker (Solana Mobile CLOCK IN)
 
-Status as of 2026-10-08, 03:05 IST (1.4.1). This file records only what was run and seen.
+Status as of 2026-10-12, 03:20 IST (1.6.3). This file records only what was run and seen.
 
 ## What was verified, and how
 
@@ -36,8 +36,9 @@ Also verified: the shared battle sim is deterministic (`npx tsx app/scripts/sim-
 ## APK
 
 - `/Volumes/Extreme SSD/Projects/clockin/apks/mempire-clockin.apk`
-- sha256 `f29f8879260e9a51ac8f66a3912d0c7cdac2112549c70bbad75ceb95e5917a6a`
-- 72,147,709 bytes (68.8 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 15 (1.6.2)
+- sha256 `d3928c765feec83f3adb600f6e08f73db1be857117c623cad614fdc0d88f383f`
+- 72,157,933 bytes (68.8 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 16 (1.6.3)
+- 1.6.3: duel board fix (the public devnet RPC answers `getTransactions` batches out of order; answers are now paired by their own signature, so the challenger's row shows its fights right after a result is posted, verified live: 2 → 3 fights), a premium QA pass on every screen, and two stuck-sheet fixes (a deep link while a result is up; a battle link while a sheet is open). Same certificate, aapt2 versionCode 16 / 1.6.3, no `RECORD_AUDIO`, no localhost URL in the bundle, re-downloaded release asset hash matches. 152/152 app tests. See clockin/E2E-AUDIT.md rows 51–58 and `clockin/screens/e2e/final-*.png`. Still not run on Android hardware.
 - 1.6.2: premium game UI on every screen (one design system, painted heroes, mascot, ribbons, stamp seals, icon-only tab bar, player names) and the five blocked devnet E2E steps finished (Blink, session clock_in + war pledge + revoke, ghost duel post → QR/deep link → fight → result, war tally; see clockin/E2E-AUDIT.md). Same certificate, no `RECORD_AUDIO`, no localnet URL, re-downloaded hash matches.
 - 1.6.1: end-to-end audit fixes on live devnet (clockin/E2E-AUDIT.md), arena fitted to every screen, real art for every cosmetic and feature (no emoji placeholders), Chain Powers screen. Same certificate, no `RECORD_AUDIO`, no localnet URL in the bundle, re-downloaded hash matches.
 - 1.6.0: devnet live (SKR stand-in config in the bundle), transaction landing, the On-chain screen, scan-to-duel. Same certificate, no `RECORD_AUDIO`, no localnet URL in the bundle, re-downloaded hash matches.

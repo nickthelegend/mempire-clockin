@@ -120,3 +120,22 @@ Spent for these steps: 0.03 SOL to the second owner plus fees, from the hub.
 
 ### 1.6.2 game UI
 One design system (`mobile/src/theme.ts`, `src/ui/kit.tsx`, `src/ui/Backdrop.tsx`): navy palette with gold rims, hero headers with the painted art, ribbon titles, the Emperor mascot, stamp seals, gold price pills, HUD pills (trophy, SKR), icon-only tab bar. Hashes, PDAs and the cluster name only appear inside the Proof sheets. Screens: `clockin/screens/e2e/game-*.png`.
+
+## 1.6.3: duel board fix and premium QA pass (12 Oct)
+
+Release build on the iPhone 17 simulator, live devnet. Screens: `clockin/screens/e2e/final-*.png`.
+
+| # | Step | Result | Devnet proof | Screen |
+|---|---|---|---|---|
+| 51 | Duel board after a ghost result is posted: the challenger's own row said "No fights yet" | FAIL → fixed F17. The public devnet RPC answers a `getTransactions` batch **out of order**, and the board paired each answer with a signature by array index, so memos landed on the wrong signatures. Answers are now paired by each transaction's own signature (`mobile/src/chain/txs.ts`, also used by the war tally, session ledger and Clock-In reads), and a post shows on the board at once and is re-read until the RPC lists it. Checked against devnet with `mobile/scripts/e2e-duel-board.ts` (each challenge's result count matches its memos) and `app/tests/duel-board-order.test.ts` | — | fix-duel-board-count |
+| 52 | Fight T6s5's ghost from the board → post the result → board shows **3 fights** on that challenge immediately (was 2) | PASS | [5mACuFNn…](https://explorer.solana.com/tx/5mACuFNnYnTHjT57imVBRK7P2UTz2sN2nxxXB3kb4UpnnoDkutGwdsP5x3xg4WGCK7ghhRcK7aW5pyLP6fgcUwxw?cluster=devnet) | final-result-ghost-posted, final-duels-board-after-post |
+| 53 | A deep link to a sheet (Chain Powers) while a battle result was up: iOS never presented the sheet, and every later sheet (Profile too) stayed stuck | FAIL → fixed F18: opening a sheet closes the result or chest reveal first | — | final-chainpowers |
+| 54 | A battle deep link while a sheet was open: the match played and finished hidden behind the sheet (trophies changed) | FAIL → fixed F19: starting a battle closes any open sheet | — | |
+| 55 | Standard match won in the native arena: VICTORY 1–0, +30 trophies, +3 SKR minted on devnet, Silver chest | PASS | SKR mint (result sheet seal) | final-result-win |
+| 56 | Ghost posted after a native Rush match: Scan to duel QR shown | PASS | DUEL_REF history | final-ghost-posted-qr |
+| 57 | Player name typed and the sheet closed without pressing Return: the name was lost | FAIL → fixed F20 (saved on close and on Return) | — | final-profile |
+| 58 | `app` test suite | PASS 152/152 (21 files) | — | |
+
+Premium QA pass (F21): Profile (avatar ring, practice-wallet card, proof seal instead of the raw address, SOL/SKR tiles, plain "Battle graphics" setting), Home (tier-lit navy chest tiles instead of an olive tint, navy streak badge, gold quest bars), Cards (solid veil and lock on fighters not found yet), Deck (wardrobe rows scroll sideways), Shop (centred grid, EQUIPPED pill, full blurbs), Duels (code pill and sheet with the ghost; FIGHT scrolls the ghost card into view; ghost rivals by player name), Season Pass (inline info button, solid tier cells, info sheet with art), Chain Powers and Proof sheets (navy medal discs), battle HUD (navy/gold pills, no SOUND ON text; Lite arena tray navy, no emoji), result (ribbon title with the Emperor), chest reveal (ribbon, tier chest, scrolls with the proof open), share card (navy/purple, no raw deep link), Connect and Intro over the hero art, slate disabled buttons, navy toasts.
+
+Not screenshotted: the Duels empty state ("No duels yet" with the sleeping Emperor) needs a board with no duels, and this cluster has some; it was checked in code only.
