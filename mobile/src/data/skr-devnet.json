@@ -1,5 +1,19 @@
 {
-  "configured": false,
+  "configured": true,
   "label": "SKR (devnet stand-in)",
-  "note": "Not deployed yet. Run `node scripts/setup-skr-devnet.mjs` with a funded devnet keypair; until then the app uses a simulated, clearly labelled SKR balance."
+  "note": "Not real SKR. Real SKR is SKRbvo6Gf7GondiT3BbTfuRDPqLWei4j2Qy2NPGZhW3 on mainnet; this devnet mint has the same decimals and token program.",
+  "cluster": "devnet",
+  "mint": "AWruExU2wyLGxFBqAeDs1YtNKJtbo9ucdGKWENaXY6ez",
+  "decimals": 6,
+  "faucetProgram": "4bXpkKSV8swHSnwqtzuboGPaPDeEgAn4Vt8GfarV5rZt",
+  "faucet": "13xxA6EYwZWxm9EyMsBaXbUtjDYPfEnjvfHgdCfTe5qj",
+  "faucetPda": "Fx1bCAyYpLMPVAjfq1pxbqKKkvDR3iYEpam1KbThRDYQ",
+  "capRaw": "100000000",
+  "treasury": "2vAPj7eES8GafqpZPdPRaPbA14AB8iiLcK5yMfco9HCr",
+  "treasuryAta": "EfqKG6hnts9PoFABu1ec8H4DKChJDTdzE4u7XX5uicbM",
+  "txs": [
+    "5de4SyMy9FG7ihuWZyYFgye7TSzfar2mKSRx56ZDxHXtpTHXGbXfpgqq5Hqb4TNgkTkFnZnKQuW2uVmBV4a8UKBr",
+    "KQ8SXEejxZKj4p5pUoV64D1x21oZJemPP5ofBB4pNH14c7ECFFsZX4iqRgr9BJ6dgFJKgfqHusrorHXK7ai7ak7"
+  ],
+  "createdAt": "2026-10-11T15:59:25.166Z"
 }
