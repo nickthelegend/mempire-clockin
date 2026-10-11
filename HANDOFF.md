@@ -36,8 +36,9 @@ Also verified: the shared battle sim is deterministic (`npx tsx app/scripts/sim-
 ## APK
 
 - `/Volumes/Extreme SSD/Projects/clockin/apks/mempire-clockin.apk`
-- sha256 `0cc79691963a181cf74fa1d2cf9a518d5bd8e1c19bfd575d6a4708cca2736558`
-- 71,471,264 bytes (68.2 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 14 (1.6.1)
+- sha256 `f29f8879260e9a51ac8f66a3912d0c7cdac2112549c70bbad75ceb95e5917a6a`
+- 72,147,709 bytes (68.8 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 15 (1.6.2)
+- 1.6.2: premium game UI on every screen (one design system, painted heroes, mascot, ribbons, stamp seals, icon-only tab bar, player names) and the five blocked devnet E2E steps finished (Blink, session clock_in + war pledge + revoke, ghost duel post → QR/deep link → fight → result, war tally; see clockin/E2E-AUDIT.md). Same certificate, no `RECORD_AUDIO`, no localnet URL, re-downloaded hash matches.
 - 1.6.1: end-to-end audit fixes on live devnet (clockin/E2E-AUDIT.md), arena fitted to every screen, real art for every cosmetic and feature (no emoji placeholders), Chain Powers screen. Same certificate, no `RECORD_AUDIO`, no localnet URL in the bundle, re-downloaded hash matches.
 - 1.6.0: devnet live (SKR stand-in config in the bundle), transaction landing, the On-chain screen, scan-to-duel. Same certificate, no `RECORD_AUDIO`, no localnet URL in the bundle, re-downloaded hash matches.
 - 1.5.0 (main after `deed93a`): the on-chain session delegate, `clock_in` PDA and on-chain chest commits (see *On-chain session delegate*). Built under the lock with the same keystore (certificate `510a32…`), no `RECORD_AUDIO`, devnet-only bundle, and the re-downloaded hash matches. `mempire_pass` is not on devnet yet, so the app falls back cleanly: on the iPhone 17 simulator with the devnet bundle, the Season Pass shows preview mode and the Clock-In ledger uses the memo path (`clockin/screens/onchain/03`).
