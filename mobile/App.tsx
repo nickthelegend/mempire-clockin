@@ -41,6 +41,7 @@ import { useDuels } from './src/state/duels';
 import { CoachSheet } from './src/screens/Coach';
 import { SeasonPassSheet } from './src/screens/SeasonPass';
 import { BoardSheet } from './src/screens/Board';
+import { OnChainSheet } from './src/screens/OnChain';
 import { usePassChain } from './src/chain/pass';
 import { NativeArena } from './src/arena/NativeArena';
 import { ArenaHost } from './src/screens/Arena';
@@ -227,6 +228,7 @@ function Game() {
       }
       if (url === 'mempire://pass') { useUi.getState().setPass(true); return; }
       if (url === 'mempire://board') { useUi.getState().setBoard(true); return; }
+      if (url === 'mempire://onchain') { useUi.getState().setOnchain(true); return; }
       const hit = url && /^mempire:\/\/battle(?:\?(.*))?$/.exec(url);
       if (!hit) return;
       const q = new URLSearchParams(hit[1] ?? '');
@@ -255,6 +257,7 @@ function Game() {
       <CoachSheet />
       <SeasonPassSheet />
       <BoardSheet />
+      <OnChainSheet />
       <NativeArena />
       <ArenaHost />
       <ResultSheet />

@@ -21,6 +21,8 @@ import { cancelChestReminders, haptic } from '../notify';
 import { C, F, TIER_COLORS } from '../theme';
 import { Body, Btn, CardTile, ChestArt, Display, Panel, Tag, Well } from '../ui/kit';
 import { ShareCardButton } from './ShareCard';
+import { Qr } from '../ui/Qr';
+import { duelScanLink, solanaPayDuelUrl } from '../game/blink';
 
 /** Chest opening: shake, burst, then the fighters land one by one. */
 export function RevealSheet() {
@@ -186,7 +188,33 @@ function DuelAFriend({ ghost, rush }: { ghost: string; rush: boolean }) {
           } finally { setBusy(false); }
         }}
       />
+      {sig ? <ScanToDuel sig={sig} /> : null}
     </View>
+  );
+}
+
+/** Scan to duel: a Solana Pay transaction request, or the plain app link. */
+function ScanToDuel({ sig }: { sig: string }) {
+  const [mode, setMode] = useState<'pay' | 'app'>('pay');
+  const value = mode === 'pay' ? solanaPayDuelUrl(sig) : duelScanLink(sig);
+  return (
+    <Well style={{ alignItems: 'center', gap: 8 }}>
+      <Body size={13} bold color="#fff">Scan to duel</Body>
+      <View style={{ flexDirection: 'row', gap: 6 }}>
+        {(['pay', 'app'] as const).map((m) => (
+          <Pressable key={m} onPress={() => setMode(m)} accessibilityRole="button" accessibilityState={{ selected: mode === m }}
+            style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, backgroundColor: mode === m ? C.gold : C.recess }}>
+            <Body size={12} bold color={mode === m ? C.ink : '#fff'}>{m === 'pay' ? 'Solana Pay' : 'App link'}</Body>
+          </Pressable>
+        ))}
+      </View>
+      <Qr value={value} label={mode === 'pay' ? 'Solana Pay QR: accept this duel in any Solana Pay wallet' : 'QR with the Mempire app link to this duel'} />
+      <Body size={11} color={C.dim} style={{ textAlign: 'center' }}>
+        {mode === 'pay'
+          ? 'Any Solana Pay wallet: it fetches the accept transaction from the duel Action (devnet) and signs it.'
+          : 'A phone with Mempire: the camera opens the duel; the ghost is read from chain.'}
+      </Body>
+    </Well>
   );
 }
 
@@ -364,6 +392,7 @@ export function WalletSheet() {
                 try { await airdrop(address, 0.5); await refresh(); say('0.5 devnet SOL received', 'ok'); } catch (e) { say(e instanceof Error ? e.message : String(e), 'err'); } finally { setBusy(false); }
               }}
             />
+            <Btn label="ON-CHAIN STATUS" sub="every Solana feature, live from the cluster" tone="blue" size="sm" onPress={() => { setOpen(false); useUi.getState().setOnchain(true); }} />
             <Btn label="VIEW ON EXPLORER" tone="ghost" size="sm" onPress={() => void Linking.openURL(explorerAddr(address))} />
             <SoundSetting />
             <RendererSetting />

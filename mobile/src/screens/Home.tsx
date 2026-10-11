@@ -450,6 +450,9 @@ export function HomeScreen() {
       <Rise delay={100}><PassTeaser /></Rise>
       <Rise delay={120}><Battle /></Rise>
       <Rise delay={160}><CoachTeaser /></Rise>
+      <Rise delay={180}>
+        <Btn label="ON-CHAIN" sub={`what this wallet has on Solana ${CLUSTER_LABEL}`} tone="ghost" size="sm" onPress={() => useUi.getState().setOnchain(true)} />
+      </Rise>
     </ScrollView>
   );
 }

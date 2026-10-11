@@ -93,6 +93,8 @@ interface UiState {
   setPass: (v: boolean) => void;
   boardOpen: boolean;
   setBoard: (v: boolean) => void;
+  onchainOpen: boolean;
+  setOnchain: (v: boolean) => void;
   walletOpen: boolean;
   setWalletOpen: (v: boolean) => void;
   toast: { text: string; tone: 'ok' | 'err' | 'info'; id: number } | null;
@@ -132,6 +134,8 @@ export const useUi = create<UiState>((set) => ({
   setPass: (passOpen) => set({ passOpen }),
   boardOpen: false,
   setBoard: (boardOpen) => set({ boardOpen }),
+  onchainOpen: false,
+  setOnchain: (onchainOpen) => set({ onchainOpen }),
   walletOpen: false,
   setWalletOpen: (walletOpen) => set({ walletOpen }),
   toast: null,
