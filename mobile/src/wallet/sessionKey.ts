@@ -11,6 +11,7 @@ import {
 } from '../chain/session';
 import { useWallet } from './wallet';
 import { WAR_REF, refIx } from '../chain/refs';
+import { createSessionIx, programLive, readClockState, readSessionRecord, revokeSessionIx, type ClockState } from '../chain/clockin';
 
 /**
  * The session key on this phone: a keypair in SecureStore (the OS keystore),
@@ -35,6 +36,8 @@ interface SessionState {
   lamports: number | null;
   /** What the chain says (null = not read yet). */
   chain: { live: SessionLink | null; accepted: number; rejected: number } | null;
+  /** The owner's ClockInState PDA (mempire_pass), when the program is on this cluster. */
+  state: ClockState | null;
   busy: boolean;
   load: (owner: string | null) => Promise<void>;
   /** The one wallet approval: link a fresh session key for 7 days. */
@@ -66,6 +69,7 @@ export const useSession = create<SessionState>((set, get) => ({
   cur: null,
   lamports: null,
   chain: null,
+  state: null,
   busy: false,
 
   load: async (owner) => {
@@ -107,7 +111,15 @@ export const useSession = create<SessionState>((set, get) => ({
       const expiresAt = nowSec() + SESSION_DAYS * 86_400;
       // The ONE approval: the wallet signs the link memo and the fee float.
       // WAR_REF lets the global streak board check session Clock-Ins against their link.
-      const linkSig = await send([...linkIxs(new PublicKey(address), kp.publicKey, expiresAt), refIx(new PublicKey(address), WAR_REF)]);
+      // With mempire_pass on the cluster the delegation is a program account
+      // (SessionRecord PDA) that clock_in checks on chain; the link memo stays
+      // alongside for older readers and the Season War index.
+      const owner = new PublicKey(address);
+      const onChain = await programLive(connection);
+      const linkSig = await send([
+        ...(onChain ? [createSessionIx(owner, kp.publicKey, expiresAt)] : []),
+        ...linkIxs(owner, kp.publicKey, expiresAt), refIx(owner, WAR_REF),
+      ]);
       const stored: Stored = {
         owner: address, session: kp.publicKey.toBase58(), secret: Buffer.from(kp.secretKey).toString('base64'),
         expiresAt, linkSig, createdAt: Date.now(),
@@ -133,11 +145,18 @@ export const useSession = create<SessionState>((set, get) => ({
       await get().refreshBalance();
       const lamports = get().lamports ?? 0;
       let sig: string;
+      const owner = new PublicKey(address);
+      const key = new PublicKey(c.session);
+      const record = await readSessionRecord(connection, address, c.session).catch(() => null);
       if (lamports >= 2 * TX_FEE_LAMPORTS) {
-        // No wallet prompt: the session key revokes itself and returns its float.
-        sig = await get().sendAsSession([...revokeIxs(new PublicKey(c.session), new PublicKey(c.session), { to: new PublicKey(address), balance: lamports }), refIx(new PublicKey(c.session), WAR_REF)]);
+        // No wallet prompt: the session key revokes itself (closing its
+        // SessionRecord, rent to the owner) and returns its float.
+        sig = await get().sendAsSession([
+          ...(record ? [revokeSessionIx(key, owner, key)] : []),
+          ...revokeIxs(key, key, { to: owner, balance: lamports }), refIx(key, WAR_REF),
+        ]);
       } else {
-        sig = await send([...revokeIxs(new PublicKey(address), new PublicKey(c.session)), refIx(new PublicKey(address), WAR_REF)]);
+        sig = await send([...(record ? [revokeSessionIx(owner, owner, key)] : []), ...revokeIxs(owner, key), refIx(owner, WAR_REF)]);
       }
       await SecureStore.deleteItemAsync(keyFor(address));
       secretCache = null;
@@ -166,7 +185,7 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 }));
 
-export type LedgerEntry = ChainClockIn & { via?: 'wallet' | 'session' };
+export type LedgerEntry = ChainClockIn & { via?: 'wallet' | 'session' | 'program' };
 
 /**
  * The full Clock-In ledger for `owner`: their own signed memos, plus the
@@ -174,10 +193,12 @@ export type LedgerEntry = ChainClockIn & { via?: 'wallet' | 'session' };
  * not expired, not revoked). Newest first.
  */
 export async function readFullLedger(owner: string): Promise<LedgerEntry[]> {
-  const [own, ses] = await Promise.all([
+  const [own, ses, state] = await Promise.all([
     readClockIns(owner),
     readSessionLedger(connection, owner).catch(() => null),
+    readClockState(connection, owner).catch(() => null),
   ]);
+  if (useWallet.getState().address === owner) useSession.setState({ state });
   const out: LedgerEntry[] = own.map((c) => ({ ...c, via: 'wallet' as const }));
   if (ses) {
     out.push(...ses.accepted.map((a) => ({ day: a.day, streak: a.streak, sig: a.sig, via: 'session' as const })));
@@ -185,5 +206,12 @@ export async function readFullLedger(owner: string): Promise<LedgerEntry[]> {
       useSession.setState({ chain: { live: activeLink(ses.links, nowSec()), accepted: ses.accepted.length, rejected: ses.rejected.length } });
     }
   }
-  return out.sort((a, b) => b.day - a.day || b.streak - a.streak);
+  out.sort((a, b) => b.day - a.day || b.streak - a.streak);
+  // The program's record is preferred: it is written only by clock_in, with
+  // the day and streak computed on chain. It leads when it is at least as new.
+  if (state && (!out[0] || state.lastDay >= out[0].day)) {
+    const sameDay = out.find((e) => e.day === state.lastDay);
+    out.unshift({ day: state.lastDay, streak: Math.max(state.streak, sameDay?.streak ?? 0), sig: sameDay?.sig ?? '', via: 'program' });
+  }
+  return out;
 }

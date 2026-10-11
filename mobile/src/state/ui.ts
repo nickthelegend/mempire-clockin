@@ -103,8 +103,8 @@ interface UiState {
   mainnetSkr: number | null;
   setSeeker: (p: { sgt: string | null; mainnetSkr: number | null }) => void;
   /** This wallet's Clock-In memos read back from devnet; null = could not read, undefined = reading. */
-  chainLedger: { day: number; streak: number; sig: string; via?: 'wallet' | 'session' }[] | null | undefined;
-  setChainLedger: (l: { day: number; streak: number; sig: string; via?: 'wallet' | 'session' }[] | null | undefined) => void;
+  chainLedger: { day: number; streak: number; sig: string; via?: 'wallet' | 'session' | 'program' }[] | null | undefined;
+  setChainLedger: (l: { day: number; streak: number; sig: string; via?: 'wallet' | 'session' | 'program' }[] | null | undefined) => void;
 }
 
 let toastId = 0;

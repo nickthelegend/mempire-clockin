@@ -107,12 +107,13 @@ function FairPanel({ reveal }: { reveal: Reveal }) {
     setCheck({ state: 'busy' });
     try {
       const v = await verifyProof(connection, p);
+      if (v.commit && !v.commit.ok) { setCheck({ state: 'bad', text: `Commit rejected: ${v.commit.reason}.` }); return; }
       if (!v.ok || !v.seedHex) { setCheck({ state: 'bad', text: v.blockhash ? 'Blockhash or seed differs from the chain.' : 'Could not fetch that slot right now.' }); return; }
       const owned = Object.fromEntries(p.owned.map((t) => [t, { level: 1, copies: 0 }]));
       const again = rollChest(reveal.tier, owned, seededRand(Uint8Array.from(Buffer.from(v.seedHex, 'hex'))));
       const same = JSON.stringify(again) === JSON.stringify(reveal.drops);
       setCheck(same
-        ? { state: 'ok', text: `Recomputed from chain: blockhash of slot ${p.slot} → same seed → the same ${again.length} fighters.` }
+        ? { state: 'ok', text: `${v.commit?.ok ? `On-chain commit checked: posted at slot ${p.commitTxSlot ?? '?'}, before slot ${p.targetSlot}. ` : ''}Recomputed from chain: blockhash of slot ${p.slot} → same seed → the same ${again.length} fighters.` }
         : { state: 'bad', text: 'The recomputed drops differ.' });
       if (same) haptic.success(); else haptic.error();
     } catch (e) {
@@ -126,6 +127,14 @@ function FairPanel({ reveal }: { reveal: Reveal }) {
         <Well style={{ gap: 4 }}>
           <View style={st.row}><Body size={11} color={C.dim}>Chest</Body><Body size={11} color="#fff" bold>{p.chestId}</Body></View>
           <View style={st.row}><Body size={11} color={C.dim}>Committed to slot</Body><Body size={11} color="#fff" bold>{p.targetSlot}</Body></View>
+          <View style={st.row}>
+            <Body size={11} color={C.dim}>Commit</Body>
+            {p.commitSig ? (
+              <Pressable onPress={() => void Linking.openURL(explorerTx(p.commitSig!))} hitSlop={10} accessibilityRole="link">
+                <Tag text={`on chain · slot ${p.commitTxSlot ?? '?'} · ${short(p.commitSig)} ↗`} color={C.teal} />
+              </Pressable>
+            ) : <Body size={11} color={C.goldHi}>on this device only</Body>}
+          </View>
           <View style={st.row}>
             <Body size={11} color={C.dim}>Block used</Body>
             <Pressable onPress={() => void Linking.openURL(explorerBlock(p.slot))} hitSlop={10} accessibilityRole="link">

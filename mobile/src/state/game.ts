@@ -128,6 +128,8 @@ interface GameState extends Save {
   openChest: (id: string, rand?: () => number) => Drop[] | null;
   /** Attach the fair-roll commit (target slot) to a chest in the rail. */
   setChestCommit: (id: string, commit: import('../chain/fair').ChestCommit) => void;
+  /** Replace a chest's commit (it was published on chain, possibly re-targeted). */
+  replaceChestCommit: (id: string, commit: import('../chain/fair').ChestCommit) => void;
   /** Roll and apply a chest's contents without it ever sitting in a slot. */
   openNow: (tier: ChestTier, rand?: () => number) => Drop[];
   upgrade: (ticker: string) => boolean;
@@ -277,6 +279,9 @@ export const useGame = create<GameState>((set, get) => {
 
     setChestCommit: (id, commit) => put({
       chests: get().chests.map((c) => (c.id === id && !c.commit ? { ...c, commit } : c)),
+    }),
+    replaceChestCommit: (id, commit) => put({
+      chests: get().chests.map((c) => (c.id === id ? { ...c, commit } : c)),
     }),
 
     openChest: (id, rand) => {

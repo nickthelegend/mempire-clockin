@@ -1,7 +1,9 @@
 import { PublicKey } from '@solana/web3.js';
 import { clockInMemo, connection, explorerTx, getSol } from '../chain/solana';
 import { sessionClockInIx } from '../chain/session';
-import { commitChest, resolveChest, rollSeed, seededRand, toHex, type ChestCommit, type ChestProof } from '../chain/fair';
+import { SLOT_DELAY, chestCommitText, commitChest, resolveChest, rollSeed, seededRand, toHex, type ChestCommit, type ChestProof } from '../chain/fair';
+import { WAR_CODES, clockInIx, programLive, readClockState, readSessionRecord } from '../chain/clockin';
+import { memoIx } from '../chain/refs';
 import { readFullLedger, useSession } from '../wallet/sessionKey';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { SKR_LIVE, SKR_MINT, earnIxs, payIxs } from '../chain/skr';
@@ -136,14 +138,23 @@ export async function doClockIn(seeker: boolean): Promise<ClockInResult | null> 
       const sessionKey = new PublicKey(session.cur!.session);
       // WAR_REF: every Clock-In is indexed for the global tally and streak board.
       const ixs = [sessionClockInIx(sessionKey, owner, day, streakN, war), refIx(sessionKey, WAR_REF)];
+      let skrAdded = false;
+      // On-chain: clock_in signed by the session key, checked against its
+      // SessionRecord by the program (skipped for a memo-only session).
+      if (await programLive(connection)
+        && await readSessionRecord(connection, address, sessionKey.toBase58()).catch(() => null)
+        && ((await readClockState(connection, address).catch(() => null))?.lastDay ?? 0) < day) {
+        ixs.push(clockInIx(sessionKey, owner, true, day, streakN, WAR_CODES[useGame.getState().warSide ?? ''] ?? 0));
+      }
       // SKR rides along only if the player's token account exists: creating
       // it would cost the float more than a week of fees.
       if (SKR_LIVE && SKR_MINT && await connection.getAccountInfo(getAssociatedTokenAddressSync(SKR_MINT, owner)).catch(() => null)) {
         ixs.push(earnIxs(owner, preview.reward.skr)[1]);
+        skrAdded = true;
       }
       sig = await session.sendAsSession(ixs);
       via = 'session';
-      if (ixs.length < 3) skrOwedFromSession = true;
+      if (!skrAdded) skrOwedFromSession = true;
     } catch { sig = undefined; }
   }
   const fees = sig ? 'yes' : await feeCheck();
@@ -154,8 +165,15 @@ export async function doClockIn(seeker: boolean): Promise<ClockInResult | null> 
       const owner = new PublicKey(address);
       // One transaction: the signed memo that *is* the Clock-In, plus the
       // day's stand-in SKR minted straight to the player by the public faucet.
-      sig = await send([clockInMemo(owner, day, streakN, war), refIx(owner, WAR_REF), ...earnIxs(owner, preview.reward.skr)]);
+      const program = await programLive(connection)
+        && ((await readClockState(connection, address).catch(() => null))?.lastDay ?? 0) < day
+        ? [clockInIx(owner, owner, false, day, streakN, WAR_CODES[useGame.getState().warSide ?? ''] ?? 0)] : [];
+      // Chests earned since the last signature get their commit published in
+      // the same approval (no extra prompt).
+      const commits = await batchChestCommits(owner);
+      sig = await send([clockInMemo(owner, day, streakN, war), refIx(owner, WAR_REF), ...program, ...earnIxs(owner, preview.reward.skr), ...commits.ixs]);
       via = 'wallet';
+      void commits.landed(sig);
     } catch (e) {
       offlineReason = errText(e);
     }
@@ -230,7 +248,8 @@ export async function buy(id: ShopItemId): Promise<{ sig?: string }> {
   if (id === 'seeker-chest') {
     // Bought and opened at once: commit now, reveal when the slot lands (~13 s).
     const chestId = `shop_${Date.now()}`;
-    const commit = await commitChest(connection, chestId);
+    const local = await commitChest(connection, chestId);
+    const commit = local ? await postChestCommit(local) : null;
     void revealFair({ title: 'Seeker Chest', tier: 'magic', chestId, commit, apply: (rand) => useGame.getState().openNow('magic', rand) });
   }
   haptic.success();
@@ -290,6 +309,7 @@ async function revealFair(o: {
         proof = {
           chestId: o.chestId, owner, targetSlot: o.commit.targetSlot, slot: r.slot, blockhash: r.blockhash,
           seedHex: toHex(seed), owned: Object.keys(useGame.getState().cards).sort(),
+          commitSig: o.commit.commitSig, commitTxSlot: o.commit.commitTxSlot,
         };
       } else fairNote = 'The chain did not answer in time, so this chest was rolled on the device.';
     } else {
@@ -301,6 +321,50 @@ async function revealFair(o: {
   } finally {
     opening = false;
   }
+}
+
+/**
+ * Publish a chest commit on chain right away, signed by the session key (no
+ * prompt). Without a live session key the commit stays on the device until
+ * the next owner signature batches it (batchChestCommits).
+ */
+async function postChestCommit(c: ChestCommit): Promise<ChestCommit> {
+  const owner = useWallet.getState().address;
+  const s = useSession.getState();
+  if (!owner || !s.cur || !s.usable()) return c;
+  try {
+    const key = new PublicKey(s.cur.session);
+    const sig = await s.sendAsSession([memoIx(key, chestCommitText(c.chestId, c.targetSlot, owner))]);
+    const st = await connection.getSignatureStatuses([sig]).catch(() => null);
+    return { ...c, commitSig: sig, commitTxSlot: st?.value[0]?.slot ?? undefined };
+  } catch {
+    return c;
+  }
+}
+
+/**
+ * Commit memos for unopened chests whose commit is not on chain yet, to ride
+ * in the owner's next transaction. Each is re-targeted to a slot after this
+ * signature, so the published commit still precedes its block.
+ */
+async function batchChestCommits(owner: PublicKey): Promise<{ ixs: ReturnType<typeof memoIx>[]; landed: (sig: string) => Promise<void> }> {
+  const g = useGame.getState();
+  const pending = g.chests.filter((c) => c.commit && !c.commit.commitSig).slice(0, 3);
+  if (!pending.length) return { ixs: [], landed: async () => {} };
+  let slot: number;
+  try { slot = await connection.getSlot('confirmed'); } catch { return { ixs: [], landed: async () => {} }; }
+  const next = pending.map((c) => ({ id: c.id, commit: { ...c.commit!, committedSlot: slot, targetSlot: slot + SLOT_DELAY + 8, at: Date.now() } }));
+  return {
+    ixs: next.map((n) => memoIx(owner, chestCommitText(n.id, n.commit.targetSlot, owner.toBase58()))),
+    landed: async (sig) => {
+      const st = await connection.getSignatureStatuses([sig]).catch(() => null);
+      for (const n of next) {
+        if (useGame.getState().address === owner.toBase58()) {
+          useGame.getState().replaceChestCommit(n.id, { ...n.commit, commitSig: sig, commitTxSlot: st?.value[0]?.slot ?? undefined });
+        }
+      }
+    },
+  };
 }
 
 const committing = new Set<string>();
@@ -316,7 +380,8 @@ export async function commitPendingChests(): Promise<void> {
     if (c.commit || committing.has(c.id)) continue;
     committing.add(c.id);
     try {
-      const commit = await commitChest(connection, c.id);
+      const local = await commitChest(connection, c.id);
+      const commit = local ? await postChestCommit(local) : null;
       if (commit && useGame.getState().address === g.address) useGame.getState().setChestCommit(c.id, commit);
     } finally {
       committing.delete(c.id);

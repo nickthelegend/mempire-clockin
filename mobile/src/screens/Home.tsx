@@ -17,6 +17,7 @@ import { EASE_OUT, reduceMotion, useCountUp } from '../motion';
 import { sfx } from '../sound';
 import { haptic } from '../notify';
 import { SessionCard } from './SessionCard';
+import { useSession } from '../wallet/sessionKey';
 import { blinkMessage } from '../game/blink';
 
 function useNow(ms = 1000) {
@@ -42,6 +43,7 @@ function ClockIn() {
   const sgtChecked = useUi((s) => s.sgtChecked);
   const say = useUi((s) => s.say);
   const ledger = useUi((s) => s.chainLedger);
+  const chainState = useSession((s) => s.state);
   const [busy, setBusy] = useState(false);
   // Ticks so the button re-opens when the game day turns over with the app open.
   useNow(30_000);
@@ -145,6 +147,8 @@ function ClockIn() {
           ? `Chain ledger: reading ${CLUSTER_LABEL}…`
           : ledger === null
           ? `Chain ledger: could not reach ${CLUSTER_LABEL}.`
+          : ledger[0]?.via === 'program'
+            ? `On-chain record (mempire_pass): streak ${chainState?.streak ?? ledger[0].streak} · best ${chainState?.best ?? '–'} · ${chainState?.total ?? '–'} Clock-In${chainState?.total === 1 ? '' : 's'} · last ${ledger[0].day} UTC${ledger.some((l) => l.via === 'session') ? ` · ${ledger.filter((l) => l.via === 'session').length} by session key` : ''}`
           : ledger.length
             ? `Chain ledger: ${ledger.length} signed Clock-In${ledger.length === 1 ? '' : 's'} on ${CLUSTER_LABEL}${ledger.some((l) => l.via === 'session') ? ` (${ledger.filter((l) => l.via === 'session').length} by session key)` : ''} · latest day ${ledger[0].streak}`
             : 'Chain ledger: no signed Clock-Ins yet — they appear once the wallet has devnet SOL.'}
