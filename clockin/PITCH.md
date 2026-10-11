@@ -11,7 +11,7 @@ on the slides themselves (the portal does not read notes).
 tagline: *Clock in daily. Build your deck. Battle in 3D.*
 
 **Notes:** Mempire is a real-time card battler where the roster is the
-market: 64 fighters drawn from memecoins, majors and tokenised stocks. For
+market: 44 fighters drawn from majors and memecoins in the Seeker app. For
 CLOCK IN we built the Seeker app around one question: why would someone open
 this every day?
 

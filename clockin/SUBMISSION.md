@@ -20,8 +20,8 @@ reason to open the app tomorrow.
 
 ## Solution
 
-Mempire is a Clash-style real-time battler with a 64-fighter roster made from
-memecoins, majors and tokenised stocks. The Seeker app is native throughout. The
+Mempire is a Clash-style real-time battler with a 44-fighter roster made from
+majors and memecoins (the web game's tokenised-stock fighters are left out of the Seeker app). The Seeker app is native throughout. The
 3D battle is the game's own React Three Fiber scene, rendered natively on
 expo-gl under a native HUD. A bundled web arena is kept only as an automatic
 fallback (see *Native 3D arena* below).
