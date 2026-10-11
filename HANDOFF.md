@@ -36,8 +36,8 @@ Also verified: the shared battle sim is deterministic (`npx tsx app/scripts/sim-
 ## APK
 
 - `/Volumes/Extreme SSD/Projects/clockin/apks/mempire-clockin.apk`
-- sha256 `7f7b830a20f43416c8934c48b1ae8aa7e89343141d5390208c0aed146cf5014c`
-- 70,992,709 bytes (67.7 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 13 (1.6.0)
+- sha256 `c6834e461d337f33f072b748578b671e62b7dfd438361e9ea57814976eab312c`
+- 70,993,317 bytes (67.7 MiB), ABIs arm64-v8a + x86_64, `fun.mempire.app` versionCode 13 (1.6.0)
 - 1.6.0: devnet live (SKR stand-in config in the bundle), transaction landing, the On-chain screen, scan-to-duel. Same certificate, no `RECORD_AUDIO`, no localnet URL in the bundle, re-downloaded hash matches.
 - 1.5.0 (main after `deed93a`): the on-chain session delegate, `clock_in` PDA and on-chain chest commits (see *On-chain session delegate*). Built under the lock with the same keystore (certificate `510a32…`), no `RECORD_AUDIO`, devnet-only bundle, and the re-downloaded hash matches. `mempire_pass` is not on devnet yet, so the app falls back cleanly: on the iPhone 17 simulator with the devnet bundle, the Season Pass shows preview mode and the Clock-In ledger uses the memo path (`clockin/screens/onchain/03`).
 - 1.4.2 (`4dab00d`): Ghost Duels, the global war board and arena perf from tech pack 2, plus wallet receipt journal, duel-link race and war-date hardening. Same certificate, no `RECORD_AUDIO`, re-downloaded hash matches (see *Codex signed release*).
