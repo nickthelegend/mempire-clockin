@@ -8,7 +8,7 @@ import { ARCH_NAMES, C } from '../theme';
 import { ArchIcon, Body, Btn, CardTile, Display, Panel, Rise, Tag, Well, Ribbon } from '../ui/kit';
 import { ARENA_SKINS, FRAME_SKINS, ownsSkin, usePassChain } from '../chain/pass';
 import { useFrameKey } from '../game/cosmetics';
-import { EMOTE_ART } from '../data/cosmeticArt';
+import { EMOTE_ART, UI_ICON } from '../data/cosmeticArt';
 import { Image } from 'react-native';
 import { EMOTES, PASS_FRAMES } from '../game/season';
 import { SkinPreview } from './Shop';
@@ -31,11 +31,14 @@ function Wardrobe() {
       accessibilityRole="button"
       accessibilityState={{ selected: on, disabled: !owned }}
       accessibilityLabel={`${label}${on ? ', equipped' : owned ? '' : ', not owned'}`}
-      style={[st.opt, on && st.optOn, !owned && { opacity: 0.4 }]}
+      style={[st.opt, on && st.optOn]}
     >
-      {preview}
-      <Body size={11} color="#fff" bold numberOfLines={1}>{label}</Body>
-      <Body size={9} color={on ? C.gold : C.dim} bold>{on ? 'EQUIPPED' : owned ? 'TAP' : 'LOCKED'}</Body>
+      <View style={{ height: 52, alignItems: 'center', justifyContent: 'center', opacity: owned ? 1 : 0.4 }}>
+        {preview ?? <Image source={UI_ICON.crown} style={{ width: 36, height: 36 }} resizeMode="contain" />}
+      </View>
+      {!owned ? <Image source={UI_ICON.lock} style={st.optLock} resizeMode="contain" /> : null}
+      <Body size={11} color={owned ? '#fff' : C.dim} bold numberOfLines={1}>{label}</Body>
+      <Body size={9} color={on ? C.gold : owned ? C.teal : C.dim} bold>{on ? 'EQUIPPED' : owned ? 'EQUIP' : 'LOCKED'}</Body>
     </Pressable>
   );
   return (
@@ -44,29 +47,29 @@ function Wardrobe() {
         <Display size={18}>Wardrobe</Display>
         {pc.status === 'live' ? <Tag text="✓ YOURS ON CHAIN" color={C.teal} /> : pc.status === 'offline' ? <Tag text="OFFLINE" color={C.dim} /> : null}
       </View>
-      <Body size={11} color={C.dim}>Arena skin (both the native 3D and the web compat arena)</Body>
-      <View style={st.opts}>
+      <Body size={11} color={C.dim} bold>ARENA SKIN</Body>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.opts}>
         {opt('a-default', 'Classic', equipped.arena === 'default', true, () => equip({ arena: 'default' }))}
         {ARENA_SKINS.map((s) => opt(`a-${s.key}`, s.name, equipped.arena === s.key, ownsSkin(pc, s.id), () => equip({ arena: s.key }), <SkinPreview skin={s} kind="arena" size={40} />))}
-      </View>
-      <Body size={11} color={C.dim}>Card frame</Body>
-      <View style={st.opts}>
+      </ScrollView>
+      <Body size={11} color={C.dim} bold>CARD FRAME</Body>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.opts}>
         {opt('f-default', 'Classic', equipped.frame === 'default', true, () => equip({ frame: 'default' }))}
         {FRAME_SKINS.map((s) => opt(`f-${s.key}`, s.name, equipped.frame === s.key, ownsSkin(pc, s.id), () => equip({ frame: s.key }), <SkinPreview skin={s} kind="frame" size={52} />))}
         {Object.entries(PASS_FRAMES).map(([k, f]) => opt(`p-${k}`, f.name, equipped.frame === k, unlocked.frames.includes(k), () => equip({ frame: k }),
           <SkinPreview skin={{ id: 0, key: k, name: f.name, symbol: '', price: 0, colors: f.colors }} kind="frame" size={52} />))}
-      </View>
-      <Body size={11} color={C.dim}>Emote (shown on your result card)</Body>
-      <View style={st.opts}>
+      </ScrollView>
+      <Body size={11} color={C.dim} bold>EMOTE · ON YOUR RESULT CARD</Body>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.opts}>
         {Object.entries(EMOTES).map(([k, e]) => opt(`e-${k}`, e.label, equipped.emote === k, unlocked.emotes.includes(k), () => equip({ emote: k }),
           <Image source={EMOTE_ART[k]} style={{ width: 40, height: 40 }} accessibilityLabel={`${e.label} emote`} />))}
-      </View>
+      </ScrollView>
       <Btn label="GET SKINS IN THE SHOP" tone="ghost" size="sm" onPress={() => setTab('shop')} />
     </Well>
   );
 }
 import { ARCHETYPES } from '../../../app/src/sim/archetypes';
-import { HeroSpace } from '../ui/Backdrop';
+import { HeroCaption, HeroSpace } from '../ui/Backdrop';
 
 export function DeckScreen() {
   const deck = useGame((s) => s.deck);
@@ -92,7 +95,7 @@ export function DeckScreen() {
       <Rise>
         <HeroSpace offset={30}>
           <Ribbon text="BATTLE DECK" size={26} />
-          <Body size={13} color="#fff">Avg Lv {avg.toFixed(1)} · {elixir.toFixed(1)} elixir</Body>
+          <HeroCaption>Avg Lv {avg.toFixed(1)} · {elixir.toFixed(1)} elixir</HeroCaption>
         </HeroSpace>
       </Rise>
       <Rise delay={40}>
@@ -154,10 +157,11 @@ export function DeckScreen() {
 const st = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' },
   arch: { flexDirection: 'row', alignItems: 'center', gap: 4, width: '30%' },
-  opts: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  opts: { flexDirection: 'row', gap: 8, paddingRight: 8 },
+  optLock: { position: 'absolute', top: 6, right: 6, width: 18, height: 18 },
   opt: {
-    width: 84, minHeight: 72, alignItems: 'center', justifyContent: 'center', gap: 3, padding: 6, borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.45)',
+    width: 92, minHeight: 96, alignItems: 'center', justifyContent: 'center', gap: 3, padding: 6, borderRadius: 12,
+    backgroundColor: C.panelRaised, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.08)',
   },
   optOn: { borderColor: C.gold, borderWidth: 2.5 },
   sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 12, paddingBottom: 30 },

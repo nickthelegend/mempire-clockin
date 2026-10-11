@@ -18,7 +18,7 @@ import { readableError } from '../chain/send';
 import { ProofSeal } from '../ui/ProofSheet';
 import { Celebrate, usePopIn } from '../ui/Celebrate';
 import { haptic } from '../notify';
-import { DriftBackground, HeroSpace } from '../ui/Backdrop';
+import { DriftBackground, HeroCaption, HeroSpace } from '../ui/Backdrop';
 import { InfoButton } from '../ui/InfoButton';
 
 /** A soft placeholder while the pass is read (never "loading…" text). */
@@ -92,9 +92,13 @@ function PremiumCard() {
         />
       </View>
       {premium ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Image source={PREMIUM_UI.stamp} style={{ width: 26, height: 26 }} />
-          <Body size={14} bold color={C.gold}>Pass owned · soulbound</Body>
+          <View style={{ flex: 1 }}>
+            <Body size={14} bold color={C.gold}>Pass owned</Body>
+            <Body size={11} color={C.dim}>Yours alone: it can&apos;t be sold or sent</Body>
+          </View>
+          <ProofSeal compact tone="gold" info={{ title: 'Season Pass', art: REWARD_ART.pass, glow: C.gold, about: 'A soulbound token: it cannot be sold or sent, so the pass is yours alone. The game reads it from your wallet every time.', proofs: [...(sig ? [{ label: `purchase ${short(sig, 6)}`, url: explorerTx(sig) }] : []), { label: `pass ${short(passMint(SEASON_ID).toBase58(), 6)}`, url: explorerAddr(passMint(SEASON_ID).toBase58()) }] }} />
         </View>
       ) : pc.status === 'live' ? (
         <>
@@ -108,7 +112,7 @@ function PremiumCard() {
             busy={busy}
             disabled={!address || (pc.skr ?? 0) < price}
             onPress={() => void buy()}
-            sub={kind === 'mwa' ? 'your wallet approves the transaction' : 'signed by the dev wallet'}
+            sub={kind === 'mwa' ? 'your wallet approves the transaction' : 'signed by your practice wallet'}
           />
           {(pc.skr ?? 0) < price ? <Body size={11} color={C.dim}>Not enough on-chain SKR yet. Earn it by clocking in.</Body> : null}
         </>
@@ -121,7 +125,7 @@ function PremiumCard() {
       ) : (
         <Shimmerish />
       )}
-      {sig || premium ? (
+      {sig && !premium ? (
         <ProofSeal compact tone="gold" info={{ title: 'Season Pass', art: REWARD_ART.pass, glow: C.gold, about: 'A soulbound token: it cannot be sold or sent, so the pass is yours alone. The game reads it from your wallet every time.', proofs: [...(sig ? [{ label: `purchase ${short(sig, 6)}`, url: explorerTx(sig) }] : []), { label: `pass ${short(passMint(SEASON_ID).toBase58(), 6)}`, url: explorerAddr(passMint(SEASON_ID).toBase58()) }] }} />
       ) : null}
     </Well>
@@ -141,7 +145,7 @@ function TierRow({ n, onClaim }: { n: number; onClaim: (n: number, t: Track) => 
       return (
         <View style={[st.cell, st.cellEmpty]}>
           <Image source={ITEM_ART.coin} style={{ width: 30, height: 30, opacity: 0.22 }} resizeMode="contain" />
-          <Body size={11} color="rgba(169,180,217,0.5)" bold>Premium tier</Body>
+          <Body size={11} color="rgba(169,180,217,0.55)" bold>Premium only</Body>
         </View>
       );
     }
@@ -154,7 +158,7 @@ function TierRow({ n, onClaim }: { n: number; onClaim: (n: number, t: Track) => 
         disabled={!can}
         accessibilityRole="button"
         accessibilityLabel={`Tier ${n} ${track} reward: ${rewardLabel(r)}${claimed ? ', claimed' : can ? ', claim' : locked ? ', needs the pass' : ', locked'}`}
-        style={[st.cell, track === 'premium' && st.cellPremium, can && st.cellReady, { opacity: claimed ? 0.7 : reached ? 1 : 0.7 }]}
+        style={[st.cell, track === 'premium' && st.cellPremium, !reached && !claimed && (track === 'premium' ? st.cellFuturePremium : st.cellFuture), can && st.cellReady]}
       >
         <View>
           <RewardIcon r={r} size={34} />
@@ -240,23 +244,26 @@ export function SeasonPassSheet() {
           <HeroSpace offset={110}>
             <Image source={PREMIUM_UI.seasonCrown} style={{ width: 110, height: 110 }} resizeMode="contain" accessibilityLabel="Season 1 crown" />
             <Ribbon text="SEASON PASS" tone="purple" size={26} />
-            <Body size={13} color="#fff" style={{ marginTop: 6 }}>{daysLeft()} days left</Body>
+            <HeroCaption>{daysLeft()} days left</HeroCaption>
           </HeroSpace>
 
           <Panel>
             <View style={st.between}>
               <Display size={22}>Tier {tier}<Body size={14} color={C.dimOnWood}> / {SEASON.tiers}</Body></Display>
-              <Body size={12} color={C.dimOnWood} bold>{pass.xp} XP</Body>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Body size={12} color={C.dimOnWood} bold>{pass.xp} XP</Body>
+                <InfoButton inline title="How XP works" art={PREMIUM_UI.seasonCrown} lines={[
+                  `Clock-In +${XP.clockin} · quest +${XP.quest} · all three quests +${XP.questBonus}`,
+                  `Win +${XP.win} · draw +${XP.draw} · loss +${XP.loss}`,
+                  `${SEASON.xpPerTier} XP per tier, ${SEASON.tiers} tiers`,
+                  'No reward changes a fighter\'s stats. Frames and emotes are cosmetic.',
+                ]} />
+              </View>
             </View>
             <View style={{ marginTop: 8 }}>
               <Progress value={tierProgress(pass.xp)} color={C.gold} height={12} />
             </View>
-            <InfoButton title="How XP works" lines={[
-              `Clock-In +${XP.clockin} · quest +${XP.quest} · all three quests +${XP.questBonus}`,
-              `Win +${XP.win} · draw +${XP.draw} · loss +${XP.loss}`,
-              `${SEASON.xpPerTier} XP per tier, ${SEASON.tiers} tiers`,
-              'No reward changes a fighter\'s stats. Frames and emotes are cosmetic.',
-            ]} />
+
             {ready.length ? (
               <Btn
                 label={`CLAIM ALL (${ready.length})`}
@@ -298,12 +305,15 @@ const st = StyleSheet.create({
   },
   cell: {
     flex: 1, flexDirection: 'row', gap: 8, alignItems: 'center', padding: 8, minHeight: 56,
-    borderRadius: R.card, backgroundColor: 'rgba(33,96,196,0.35)', borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.4)',
+    borderRadius: R.card, backgroundColor: '#1A2A63', borderWidth: 1.5, borderColor: 'rgba(157,178,255,0.18)',
   },
-  cellPremium: { backgroundColor: 'rgba(153,69,255,0.28)' },
+  cellPremium: { backgroundColor: '#2C1D63', borderColor: 'rgba(155,108,255,0.35)' },
+  // Tiers not reached yet: a deeper solid tile (never see-through over the hero art).
+  cellFuture: { backgroundColor: '#152152', borderColor: 'rgba(157,178,255,0.1)' },
+  cellFuturePremium: { backgroundColor: '#22184F', borderColor: 'rgba(155,108,255,0.2)' },
   cellReady: { borderColor: C.teal, borderWidth: 2 },
   claimCheck: { position: 'absolute', right: -10, top: -10, width: 28, height: 28 },
-  cellEmpty: { backgroundColor: 'rgba(9,22,48,0.35)' },
+  cellEmpty: { backgroundColor: C.woodDark, borderColor: 'rgba(255,255,255,0.05)' },
   icon: { alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.4)' },
   lockBadge: { position: 'absolute', right: -6, bottom: -4, width: 18, height: 18 },
   trophyBadge: { position: 'absolute', left: -8, top: -8, width: 20, height: 20 },

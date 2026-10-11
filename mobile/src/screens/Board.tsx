@@ -84,8 +84,8 @@ function GlobalBoard() {
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <Coin t={a} size={36} />
         <View style={{ flex: 1, height: 16, borderRadius: 8, overflow: 'hidden', flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.35)' }}>
-          <View style={{ flex: ta.clockIns / total, backgroundColor: '#ff7a2e' }} />
-          <View style={{ flex: tb.clockIns / total, backgroundColor: '#9945ff' }} />
+          <View style={{ flex: ta.clockIns / total, backgroundColor: C.gold }} />
+          <View style={{ flex: tb.clockIns / total, backgroundColor: C.purple }} />
         </View>
         <Coin t={b} size={36} />
       </View>
@@ -142,12 +142,12 @@ export function BoardSheet() {
       <View style={st.wrap}>
         <DriftBackground source={GAME_BG.home} dim={0.5} />
         <ScrollView contentContainerStyle={{ padding: 14, gap: 12, paddingTop: 60, paddingBottom: 60 }}>
-          <View style={st.between}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Image source={CHAR_ART.trophy} style={{ width: 52, height: 52 }} resizeMode="contain" accessibilityLabel="Season 1 trophy" />
-              <Ribbon text="Leaderboard" tone="gold" size={22} />
-            </View>
+          <View style={{ alignItems: 'flex-end', marginBottom: -44, zIndex: 2 }}>
             <Btn label="✕" tone="ghost" size="sm" onPress={() => setBoard(false)} />
+          </View>
+          <View style={{ alignItems: 'center' }}>
+            <Image source={CHAR_ART.trophy} style={{ width: 110, height: 110, marginBottom: -18 }} resizeMode="contain" accessibilityLabel="Season 1 trophy" />
+            <Ribbon text="LEADERBOARD" tone="gold" size={26} />
           </View>
 
           <Well style={[st.row, { paddingVertical: 10 }]}>

@@ -1,8 +1,8 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { Animated, Easing, StyleSheet, View, useWindowDimensions, type ImageSourcePropType, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, Easing, StyleSheet, Text, View, useWindowDimensions, type ImageSourcePropType, type StyleProp, type ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { reduceMotion } from '../motion';
-import { C } from '../theme';
+import { C, F } from '../theme';
 
 /**
  * Screen art is a hero header, never a full-screen wallpaper: the top ~38% of
@@ -65,6 +65,15 @@ export function Hero({ source, dim = 0, top = 0 }: { source: ImageSourcePropType
 export function HeroSpace({ children, style, offset = 0 }: { children?: ReactNode; style?: StyleProp<ViewStyle>; offset?: number }) {
   const h = useHeroHeight();
   return <View style={[{ height: h - 40 - offset, justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 14 }, style]}>{children}</View>;
+}
+
+/** A caption under a hero ribbon: a dark pill so it stays readable over the painted art. */
+export function HeroCaption({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
+  return (
+    <View style={[{ marginTop: 6, paddingHorizontal: 14, paddingVertical: 5, borderRadius: 999, backgroundColor: 'rgba(8,12,34,0.78)', borderWidth: 1, borderColor: 'rgba(247,215,116,0.45)' }, style]}>
+      <Text maxFontSizeMultiplier={1.3} style={{ fontFamily: F.uiBold, fontSize: 13, color: '#fff', textAlign: 'center' }}>{children}</Text>
+    </View>
+  );
 }
 
 /** Older call sites: a hero for sheets (with a darker overlay). */

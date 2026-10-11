@@ -33,9 +33,9 @@ export function ProofSheet({ info, onClose }: { info: ProofInfo | null; onClose:
       <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: C.scrim }]} onPress={onClose} accessibilityLabel="Close" />
       {info ? (
         <View style={st.sheet}>
-          <LinearGradient colors={['#1d4a96', '#0b1f47']} style={[st.inner, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
+          <LinearGradient colors={['#1E2A5E', C.bg]} style={[st.inner, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
             <View style={st.grab} />
-            <View style={[st.glow, { backgroundColor: `${info.glow ?? C.teal}33` }]}>
+            <View style={[st.glow, { backgroundColor: C.panelRaised, borderWidth: 2.5, borderColor: info.glow ?? C.teal, shadowColor: info.glow ?? C.teal, shadowOpacity: 0.6, shadowRadius: 16, shadowOffset: { width: 0, height: 0 } }]}>
               <Image source={info.art ?? FEATURE_ART.commit} style={{ width: 96, height: 96 }} resizeMode="contain" />
             </View>
             <Display size={24} style={{ textAlign: 'center' }}>{info.title}</Display>

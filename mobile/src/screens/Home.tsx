@@ -319,7 +319,7 @@ function Quests() {
                 <Body size={13} bold color={claimed ? C.dim : '#fff'}>{q.title}</Body>
                 <Body size={12} bold color={C.skr}>+{q.skr} SKR</Body>
               </View>
-              <Progress value={p / q.goal} color={claimed ? C.dim : ready ? C.teal : C.bluePale} height={8} />
+              <Progress value={p / q.goal} color={claimed ? 'rgba(61,220,151,0.45)' : ready ? C.teal : C.gold} height={8} />
             </View>
             {ready ? (
               <Btn
@@ -338,7 +338,7 @@ function Quests() {
               />
             ) : (
               <Body size={12} bold color={claimed ? C.teal : C.dim} style={{ width: 86, textAlign: 'right' }}>
-                {claimed ? 'Done' : `${p}/${q.goal}`}
+                {claimed ? '✓ Done' : `${p}/${q.goal}`}
               </Body>
             )}
           </View>
@@ -435,14 +435,14 @@ function PassTeaser() {
   const tier = tierFor(pass.xp);
   return (
     <Pressable onPress={() => { haptic.tap(); setPass(true); }} accessibilityRole="button" accessibilityLabel={`Season Pass, tier ${tier} of ${SEASON.tiers}${ready ? `, ${ready} rewards to claim` : ''}`} style={({ pressed }) => pressed && st.pressed}>
-      <LinearGradient colors={premium ? ['#7a4a22', '#c8890b'] : ['#14418f', '#2b1a5e']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.coach}>
+      <LinearGradient colors={premium ? ['#3A2380', '#1B1F55'] : ['#2b1a5e', '#1B2A66']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[st.coach, premium && { borderColor: C.rimHi }]}>
         <Image source={REWARD_ART.pass} style={{ width: 56, height: 56 }} resizeMode="contain" accessibilityLabel="Season Pass" />
         <View style={{ flex: 1, gap: 4 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Display size={20}>Season Pass</Display>
             <Tag text={premium ? 'PREMIUM ✓' : 'FREE TRACK'} color={premium ? C.gold : C.teal} />
           </View>
-          <Body size={12} color={C.dim}>Tier {tier} / {SEASON.tiers} · {pass.xp} XP{ready ? ` · ${ready} to claim` : ''}</Body>
+          <Body size={12} color="#fff">Tier {tier} / {SEASON.tiers} · {pass.xp} XP{ready ? ` · ${ready} to claim` : ''}</Body>
           <Progress value={tierProgress(pass.xp)} color={C.gold} height={8} />
         </View>
         {ready ? <View style={st.passDot}><Body size={12} bold color={C.ink}>{ready}</Body></View> : <Display size={30} color={C.gold}>›</Display>}
@@ -456,7 +456,7 @@ function CoachTeaser() {
   const runs = useGame((s) => s.coachRuns);
   return (
     <Pressable onPress={() => { haptic.tap(); setCoach(true); }} accessibilityRole="button" accessibilityLabel="Open the AI coach" style={({ pressed }) => pressed && st.pressed}>
-      <LinearGradient colors={['#2b1a5e', '#14418f']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.coach}>
+      <LinearGradient colors={['#2b1a5e', '#1B2A66']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.coach}>
         <Image source={CHAR_ART.coach} style={{ width: 64, height: 64 }} resizeMode="contain" accessibilityLabel="AI Coach" />
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -517,7 +517,7 @@ const st = StyleSheet.create({
   streakLbl: { fontFamily: F.uiBold, fontSize: 10, color: '#fff' },
   streakBadge: {
     flexShrink: 0,
-    backgroundColor: C.ink, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 4,
+    backgroundColor: C.bg, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 4,
     alignItems: 'center', borderWidth: 2, borderColor: C.gold,
   },
   week: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: 12, gap: 4 },

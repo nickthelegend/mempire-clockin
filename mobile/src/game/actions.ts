@@ -16,7 +16,7 @@ import { MAX_PAYLOAD_CHARS, decodeDuel, encodeDuel, fromB64url, ghostInputs, toB
 import { challengeIxs, resultIxs } from '../chain/duels';
 import { WAR_REF, refIx } from '../chain/refs';
 import type { InputEvent } from '../../../app/src/sim/types';
-import { short as shortAddr } from '../chain/solana';
+import { defaultPlayerName, useIdentity, useNicknames } from '../state/identity';
 import { useWallet } from '../wallet/wallet';
 import {
   BY_TICKER, CHESTS, RIVALS, SHOP, dayKey, rivalDeck, type ChestTier, type Drop, type QuestId, type ShopItemId,
@@ -498,7 +498,7 @@ export function prepareDuel(c: { sig: string | null; challenger: string; payload
   const g = useGame.getState();
   const p = c.payload;
   return {
-    rival: `${shortAddr(c.challenger)}'s ghost`,
+    rival: `${useNicknames.getState().nicks[c.challenger] || useIdentity.getState().names[c.challenger] || defaultPlayerName(c.challenger)}'s ghost`,
     rivalIndex: 1,
     rush: p.rush,
     seed: p.seed >>> 0,

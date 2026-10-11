@@ -8,7 +8,7 @@ import { haptic } from '../notify';
 import { ARCH_NAMES, C, R } from '../theme';
 import { ArchIcon, Body, Btn, CardTile, Display, Panel, Rise, Tag, Ribbon } from '../ui/kit';
 import { ARCHETYPES } from '../../../app/src/sim/archetypes';
-import { HeroSpace } from '../ui/Backdrop';
+import { HeroCaption, HeroSpace } from '../ui/Backdrop';
 
 const ALL_KINDS = [
   { id: 'all', label: 'All' },
@@ -96,7 +96,7 @@ export function CardsScreen() {
       <Rise>
         <HeroSpace offset={30}>
           <Ribbon text="FIGHTERS" size={26} />
-          <Body size={13} color="#fff">{found}/{ROSTER.length} found{upgradable ? ` · ${upgradable} ready to upgrade` : ''}</Body>
+          <HeroCaption>{found}/{ROSTER.length} found{upgradable ? ` · ${upgradable} ready to upgrade` : ''}</HeroCaption>
         </HeroSpace>
       </Rise>
       <View style={{ flexDirection: 'row', gap: 8 }}>

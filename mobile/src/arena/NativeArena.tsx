@@ -175,7 +175,8 @@ function MuteButton() {
       accessibilityState={{ checked: !muted }}
       accessibilityLabel="Sound"
     >
-      <Text style={st.muteText} maxFontSizeMultiplier={1.2}>{muted ? 'SOUND OFF' : 'SOUND ON'}</Text>
+      <Text style={[st.muteText, muted && { opacity: 0.5 }]} maxFontSizeMultiplier={1.2}>♪</Text>
+      {muted ? <View style={st.muteSlash} /> : null}
     </Pressable>
   );
 }
@@ -226,17 +227,17 @@ function Hud({ onQuit, onHeight }: { onQuit: () => void; onHeight: (h: number) =
       <Pressable onPress={onQuit} style={st.quit} accessibilityLabel="Leave battle" hitSlop={10}>
         <Text maxFontSizeMultiplier={1.15} style={st.quitX}>✕</Text>
       </Pressable>
-      <View style={{ alignItems: 'center' }}>
+      <View style={st.clockPill}>
         <Text maxFontSizeMultiplier={1.15} style={[st.clock, overtime && { color: C.red }]}>{fmtClock(left)}</Text>
-        <Text maxFontSizeMultiplier={1.15} style={st.sub}>{overtime ? 'OVERTIME' : double ? '2× ELIXIR' : `vs ${rival}`}</Text>
+        <Text maxFontSizeMultiplier={1.15} numberOfLines={1} style={[st.sub, (overtime || double) && { color: C.goldHi }]}>{overtime ? 'OVERTIME' : double ? '2× ELIXIR' : `vs ${rival.replace(' (AI)', '')}`}</Text>
       </View>
-      <View style={{ alignItems: 'flex-end', gap: 4 }}>
-      <View style={st.crowns}>
-        <Text maxFontSizeMultiplier={1.15} style={[st.crown, { color: C.teal }]}>{crowns[0]}</Text>
-        <Image source={UI_ICON.crown} style={{ width: 22, height: 22 }} resizeMode="contain" accessibilityLabel="crowns" />
-        <Text maxFontSizeMultiplier={1.15} style={[st.crown, { color: C.red }]}>{crowns[1]}</Text>
-      </View>
-      <MuteButton />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <View style={st.crowns}>
+          <Text maxFontSizeMultiplier={1.15} style={[st.crown, { color: C.teal }]}>{crowns[0]}</Text>
+          <Image source={UI_ICON.crown} style={{ width: 22, height: 22 }} resizeMode="contain" accessibilityLabel="crowns" />
+          <Text maxFontSizeMultiplier={1.15} style={[st.crown, { color: C.red }]}>{crowns[1]}</Text>
+        </View>
+        <MuteButton />
       </View>
     </View>
   );
@@ -626,15 +627,18 @@ const st = StyleSheet.create({
   },
   top: {
     position: 'absolute', left: 0, right: 0, top: 0, flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', paddingHorizontal: 12, paddingBottom: 6, backgroundColor: 'rgba(9,22,48,0.35)',
+    justifyContent: 'space-between', paddingHorizontal: 12, paddingBottom: 8, backgroundColor: 'rgba(10,16,40,0.78)',
+    borderBottomWidth: 1.5, borderBottomColor: 'rgba(247,215,116,0.55)',
   },
-  mute: { backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 10, paddingHorizontal: 8, minHeight: 28, justifyContent: 'center' },
-  muteText: { color: '#fff', fontFamily: F.uiBold, fontSize: 10, letterSpacing: 0.5 },
-  quit: { width: 44, height: 44, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' },
-  quitX: { color: '#fff', fontSize: 18, fontFamily: F.uiBold },
-  clock: { color: '#fff', fontFamily: F.display, fontSize: 30, textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 0 },
-  sub: { color: C.dim, fontFamily: F.uiBold, fontSize: 11, letterSpacing: 1 },
-  crowns: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4 },
+  mute: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.panel, borderWidth: 1.5, borderColor: 'rgba(247,215,116,0.6)', alignItems: 'center', justifyContent: 'center' },
+  muteText: { color: C.goldHi, fontFamily: F.uiBold, fontSize: 18 },
+  muteSlash: { position: 'absolute', width: 26, height: 2.5, borderRadius: 2, backgroundColor: C.red, transform: [{ rotate: '-45deg' }] },
+  quit: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.panel, borderWidth: 1.5, borderColor: 'rgba(247,215,116,0.6)', alignItems: 'center', justifyContent: 'center' },
+  clockPill: { alignItems: 'center', minWidth: 104, maxWidth: 150, paddingHorizontal: 14, paddingVertical: 2, borderRadius: 14, backgroundColor: C.panel, borderWidth: 1.5, borderColor: C.rimLo },
+  quitX: { color: C.goldHi, fontSize: 16, fontFamily: F.uiBold },
+  clock: { color: '#fff', fontFamily: F.display, fontSize: 26, textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 0 },
+  sub: { color: C.dim, fontFamily: F.uiBold, fontSize: 10, letterSpacing: 0.6 },
+  crowns: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.panel, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 3, borderWidth: 1.5, borderColor: 'rgba(247,215,116,0.6)' },
   crown: { fontFamily: F.display, fontSize: 22 },
   tray: { paddingTop: 8, paddingHorizontal: 10, borderTopWidth: 1.5, borderTopColor: 'rgba(247,215,116,0.6)' },
   elixirRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },

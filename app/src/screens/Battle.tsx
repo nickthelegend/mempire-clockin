@@ -560,7 +560,10 @@ export function Battle() {
             className="icon-btn"
             style={{ fontSize: 15, width: 44, height: 44, flexShrink: 0, opacity: isMuted() ? 0.5 : 1 }}
           >
-            {isMuted() ? '🔇' : '🔊'}
+            <span style={{ position: 'relative', display: 'inline-block', color: 'var(--gold)', fontSize: 19 }}>
+              ♪
+              {isMuted() ? <span style={{ position: 'absolute', left: -4, right: -4, top: '50%', height: 2, background: 'var(--red)', transform: 'rotate(-45deg)' }} /> : null}
+            </span>
           </button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
@@ -642,10 +645,13 @@ export function Battle() {
       )}
 
       {/* bottom HUD */}
-      <div ref={bottomHudEl} className="wood" style={{
+      <div ref={bottomHudEl} className={match.nativeLabel ? undefined : 'wood'} style={{
         position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 10,
         padding: '9px 10px calc(10px + env(safe-area-inset-bottom))',
-        borderTop: '3px solid var(--wood-edge)',
+        // Inside the Seeker app the tray matches the app's navy-and-gold kit.
+        ...(match.nativeLabel
+          ? { background: 'linear-gradient(180deg, #18234D, #0A1028)', borderTop: '1.5px solid rgba(247,215,116,.6)' }
+          : { borderTop: '3px solid var(--wood-edge)' }),
         boxShadow: '0 -6px 18px rgba(0,0,0,.55), inset 0 2px 0 rgba(255,255,255,.16)',
         display: 'flex', flexDirection: 'column', gap: 7,
       }}
@@ -723,7 +729,7 @@ export function Battle() {
           </div>
         </div>
         <p style={{
-          fontSize: 12, color: drag || selected !== null ? 'var(--teal)' : 'var(--dim-on-wood)',
+          fontSize: 12, color: drag || selected !== null ? 'var(--teal)' : (match.nativeLabel ? 'var(--dim)' : 'var(--dim-on-wood)'),
           textAlign: 'center', margin: 0, minHeight: 18, lineHeight: '18px',
         }}
         >

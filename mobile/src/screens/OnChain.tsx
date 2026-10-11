@@ -112,10 +112,10 @@ function PowerCard({ p, width, onOpen }: { p: Power; width: number; onOpen: () =
   const art = Math.round(Math.min(84, width * 0.5));
   return (
     <PressScale onPress={() => { haptic.tap(); onOpen(); }} accessibilityLabel={`${p.name}. ${p.benefit}. ${p.state === 'loading' ? 'Loading' : p.state}`} style={{ width }}>
-      <LinearGradient colors={dim ? ['#5d6a85', '#2b3550'] : p.rim} style={st.rim}>
-        <LinearGradient colors={['#173a7a', '#0d2350']} style={st.card}>
-          {p.key === 'skr' ? <View style={st.ribbon}><Body size={9} bold color={C.ink}>{CLUSTER_LABEL.toUpperCase()}</Body></View> : null}
-          <View style={[st.glow, { width: art * 1.25, height: art * 1.25, borderRadius: art, backgroundColor: dim ? 'rgba(255,255,255,0.04)' : `${p.rim[0]}33` }]}>
+      <LinearGradient colors={dim ? ['#3A4677', '#1E2650'] : p.rim} style={st.rim}>
+        <LinearGradient colors={['#1E2A5E', C.panel]} style={st.card}>
+          {p.key === 'skr' ? <View style={st.ribbon}><Body size={9} bold color={C.ink}>TEST</Body></View> : null}
+          <View style={[st.glow, { width: art * 1.25, height: art * 1.25, borderRadius: art, backgroundColor: dim ? 'rgba(255,255,255,0.04)' : C.panelRaised, borderWidth: dim ? 0 : 2, borderColor: `${p.rim[0]}AA` }]}>
             {p.state === 'loading' && p.key !== 'skr'
               ? <Shimmer w={art} h={art} radius={art / 2} />
               : <Image source={p.art} style={{ width: art, height: art, opacity: dim ? 0.4 : 1 }} resizeMode="contain" />}
@@ -151,9 +151,9 @@ function PowerSheet({ p, onClose }: { p: Power | null; onClose: () => void }) {
     <View style={StyleSheet.absoluteFill}>
       <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: C.scrim }]} onPress={onClose} accessibilityLabel="Close" />
       <Animated.View style={[st.sheet, { transform: [{ translateY: y.interpolate({ inputRange: [0, 1], outputRange: [0, 700] }) }] }]}>
-        <LinearGradient colors={['#1d4a96', '#0b1f47']} style={[st.sheetInner, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
+        <LinearGradient colors={['#1E2A5E', C.bg]} style={[st.sheetInner, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
           <View style={st.grab} />
-          <View style={[st.glow, { width: 130, height: 130, borderRadius: 65, backgroundColor: `${p.rim[0]}33`, alignSelf: 'center' }]}>
+          <View style={[st.glow, { width: 130, height: 130, borderRadius: 65, backgroundColor: C.panelRaised, borderWidth: 2.5, borderColor: p.rim[0], shadowColor: p.rim[0], shadowOpacity: 0.6, shadowRadius: 16, shadowOffset: { width: 0, height: 0 }, alignSelf: 'center' }]}>
             <Image source={p.art} style={{ width: 110, height: 110 }} resizeMode="contain" />
           </View>
           <Display size={26} style={{ textAlign: 'center' }}>{p.name}</Display>
@@ -246,7 +246,7 @@ export function OnChainSheet() {
       state: signIn ? 'active' : 'locked',
       about: kind === 'mwa'
         ? 'You signed a Sign In With Solana message in your wallet (Seed Vault on a Seeker). The signature is checked on this phone, and nothing is sent on chain.'
-        : 'Your dev wallet signed the Sign In With Solana message, and the signature was checked on this phone. On a Seeker the same message is signed in Seed Vault.',
+        : 'Your practice wallet signed the Sign In With Solana message, and the signature was checked on this phone. On a Seeker the same message is signed in Seed Vault.',
       proofs: [],
     },
     {
@@ -298,7 +298,7 @@ export function OnChainSheet() {
       key: 'duels', name: 'Ghost Duels', art: FEATURE_ART.ghostduel, rim: RIM.rare,
       benefit: 'Fight friends while they sleep',
       state: duelsLoaded ? (myChallenges.length ? 'active' : 'locked') : duelsErr ? 'offline' : 'loading',
-      about: 'Send any native-arena match as a ghost. A friend fights your exact deploys later, and the result goes on chain with a hash anyone can re-simulate.',
+      about: 'Send any Full 3D match as a ghost. A friend fights your exact deploys later, and the result goes on chain with a hash anyone can re-simulate.',
       proofs: myChallenges.slice(0, 2).map((s) => ({ label: `challenge ${short(s)}`, url: explorerTx(s) })),
     },
     {

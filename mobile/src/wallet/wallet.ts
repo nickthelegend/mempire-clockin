@@ -339,8 +339,8 @@ export const useWallet = create<WalletState>((set, get) => ({
 /** "Signed in with Seed Vault" and friends; null when there is no proof. */
 export function signInLabel(p: SiwsProof | null): string | null {
   if (!p) return null;
-  return p.method === 'dev-local' ? 'Signed in with Solana (dev wallet)' : `Signed in with ${p.signer}`;
+  return p.method === 'dev-local' ? 'Signed in with Solana' : `Signed in with ${p.signer}`;
 }
 
 export const walletLabel = (k: WalletKind | null) =>
-  k === 'mwa' ? 'Mobile Wallet Adapter' : k === 'dev' ? 'Dev wallet (devnet only)' : 'Not connected';
+  k === 'mwa' ? 'Mobile Wallet Adapter' : k === 'dev' ? 'Practice wallet on this phone' : 'Not connected';

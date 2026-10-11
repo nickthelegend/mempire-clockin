@@ -5,7 +5,7 @@ import {
   type ImageSourcePropType, type ImageStyle, type StyleProp, type TextStyle, type ViewStyle,
 } from 'react-native';
 import { UI_ART, CARD_ART } from '../data/art';
-import { FRAME_ART, PREMIUM_UI, REWARD_ART } from '../data/cosmeticArt';
+import { FRAME_ART, PREMIUM_UI, REWARD_ART, UI_ICON } from '../data/cosmeticArt';
 import { BY_TICKER, COPIES_TO_LEVEL, MAX_LEVEL, type OwnedCard } from '../game/rules';
 import { haptic } from '../notify';
 import { EASE_OUT, reduceMotion } from '../motion';
@@ -81,6 +81,8 @@ const TONES: Record<Tone, { top: string; mid?: string; bottom: string; edge: str
   green: { top: '#6CF2B5', bottom: '#2DB57A', edge: '#1A6E4A', text: '#fff' },
   ghost: { top: '#26336A', bottom: '#18234D', edge: '#0B1230', text: '#fff' },
 };
+/** Disabled: a flat slate pill. A faded gold or purple reads as olive or grey-brown on navy. */
+const OFF_TONE = { top: '#1E2850', bottom: '#161E40', edge: '#0B1230', text: '#8E9AC4' };
 
 /**
  * The fat arcade button: presses down into its own base edge, with a haptic
@@ -107,7 +109,7 @@ export function Btn({
     loop.start();
     return () => loop.stop();
   }, [pulse, breathe]);
-  const t = TONES[tone];
+  const t: { top: string; mid?: string; bottom: string; edge: string; text: string } = disabled && !busy ? OFF_TONE : TONES[tone];
   const h = size === 'lg' ? 64 : size === 'sm' ? 38 : 50;
   const fs = size === 'lg' ? 26 : size === 'sm' ? 15 : 19;
   const off = disabled || busy;
@@ -120,7 +122,7 @@ export function Btn({
       onPressIn={() => { to(1); haptic.light(); sfx('click'); }}
       onPressOut={() => to(0)}
       onPress={onPress}
-      style={[{ opacity: off ? 0.55 : 1 }, style]}
+      style={[{ opacity: busy ? 0.8 : 1 }, style]}
     >
       <View style={{ minHeight: h + 5, paddingBottom: 5, borderRadius: R.pill, backgroundColor: t.edge }}>
         <Animated.View style={{ transform: [{ translateY: press.interpolate({ inputRange: [0, 1], outputRange: [0, 4] }) }] }}>
@@ -258,7 +260,7 @@ export function CardTile({
     <PressScale
       onPress={onPress ? () => { haptic.tap(); onPress(); } : undefined}
       disabled={!onPress}
-      style={{ width, opacity: dim ? 0.38 : 1 }}
+      style={{ width }}
       accessibilityLabel={`${ticker}${owned ? ` level ${owned.level}` : ' not owned'}`}
     >
       <View style={[s.card, { height: h, borderColor: selected ? C.gold : 'rgba(0,0,0,0.55)', borderWidth: selected ? 3 : 2 }]}>
@@ -268,6 +270,12 @@ export function CardTile({
           <ArchIcon arch={f.archetype} size={18} />
         </View>
         {frame && !selected ? <FrameOverlay frame={frame} inset={0} /> : null}
+        {dim ? (
+          // Not found yet: a solid navy veil (not see-through, so the hero art never shows through) and a lock.
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(10,16,40,0.72)', alignItems: 'center', justifyContent: 'center' }]}>
+            <Image source={UI_ICON.lock} style={{ width: width * 0.3, height: width * 0.3, opacity: 0.9 }} resizeMode="contain" accessibilityLabel="Not found yet" />
+          </View>
+        ) : null}
         {owned ? (
           <View style={s.cardLevel}><Text maxFontSizeMultiplier={1.2} style={{ fontFamily: F.display, fontSize: 12, color: '#fff' }}>Lv {owned.level}</Text></View>
         ) : null}
@@ -277,7 +285,7 @@ export function CardTile({
       </View>
       {owned ? (
         <View style={s.bar}>
-          <View style={{ width: `${pct * 100}%`, height: '100%', backgroundColor: ready ? C.teal : C.bluePale, borderRadius: 4 }} />
+          <View style={{ width: `${pct * 100}%`, height: '100%', backgroundColor: ready ? C.teal : C.purple, borderRadius: 4 }} />
           <Text maxFontSizeMultiplier={1.2} style={s.barText}>{owned.level >= MAX_LEVEL ? 'MAX' : `${owned.copies}/${need}`}</Text>
         </View>
       ) : null}
@@ -291,8 +299,17 @@ export function ChestArt({ tier, size = 64 }: { tier: string; size?: number }) {
 }
 
 export function TierGlow({ tier }: { tier: string }) {
+  // A lit navy tile with a tier-coloured rim and floor glow. (A flat tint of
+  // gold over navy reads as olive/brown, so the colour stays on the edges.)
   const [a, b] = TIER_COLORS[tier] ?? TIER_COLORS.silver;
-  return <LinearGradient colors={[a, b]} style={[StyleSheet.absoluteFill, { opacity: 0.22, borderRadius: R.card }]} />;
+  return (
+    <>
+      <LinearGradient colors={[C.panelRaised, C.panel]} style={[StyleSheet.absoluteFill, { borderRadius: R.card }]} />
+      <LinearGradient colors={['rgba(255,255,255,0)', `${a}38`]} start={{ x: 0.5, y: 0.45 }} end={{ x: 0.5, y: 1 }} style={StyleSheet.absoluteFill} />
+      <View style={[StyleSheet.absoluteFill, { borderRadius: R.card, borderWidth: 2, borderColor: b }]} />
+      <View style={{ position: 'absolute', top: 2, left: 10, right: 10, height: 1.5, borderRadius: 1, backgroundColor: `${a}AA` }} />
+    </>
+  );
 }
 
 /** Fade + rise on mount — how every screen and sheet arrives. */
@@ -351,8 +368,8 @@ const s = StyleSheet.create({
  * the band in the display face with a dark stroke. `tone` is kept for older
  * call sites; the ribbon art is the one look.
  */
-export function Ribbon({ text, size = 24, style }: {
-  text: string; tone?: string; size?: number; style?: StyleProp<ViewStyle>;
+export function Ribbon({ text, size = 24, style, color = '#fff' }: {
+  text: string; tone?: string; size?: number; style?: StyleProp<ViewStyle>; color?: string;
 }) {
   const h = Math.round(size * 2.7);
   const natural = h * (504 / 190);
@@ -362,7 +379,7 @@ export function Ribbon({ text, size = 24, style }: {
     <View style={[{ width: w, height: h, alignSelf: 'center', alignItems: 'center', justifyContent: 'center' }, style]} accessibilityRole="header" accessibilityLabel={text}>
       <Image source={PREMIUM_UI.ribbon} resizeMode="stretch" style={{ position: 'absolute', width: w, height: h }} />
       <Text maxFontSizeMultiplier={1.15} numberOfLines={1} style={{
-        fontFamily: F.display, fontSize: size, color: '#fff', marginTop: -h * 0.12, maxWidth: w * 0.62,
+        fontFamily: F.display, fontSize: size, color, marginTop: -h * 0.12, maxWidth: w * 0.62,
         textShadowColor: '#2a0f5c', textShadowOffset: { width: 0, height: 2.5 }, textShadowRadius: 3,
       }}
       >{text}</Text>

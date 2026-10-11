@@ -98,13 +98,16 @@ function Cosmetics() {
         <SkinPreview skin={s} kind={kind} size={kind === 'arena' ? 84 : 58} />
         <Body size={12} color="#fff" bold numberOfLines={1}>{s.name}</Body>
         {owned ? (
-          <Btn
-            label={worn ? 'WORN' : 'EQUIP'}
-            size="sm"
-            tone={worn ? 'ghost' : 'green'}
-            disabled={worn}
-            onPress={() => { equip(kind === 'arena' ? { arena: s.key } : { frame: s.key }); say(`${s.name} equipped`, 'ok'); }}
-          />
+          worn ? (
+            <View style={st.wornPill} accessibilityLabel={`${s.name} equipped`}><Body size={11} bold color={C.teal}>✓ EQUIPPED</Body></View>
+          ) : (
+            <Btn
+              label="EQUIP"
+              size="sm"
+              tone="green"
+              onPress={() => { equip(kind === 'arena' ? { arena: s.key } : { frame: s.key }); say(`${s.name} equipped`, 'ok'); }}
+            />
+          )
         ) : (
           <Btn
             label={`${price}`}
@@ -241,7 +244,7 @@ export function ShopScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Display size={20}>{item.title}</Display>
-                <Body size={13} numberOfLines={1}>{item.blurb}</Body>
+                <Body size={13} color={C.dim} numberOfLines={3}>{item.blurb}</Body>
                 {item.id === 'shield' ? <Body size={11} color={C.gold}>You hold {shields}</Body> : null}
               </View>
             </View>
@@ -278,9 +281,13 @@ export function ShopScreen() {
 const st = StyleSheet.create({
   between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   item: { flexDirection: 'row', gap: 12, alignItems: 'center' },
-  skinRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
+  skinRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6, justifyContent: 'center' },
+  wornPill: {
+    minHeight: 38, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', borderRadius: 12,
+    borderWidth: 1.5, borderColor: C.teal, backgroundColor: 'rgba(61,220,151,0.12)',
+  },
   skin: {
-    width: '31%', minWidth: 96, flexGrow: 1, alignItems: 'center', gap: 6, padding: 8, borderRadius: 14,
+    width: '31.5%', minWidth: 96, alignItems: 'center', gap: 6, padding: 8, borderRadius: 14,
     backgroundColor: '#18234D', borderWidth: 1, borderColor: 'rgba(247,215,116,0.18)',
   },
   icon: { width: 64, height: 64, borderRadius: 14, backgroundColor: '#18234D', alignItems: 'center', justifyContent: 'center' },

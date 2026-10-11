@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Image, Pressable, ScrollView, Share, StyleSheet, TextInput, View, Modal } from 'react-native';
 import { CARD_ART } from '../data/art';
 import { explorerTx, short } from '../chain/solana';
@@ -80,7 +80,7 @@ function OpenCard() {
           </Body>
           <Btn
             label="FIGHT THE GHOST"
-            sub="native 3D arena"
+            sub="in the 3D arena"
             size="lg"
             tone="gold"
             style={{ marginTop: 10 }}
@@ -214,14 +214,19 @@ function Paste() {
   const [open, setOpen] = useState(false);
   return (
     <>
-    <Pressable onPress={() => setOpen(true)} hitSlop={10} accessibilityRole="button" style={{ alignSelf: 'center' }}>
-      <Body size={14} bold color={C.goldHi}>Have a duel code?</Body>
+    <Pressable onPress={() => setOpen(true)} hitSlop={10} accessibilityRole="button" style={({ pressed }) => [st.codePill, pressed && { opacity: 0.8 }]}>
+      <Body size={13} bold color={C.goldHi}>Have a duel code?  ›</Body>
     </Pressable>
     <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
       <Pressable style={{ flex: 1, backgroundColor: C.scrim }} onPress={() => setOpen(false)} />
       <View style={st.codeSheet}>
-        <Display size={22}>Enter a duel code</Display>
-        <Body size={13}>Paste the link a friend sent you.</Body>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <Image source={CHAR_ART.ghost} style={{ width: 64, height: 64 }} resizeMode="contain" accessibilityLabel="The ghost" />
+          <View style={{ flex: 1, gap: 2 }}>
+            <Display size={22}>Enter a duel code</Display>
+            <Body size={13} color={C.dim}>Paste the link a friend sent you, then fight their ghost.</Body>
+          </View>
+        </View>
     <View style={{ flexDirection: 'row', gap: 8 }}>
       <TextInput
         value={v}
@@ -252,15 +257,24 @@ function sendGhost() {
 }
 
 export function DuelsScreen() {
+  // A FIGHT tap far down the board opens the ghost card above it: bring it into view.
+  const scroll = useRef<ScrollView>(null);
+  const openSig = useDuels((s) => (s.open ? s.open.sig ?? 'link' : null));
+  const cardY = useRef(0);
+  useEffect(() => {
+    if (openSig) scroll.current?.scrollTo({ y: Math.max(0, cardY.current - 12), animated: true });
+  }, [openSig]);
   return (
-    <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+    <ScrollView ref={scroll} contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       <HeroSpace>
         <Image source={CHAR_ART.ghost} style={st.floatGhost} resizeMode="contain" accessibilityLabel="The ghost" />
         <Ribbon text="GHOST DUELS" tone="purple" size={26} />
       </HeroSpace>
       <Btn label="SEND A GHOST" sub="friends fight your exact moves" tone="gold" size="lg" icon={FEATURE_ART.ghostduel} onPress={sendGhost} />
       <Paste />
-      <OpenCard />
+      <View onLayout={(e) => { cardY.current = e.nativeEvent.layout.y; }}>
+        <OpenCard />
+      </View>
       <Board />
     </ScrollView>
   );
@@ -269,7 +283,7 @@ export function DuelsScreen() {
 const st = StyleSheet.create({
   scroll: { paddingHorizontal: 14, gap: 14, paddingBottom: 120 },
   floatGhost: { position: 'absolute', right: 6, top: 30, width: 110, height: 110 },
-  codeSheet: { backgroundColor: C.panel, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 40, gap: 10, borderTopWidth: 1.5, borderColor: 'rgba(247,215,116,0.5)' },
+  codeSheet: { backgroundColor: C.panel, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 40, gap: 14, borderTopWidth: 2, borderLeftWidth: 2, borderRightWidth: 2, borderColor: C.rimLo },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   deck: { flexDirection: 'row', gap: 4, marginVertical: 8 },
   mini: { flex: 1, aspectRatio: 0.75, borderRadius: 6, overflow: 'hidden', borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.5)' },
@@ -278,4 +292,8 @@ const st = StyleSheet.create({
   seg: { flex: 1, minHeight: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.3)' },
   segOn: { backgroundColor: C.gold },
   input: { flex: 1, minHeight: 40, borderRadius: 10, paddingHorizontal: 10, color: '#fff', backgroundColor: 'rgba(0,0,0,0.35)', fontSize: 14 },
+  codePill: {
+    alignSelf: 'center', paddingHorizontal: 18, paddingVertical: 8, borderRadius: 999,
+    backgroundColor: 'rgba(8,12,34,0.82)', borderWidth: 1, borderColor: 'rgba(247,215,116,0.5)',
+  },
 });

@@ -60,8 +60,8 @@ export function ShareCardButton({ r }: { r: MatchResult }) {
   return (
     <View style={{ width: '88%', marginTop: 12, gap: 8 }}>
       <View ref={ref} collapsable={false}>
-        <LinearGradient colors={['#ffc422', '#7a4a22']} style={st.edge}>
-          <LinearGradient colors={['#14418f', '#0d2a5c']} style={st.card}>
+        <LinearGradient colors={[C.rimHi, C.rimLo]} style={st.edge}>
+          <LinearGradient colors={['#2b1a5e', '#121B3D']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.card}>
             <View style={st.top}>
               <Image source={UI_ART.logo} style={{ width: 96, height: 30 }} resizeMode="contain" />
               <View style={{ alignItems: 'flex-end' }}>
@@ -85,7 +85,7 @@ export function ShareCardButton({ r }: { r: MatchResult }) {
               ))}
             </View>
             <Body size={10} color={C.dim}>
-              {side ? `Fighting for $${side} in the Season War · ` : ''}mempire://battle?rival={r.rivalIndex}{r.rush ? '&rush=1' : ''}
+              {side ? `Fighting for $${side} in the Season War · ` : ''}Can you beat it? Mempire on Seeker
             </Body>
           </LinearGradient>
         </LinearGradient>

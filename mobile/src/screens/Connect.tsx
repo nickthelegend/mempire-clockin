@@ -9,7 +9,8 @@ import { MWA_AVAILABLE, signInLabel, useWallet } from '../wallet/wallet';
 import { looksLikeSeeker } from '../chain/seeker';
 import { C } from '../theme';
 import { Body, Btn, Display, Rise, Tag, Well } from '../ui/kit';
-import { MASCOT } from '../data/cosmeticArt';
+import { GAME_BG, MASCOT } from '../data/cosmeticArt';
+import { Hero } from '../ui/Backdrop';
 
 const HERO = HERO_FIGHTERS;
 
@@ -33,10 +34,15 @@ export function ConnectScreen() {
   }, []);
 
   return (
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
+    <Hero source={GAME_BG.home} dim={0.25} />
     <ScrollView contentContainerStyle={st.wrap}>
       <Rise>
-        <Image source={UI_ART.logo} style={st.logo} resizeMode="contain" accessibilityLabel="Mempire" />
-        <Image source={MASCOT.wave} style={{ position: 'absolute', right: -6, top: -10, width: 96, height: 96 }} resizeMode="contain" accessibilityLabel="The Emperor waves" />
+        {/* Mounted with the fan, a commit later, for the same image-recycling reason. */}
+        <View style={st.logoBox}>
+          {fan ? <Image key="logo" source={UI_ART.logo} style={st.logo} resizeMode="contain" accessibilityLabel="Mempire" /> : null}
+          {fan ? <Image key="mascot" source={MASCOT.wave} style={{ position: 'absolute', right: -6, top: -10, width: 96, height: 96 }} resizeMode="contain" accessibilityLabel="The Emperor waves" /> : null}
+        </View>
       </Rise>
       <Rise delay={60}>
         <View style={st.fan}>
@@ -55,7 +61,7 @@ export function ConnectScreen() {
         <Display size={30} style={{ textAlign: 'center' }}>Every coin is a fighter.</Display>
         <Body size={15} style={{ textAlign: 'center', marginTop: 6 }}>Clock in daily, build your deck, battle in 3D.</Body>
       </Rise>
-      <Rise delay={180} style={{ gap: 12, marginTop: 10 }}>
+      <Rise delay={180} style={{ gap: 12, marginTop: 10, flexDirection: MWA_AVAILABLE ? 'column' : 'column-reverse' }}>
         <Btn
           label="SIGN IN WITH SOLANA"
           sub={MWA_AVAILABLE ? `One tap · ${looksLikeSeeker() ? 'Seed Vault' : 'Seed Vault, Phantom, Solflare'} via Mobile Wallet Adapter` : 'Mobile Wallet Adapter is Android-only'}
@@ -74,14 +80,15 @@ export function ConnectScreen() {
         <Btn
           label="PLAY NOW"
           sub="a practice wallet on this phone · test tokens only"
-          tone="ghost"
+          tone={MWA_AVAILABLE ? 'ghost' : 'gold'}
+          size={MWA_AVAILABLE ? 'md' : 'lg'}
           busy={busy === 'dev'}
           onPress={async () => {
             setBusy('dev');
             try {
               await connectDev();
               if (useWallet.getState().signIn) say('Signed in with Solana ✓', 'ok');
-            } catch (e) { const m = e instanceof Error ? e.message : String(e); setErr(`Could not create the dev wallet: ${m}`); } finally { setBusy(null); }
+            } catch (e) { const m = e instanceof Error ? e.message : String(e); setErr(`Could not create the practice wallet: ${m}`); } finally { setBusy(null); }
           }}
         />
         {err ? (
@@ -106,11 +113,13 @@ export function ConnectScreen() {
         </Well>
       </Rise>
     </ScrollView>
+    </View>
   );
 }
 
 const st = StyleSheet.create({
   wrap: { padding: 20, paddingTop: 70, gap: 16, paddingBottom: 60 },
+  logoBox: { height: 100 },
   logo: { width: '78%', height: 100, alignSelf: 'center' },
   fan: { height: 190, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginVertical: 8 },
   card: { width: 104, height: 138, borderRadius: 12, marginHorizontal: -22, borderWidth: 2, borderColor: 'rgba(0,0,0,0.6)', overflow: 'hidden' },

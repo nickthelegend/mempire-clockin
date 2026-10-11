@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useRef, useState } from 'react';
 import { Image, Alert, Animated, Linking, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -19,7 +20,8 @@ import { lookupSkrOwner, useDisplayName, useIdentity } from '../state/identity';
 import { recheckProof, signInLabel, useWallet, walletLabel } from '../wallet/wallet';
 import { cancelChestReminders, haptic } from '../notify';
 import { C, F, TIER_COLORS } from '../theme';
-import { Body, Btn, CardTile, ChestArt, Display, Panel, Tag, Well, SkrIcon } from '../ui/kit';
+import { Body, Btn, CardTile, ChestArt, Display, Panel, Ribbon, Tag, Well, SkrIcon } from '../ui/kit';
+import { UI_ART } from '../data/art';
 import { ShareCardButton } from './ShareCard';
 import { Qr } from '../ui/Qr';
 import { duelScanLink, solanaPayDuelUrl } from '../game/blink';
@@ -71,9 +73,9 @@ export function RevealSheet() {
   const [glowA] = TIER_COLORS[reveal.tier];
   return (
     <Modal visible transparent animationType="fade" onRequestClose={() => show(null)}>
-      <View style={st.center}>
+      <ScrollView style={st.scrim} contentContainerStyle={st.centerScroll} showsVerticalScrollIndicator={false}>
         <Celebrate burst={opened && !sealing ? reveal.title + reveal.drops.length : null} size={360} />
-        <Display size={28} color={glowA}>{reveal.title}</Display>
+        <Ribbon text={reveal.title.toUpperCase()} size={24} color={glowA} />
         {sealing ? (
           <View style={{ alignItems: 'center', gap: 10 }}>
             <ChestArt tier={reveal.tier} size={180} />
@@ -88,7 +90,9 @@ export function RevealSheet() {
           </Animated.View>
         ) : (
           <View style={{ alignItems: 'center' }}>
-          <Image source={ITEM_ART.chestOpen} style={{ width: 120, height: 120, marginBottom: -8 }} resizeMode="contain" accessibilityLabel="Open chest" />
+          <View style={st.revealHalo}>
+            <ChestArt tier={reveal.tier} size={112} />
+          </View>
           <View style={st.drops}>
             {reveal.drops.slice(0, shown).map((d) => (
               <View key={d.ticker} style={{ alignItems: 'center', gap: 4 }}>
@@ -105,7 +109,7 @@ export function RevealSheet() {
             <Btn label="COLLECT" size="lg" style={{ width: 240, marginTop: 14 }} onPress={() => show(null)} />
           </>
         ) : null}
-      </View>
+      </ScrollView>
     </Modal>
   );
 }
@@ -309,11 +313,11 @@ export function ResultSheet() {
     <Modal visible transparent animationType="fade" onRequestClose={() => show(null)}>
       <ScrollView style={st.scrim} contentContainerStyle={st.centerScroll}>
         {r.won ? <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 260 }}><Celebrate burst={r.rival + r.crowns.join('')} size={340} /></View> : null}
-        {r.won ? <Animated.Image source={MASCOT.cheer} style={{ width: 150, height: 150, marginBottom: -16, transform: [{ scale: pop }] }} resizeMode="contain" accessibilityLabel="The Emperor cheers" /> : null}
+        <Animated.Image source={r.won ? MASCOT.cheer : MASCOT.sleep} style={{ width: r.won ? 150 : 120, height: r.won ? 150 : 120, marginBottom: -22, zIndex: 2, transform: [{ scale: pop }] }} resizeMode="contain" accessibilityLabel={r.won ? 'The Emperor cheers' : 'The Emperor rests up for the next one'} />
         <Animated.View style={{ transform: [{ scale: pop }] }}>
-          <Display size={54} color={r.won ? C.gold : r.draw ? '#fff' : C.red}>{title}</Display>
+          <Ribbon text={title} size={34} color={r.won ? C.goldHi : r.draw ? '#fff' : '#FFB3C1'} />
         </Animated.View>
-        <Body size={15} color="#fff">vs {r.rival}</Body>
+        <View style={st.vsPill}><Body size={14} bold color="#fff">vs {r.rival}</Body></View>
         <Panel style={{ width: '88%', marginTop: 18 }}>
           <View style={st.row}><Body color={C.dimOnWood}>Crowns</Body><Display size={20}>{r.crowns[0]} – {r.crowns[1]}</Display></View>
           <View style={st.row}><Body color={C.dimOnWood}>Trophies</Body><Display size={20} color={r.trophyDelta > 0 ? C.teal : r.trophyDelta < 0 ? C.red : "#fff"}>{r.trophyDelta > 0 ? '+' : ''}{r.trophyDelta}</Display></View>
@@ -376,13 +380,21 @@ export function ResultSheet() {
 function NameEditor({ address }: { address: string }) {
   const nick = useNicknames((st2) => st2.nicks[address]);
   const [v, setV] = useState<string | null>(null);
+  // Save on blur, on Return, and when the sheet closes mid-edit (closing
+  // unmounts the field without an end-editing event).
+  const draft = useRef<string | null>(null);
+  draft.current = v;
+  const save = () => { if (draft.current !== null) { useNicknames.getState().setNick(address, draft.current.trim()); draft.current = null; setV(null); } };
+  useEffect(() => () => { if (draft.current !== null) useNicknames.getState().setNick(address, draft.current.trim()); }, [address]);
   return (
     <View style={{ marginTop: 8, gap: 4 }}>
       <Body size={12} bold>Player name</Body>
       <TextInput
         value={v ?? nick ?? ''}
         onChangeText={setV}
-        onEndEditing={() => { if (v !== null) { useNicknames.getState().setNick(address, v); setV(null); } }}
+        onEndEditing={save}
+        onSubmitEditing={save}
+        returnKeyType="done"
         placeholder={defaultPlayerName(address)}
         placeholderTextColor={C.dim}
         maxLength={18}
@@ -408,37 +420,58 @@ export function WalletSheet() {
       <View style={[st.sheet, { maxHeight: '92%' }]}>
         <ScrollView bounces={false} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <Panel>
-          <View style={st.row}>
-            <Display size={22}>Profile</Display>
-            {sgt ? <Tag text="SEEKER" color={C.teal} /> : null}
+          <View style={{ alignItems: 'flex-end', marginBottom: -36, zIndex: 2 }}>
+            <Btn label="✕" tone="ghost" size="sm" onPress={() => setOpen(false)} />
+          </View>
+          <View style={{ alignItems: 'center', gap: 6 }}>
+            <View style={st.profileRing}>
+              <Image source={UI_ART.avatar_guest} style={{ width: 84, height: 84, borderRadius: 42 }} accessibilityLabel="Your avatar" />
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Display size={24}>Profile</Display>
+              {sgt ? <Tag text="SEEKER" color={C.teal} /> : null}
+            </View>
           </View>
           <NameEditor address={address} />
-          <Body color={C.dimOnWood}>{walletLabel(kind)}</Body>
-          <Pressable onPress={() => { void Clipboard.setStringAsync(address); haptic.tap(); say('Address copied'); }}>
-            <Well style={{ marginVertical: 10 }}>
-              <SkrLine address={address} kind={kind} />
-              <Text selectable style={{ fontFamily: F.ui, color: '#fff', fontSize: 13 }}>{address}</Text>
-              <Body size={11} color={C.dim}>tap to copy</Body>
-            </Well>
-          </Pressable>
+          <Well style={{ marginVertical: 10, gap: 8 }}>
+            <SkrLine address={address} kind={kind} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Image source={FEATURE_ART.siws} style={{ width: 40, height: 40 }} resizeMode="contain" />
+              <View style={{ flex: 1 }}>
+                <Body size={14} bold color="#fff">{walletLabel(kind)}</Body>
+                <Body size={11} color={C.dim}>{kind === 'dev' ? 'For practice: free test coins, nothing real' : 'Your Seeker wallet signs every move'}</Body>
+              </View>
+              <ProofSeal compact info={{ title: 'Your wallet', art: FEATURE_ART.siws, glow: C.bluePale, about: 'The wallet this game plays from. Tap the link to see its history on the explorer.', proofs: [{ label: `wallet ${short(address, 6)}`, url: explorerAddr(address) }] }} />
+            </View>
+            <Btn label="COPY WALLET ADDRESS" tone="ghost" size="sm" onPress={() => { void Clipboard.setStringAsync(address); haptic.tap(); say('Address copied'); }} />
+          </Well>
           <SignInCard />
           <FindSeeker />
-          <View style={st.row}><Body color={C.dimOnWood}>Devnet SOL</Body><Display size={18}>{sol === null ? '…' : sol.toFixed(4)}</Display></View>
-          <View style={st.row}><Body color={C.dimOnWood}>{SKR_LABEL}</Body><Display size={18} color={C.skr}>{SKR_LIVE ? (skr ?? '…') : useGame.getState().skrSim}</Display></View>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={st.balance}>
+              <LinearGradient colors={['#9945FF', '#14F195']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' }}><Display size={13}>◎</Display></LinearGradient>
+              <View><Body size={10} color={C.dim} bold>SOL FOR FEES</Body><Display size={18}>{sol === null ? '…' : sol.toFixed(3)}</Display></View>
+            </View>
+            <View style={st.balance}>
+              <SkrIcon size={26} />
+              <View><Body size={10} color={C.dim} bold>{SKR_LABEL}</Body><Display size={18} color={C.skr}>{SKR_LIVE ? (skr ?? '…') : useGame.getState().skrSim}</Display></View>
+            </View>
+          </View>
           <View style={{ gap: 8, marginTop: 10 }}>
-            <Btn
-              label="GET DEVNET SOL"
-              sub="public faucet — often rate-limited"
-              tone="blue"
-              size="sm"
-              busy={busy}
-              onPress={async () => {
-                setBusy(true);
-                try { await airdrop(address, 0.5); await refresh(); say('0.5 test SOL received', 'ok'); } catch (e) { say(readableError(e), 'err'); } finally { setBusy(false); }
-              }}
-            />
+            {kind === 'dev' ? (
+              <Btn
+                label="GET TEST SOL"
+                sub="free SOL for fees · the faucet is often busy"
+                tone="blue"
+                size="sm"
+                busy={busy}
+                onPress={async () => {
+                  setBusy(true);
+                  try { await airdrop(address, 0.5); await refresh(); say('0.5 test SOL received', 'ok'); } catch (e) { say(readableError(e), 'err'); } finally { setBusy(false); }
+                }}
+              />
+            ) : null}
             <Btn label="CHAIN POWERS" sub="everything you unlocked on Solana" icon={CHAR_ART.trophy} tone="blue" size="sm" onPress={() => useUi.getState().setOnchain(true)} />
-            <Btn label="VIEW ON EXPLORER" tone="ghost" size="sm" onPress={() => void Linking.openURL(explorerAddr(address))} />
             <SoundSetting />
             <RendererSetting />
             <Btn label="REPLAY THE INTRO" tone="ghost" size="sm" onPress={() => { markFtue(false); setOpen(false); useUi.getState().setIntro(true); }} />
@@ -455,6 +488,7 @@ export function WalletSheet() {
 function SkrLine({ address, kind }: { address: string; kind: string | null }) {
   const who = useDisplayName(address);
   const known = useIdentity((s) => s.names[address] !== undefined);
+  if (!who.skr && kind === 'dev' && known) return null;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
       {who.skr ? <Display size={20} color={C.teal}>{who.skr}</Display> : null}
@@ -594,11 +628,11 @@ function RendererSetting() {
   const pref = useUi((s) => s.rendererPref);
   const setPref = useUi((s) => s.setRendererPref);
   const opts: { id: 'auto' | 'native' | 'web'; label: string }[] = [
-    { id: 'auto', label: 'Auto' }, { id: 'native', label: 'Native 3D' }, { id: 'web', label: 'Web (compat)' },
+    { id: 'auto', label: 'Auto' }, { id: 'native', label: 'Full 3D' }, { id: 'web', label: 'Lite' },
   ];
   return (
     <View style={{ gap: 6, marginTop: 4 }}>
-      <Body size={12} color={C.dimOnWood} bold>ARENA RENDERER</Body>
+      <Body size={12} color={C.dimOnWood} bold>BATTLE GRAPHICS</Body>
       <View style={{ flexDirection: 'row', gap: 6 }}>
         {opts.map((o) => (
           <Pressable
@@ -613,7 +647,7 @@ function RendererSetting() {
         ))}
       </View>
       <Body size={11} color={C.dimOnWood}>
-        Auto uses the native 3D arena on a phone and switches to the web arena if the GPU cannot keep up. Simulators use the web arena.
+        Auto plays in Full 3D and drops to Lite if the frame rate can't keep up.
       </Body>
     </View>
   );
@@ -636,11 +670,11 @@ export function Toast() {
     return undefined;
   }, [toast, v]);
   if (!text) return null;
-  const bg = text.tone === 'ok' ? '#0f6b4a' : text.tone === 'err' ? '#8a1f35' : C.ink;
+  const rim = text.tone === 'ok' ? C.teal : text.tone === 'err' ? C.red : C.rimHi;
   return (
     <Animated.View
       pointerEvents="none"
-      style={[st.toast, { backgroundColor: bg, opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [-30, 0] }) }] }]}
+      style={[st.toast, { backgroundColor: C.panelRaised, borderColor: rim, opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [-30, 0] }) }] }]}
     >
       <Body color="#fff" bold size={13}>{text.text}</Body>
     </Animated.View>
@@ -657,8 +691,15 @@ const st = StyleSheet.create({
   input: { flex: 1, minHeight: 40, borderRadius: 10, paddingHorizontal: 10, color: '#fff', backgroundColor: 'rgba(0,0,0,0.35)', fontSize: 14 },
   mono: { fontFamily: 'Courier', fontSize: 10, color: '#cfe0ff', backgroundColor: 'rgba(0,0,0,0.35)', padding: 8, borderRadius: 8 },
   sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 12, paddingBottom: 30 },
+  revealHalo: { width: 150, height: 150, borderRadius: 75, alignItems: 'center', justifyContent: 'center', marginBottom: -8, backgroundColor: 'rgba(247,201,72,0.12)', borderWidth: 1.5, borderColor: 'rgba(247,215,116,0.35)' },
+  vsPill: { marginTop: 2, paddingHorizontal: 16, paddingVertical: 5, borderRadius: 999, backgroundColor: 'rgba(8,12,34,0.85)', borderWidth: 1, borderColor: 'rgba(247,215,116,0.45)' },
+  profileRing: { width: 96, height: 96, borderRadius: 48, borderWidth: 3, borderColor: C.gold, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg },
+  balance: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, borderRadius: 14,
+    backgroundColor: C.recess, borderWidth: 1, borderColor: 'rgba(247,215,116,0.25)',
+  },
   toast: {
     position: 'absolute', top: 58, left: 16, right: 16, borderRadius: 14, padding: 12,
-    borderWidth: 2, borderColor: 'rgba(0,0,0,0.4)', zIndex: 50,
+    borderWidth: 2, zIndex: 50, shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 12, shadowOffset: { width: 0, height: 6 },
   },
 });

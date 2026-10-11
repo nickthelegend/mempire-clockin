@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Image, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CARD_ART, UI_ART } from '../data/art';
-import { REWARD_ART } from '../data/cosmeticArt';
+import { GAME_BG, REWARD_ART } from '../data/cosmeticArt';
+import { Hero } from '../ui/Backdrop';
 import { INTRO_FIGHTERS } from '../data/showcase';
 import { prepareMatch } from '../game/actions';
 import { EASE_OUT, reduceMotion } from '../motion';
@@ -95,17 +96,20 @@ export function Intro() {
 
   return (
     <Modal visible animationType="fade" onRequestClose={skip} statusBarTranslucent>
-      <LinearGradient colors={[C.blueLit, C.blue, C.blueDeep]} style={st.wrap}>
+      <View style={st.wrap}>
+        <Hero source={GAME_BG.home} dim={0.35} />
         <View style={st.top}>
           <Image source={UI_ART.logo} style={st.logo} resizeMode="contain" accessibilityLabel="Mempire" />
           <Pressable onPress={skip} hitSlop={12} style={st.skip} accessibilityRole="button" accessibilityLabel="Skip intro">
-            <Body bold color={C.dim}>Skip</Body>
+            <View style={st.skipPill}><Body bold size={13} color="#fff">Skip</Body></View>
           </Pressable>
         </View>
         <Animated.View
           style={[st.body, { opacity: v, transform: [{ translateX: v.interpolate({ inputRange: [0, 1], outputRange: [move, 0] }) }] }]}
         >
-          <Art kind={s.art} />
+          <View style={st.stage}>
+            <Art kind={s.art} />
+          </View>
           <Body size={12} bold color={C.gold} style={{ letterSpacing: 1.5, textAlign: 'center' }}>{s.kicker}</Body>
           <Display size={32} style={{ textAlign: 'center' }}>{s.title}</Display>
           <Body size={16} style={{ textAlign: 'center' }}>{s.body}</Body>
@@ -123,16 +127,19 @@ export function Intro() {
             <Btn label="NEXT" size="lg" onPress={() => { haptic.tap(); setI(i + 1); }} />
           )}
         </View>
-      </LinearGradient>
+      </View>
     </Modal>
   );
 }
 
 const st = StyleSheet.create({
-  wrap: { flex: 1, padding: 22, paddingTop: 64, paddingBottom: 40, justifyContent: 'space-between' },
+  wrap: { flex: 1, padding: 22, paddingTop: 64, paddingBottom: 40, justifyContent: 'space-between', backgroundColor: C.bg },
+  stage: { alignItems: 'center', justifyContent: 'flex-end' },
+  stageGlow: { position: 'absolute', bottom: -6, width: 300, height: 60, borderRadius: 150, backgroundColor: 'rgba(247,201,72,0.16)', transform: [{ scaleY: 0.6 }] },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   logo: { width: 170, height: 60 },
   skip: { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' },
+  skipPill: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 999, backgroundColor: 'rgba(8,12,34,0.8)', borderWidth: 1, borderColor: 'rgba(247,215,116,0.45)' },
   body: { gap: 12, alignItems: 'center' },
   artRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', gap: 10, height: 200, marginBottom: 8 },
   chestSm: { width: 84, height: 84 },
