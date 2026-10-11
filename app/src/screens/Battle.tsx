@@ -14,7 +14,7 @@ import { BattleScene, dropDecision, isLegalDrop, resolveGroundHit } from '../thr
 import type { MatchCard } from '../sim/types';
 import { CHESTS } from '../state/economy';
 import { useEscrow } from '../state/escrow';
-import { useMatch } from '../state/match';
+import { holdBotClock, rebaseBotClock, useMatch } from '../state/match';
 import { bindArenaStore } from '../three/arenaStore';
 
 // The 3D scene reads the match through a store it does not own (the native
@@ -406,11 +406,14 @@ export function Battle() {
 
   // Tower-fall impact. Driven off a ref so the WebGL context is never remounted.
   // Escape backs out of the forfeit confirm.
+  // A bot match also holds still while the leave confirm is open (as the
+  // native arena does); PvP keeps its shared clock.
   useEffect(() => {
     if (!confirmQuit) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setConfirmQuit(false); };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    holdBotClock();
+    return () => { window.removeEventListener('keydown', onKey); rebaseBotClock(); };
   }, [confirmQuit]);
 
   useEffect(() => {
