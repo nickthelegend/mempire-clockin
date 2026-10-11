@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { connection } from '../chain/solana';
+import { rateLimitedRecently } from '../chain/rpcFetch';
 
 /**
  * Is devnet reachable? Checked on launch, on return to the app, and every
@@ -20,7 +21,7 @@ export const useNet = create<NetState>((set) => ({
       set({ status: 'ok' });
     } catch (e) {
       // A 429 is the public RPC rate-limiting this IP, not an outage.
-      set({ status: /429|Too many requests/i.test(String(e)) ? 'busy' : 'down' });
+      set({ status: /429|Too many requests/i.test(String(e)) || rateLimitedRecently() ? 'busy' : 'down' });
     }
   },
 }));

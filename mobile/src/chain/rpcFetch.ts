@@ -10,13 +10,19 @@
  */
 const BACKOFF_MS = [500, 1000, 2000, 4000];
 
+let lastRateLimit = 0;
+/** True when the RPC answered 429 within the last `ms` (the network is up, just throttled). */
+export const rateLimitedRecently = (ms = 30_000): boolean => Date.now() - lastRateLimit < ms;
+
 export type FetchLike = typeof fetch;
 
 export function quietRateLimitFetch(base: (input: Parameters<typeof fetch>[0], init?: RequestInit) => Promise<Response> = (i, o) => fetch(i, o), sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))): FetchLike {
   return (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
     for (let i = 0; ; i++) {
       const res = await base(input, init);
-      if (res.status !== 429 || i >= BACKOFF_MS.length) return res;
+      if (res.status !== 429) return res;
+      lastRateLimit = Date.now();
+      if (i >= BACKOFF_MS.length) return res;
       const after = Number(res.headers?.get?.('retry-after'));
       const wait = Number.isFinite(after) && after > 0 ? Math.min(after * 1000, 8000) : BACKOFF_MS[i];
       await sleep(wait + Math.floor(Math.random() * 150));

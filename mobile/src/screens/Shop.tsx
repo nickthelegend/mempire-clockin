@@ -126,7 +126,11 @@ function Cosmetics() {
       <Body size={12} color={C.dimOnWood}>
         {pc.status === 'live'
           ? `Each skin is a Token-2022 token with its name and type stored on the mint, sold for SKR in one transaction on ${CLUSTER_LABEL}. Tradable. Cosmetic only.`
-          : `On-chain skins available once deployed: preview mode. The mempire_pass program is not on ${CLUSTER_LABEL} yet, so nothing is sold and nothing shows as owned.`}
+          : pc.status === 'preview'
+            ? `On-chain skins available once deployed: preview mode. The mempire_pass program is not on ${CLUSTER_LABEL} yet, so nothing is sold and nothing shows as owned.`
+            : pc.status === 'offline'
+              ? `Can't reach ${CLUSTER_LABEL} right now, so skins can't be checked or bought. Nothing shows as owned until the chain answers.`
+              : `Reading your skins from ${CLUSTER_LABEL}…`}
       </Body>
       <Body size={12} color="#fff" bold style={{ marginTop: 10 }}>Arena skins · field, river, towers, crowd and light</Body>
       <View style={st.skinRow}>{ARENA_SKINS.map((s) => item(s, 'arena'))}</View>
@@ -192,7 +196,7 @@ export function ShopScreen() {
           <View style={st.between}>
             <View>
               <Body size={12} color={C.skr} bold>{SKR_LABEL.toUpperCase()}</Body>
-              <Display size={34} color="#fff">{balance.toLocaleString()}</Display>
+              <Display size={34} color="#fff">{SKR_LIVE && skrChain === null ? '…' : balance.toLocaleString()}</Display>
             </View>
             <Tag text={SKR_LIVE ? 'DEVNET SPL · 6 DEC' : 'SIMULATED'} color={SKR_LIVE ? C.skr : C.goldHi} />
           </View>

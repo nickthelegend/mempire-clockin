@@ -89,14 +89,14 @@ function Header() {
     <View style={[st.header, { paddingTop: insets.top + 6 }]}>
       <Pressable style={({ pressed }) => [st.who, pressed && { opacity: 0.75 }]} onPress={() => { haptic.tap(); setWalletOpen(true); }} accessibilityRole="button" accessibilityLabel="Wallet and settings">
         <Image source={UI_ART.avatar_guest} style={st.avatar} />
-        <View>
+        <View style={{ flexShrink: 1 }}>
           <Body size={13} color={who.skr ? C.teal : '#fff'} bold numberOfLines={1} style={{ maxWidth: 130 }}>{who.label}</Body>
-          <Body size={10} color={sgt ? C.teal : kind === 'dev' ? C.goldHi : C.dim} bold>
+          <Body size={10} color={sgt ? C.teal : kind === 'dev' ? C.goldHi : C.dim} bold numberOfLines={2}>
             {sgt ? 'SEEKER VERIFIED' : kind === 'dev' ? 'DEV WALLET' : 'MWA WALLET'}{siws ? ' · SIWS ✓' : ''}
           </Body>
         </View>
       </Pressable>
-      <View style={{ flexDirection: 'row', gap: 6 }}>
+      <View style={{ flexDirection: 'row', gap: 6, flexShrink: 0 }}>
         <Chip label="TROPHY" value={String(shownTrophies)} color={C.gold} />
         <Chip label="SOL" value={sol === null ? '…' : sol.toFixed(2)} color={C.bluePale} onPress={() => setWalletOpen(true)} tag={CLUSTER_LABEL} />
         <Chip
@@ -411,7 +411,8 @@ const st = StyleSheet.create({
     paddingHorizontal: 12, paddingBottom: 8, backgroundColor: 'rgba(9,22,48,0.55)',
     borderBottomWidth: 2, borderBottomColor: 'rgba(0,0,0,0.4)',
   },
-  who: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  // Shrinks first at large text sizes so the balance chips never leave the screen.
+  who: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1, marginRight: 6 },
   avatar: { width: 38, height: 38, borderRadius: 10, borderWidth: 2, borderColor: C.gold },
   tabs: {
     flexDirection: 'row', backgroundColor: C.woodDark, borderTopWidth: 3, borderTopColor: C.woodEdge,
