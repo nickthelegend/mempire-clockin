@@ -9,6 +9,7 @@ import { MWA_AVAILABLE, signInLabel, useWallet } from '../wallet/wallet';
 import { looksLikeSeeker } from '../chain/seeker';
 import { C } from '../theme';
 import { Body, Btn, Display, Rise, Tag, Well } from '../ui/kit';
+import { MASCOT } from '../data/cosmeticArt';
 
 const HERO = HERO_FIGHTERS;
 
@@ -33,7 +34,10 @@ export function ConnectScreen() {
 
   return (
     <ScrollView contentContainerStyle={st.wrap}>
-      <Rise><Image source={UI_ART.logo} style={st.logo} resizeMode="contain" accessibilityLabel="Mempire" /></Rise>
+      <Rise>
+        <Image source={UI_ART.logo} style={st.logo} resizeMode="contain" accessibilityLabel="Mempire" />
+        <Image source={MASCOT.wave} style={{ position: 'absolute', right: -6, top: -10, width: 96, height: 96 }} resizeMode="contain" accessibilityLabel="The Emperor waves" />
+      </Rise>
       <Rise delay={60}>
         <View style={st.fan}>
           {fan && HERO.map((t, i) => (
@@ -49,9 +53,7 @@ export function ConnectScreen() {
       </Rise>
       <Rise delay={120}>
         <Display size={30} style={{ textAlign: 'center' }}>Every coin is a fighter.</Display>
-        <Body size={15} style={{ textAlign: 'center', marginTop: 6 }}>
-          Clock in daily for chests and SKR, build a deck of eight, and battle in a 3D arena. Your AI coach scouts every rival on your phone.
-        </Body>
+        <Body size={15} style={{ textAlign: 'center', marginTop: 6 }}>Clock in daily, build your deck, battle in 3D.</Body>
       </Rise>
       <Rise delay={180} style={{ gap: 12, marginTop: 10 }}>
         <Btn

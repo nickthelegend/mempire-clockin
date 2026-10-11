@@ -507,7 +507,7 @@ export function HomeScreen() {
 const st = StyleSheet.create({
   scroll: { paddingHorizontal: 14, paddingTop: 0, gap: 14, paddingBottom: 120 },
   logo: { width: 250, height: 84, alignSelf: 'center' },
-  mascot: { position: 'absolute', right: -8, bottom: 6, width: 140, height: 140 },
+  mascot: { position: 'absolute', right: -14, bottom: -46, width: 120, height: 120, zIndex: 2 },
   passDot: {
     minWidth: 30, height: 30, borderRadius: 15, backgroundColor: C.teal, alignItems: 'center', justifyContent: 'center',
     paddingHorizontal: 6,

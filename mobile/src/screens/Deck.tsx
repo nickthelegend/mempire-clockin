@@ -66,6 +66,7 @@ function Wardrobe() {
   );
 }
 import { ARCHETYPES } from '../../../app/src/sim/archetypes';
+import { HeroSpace } from '../ui/Backdrop';
 
 export function DeckScreen() {
   const deck = useGame((s) => s.deck);
@@ -87,12 +88,12 @@ export function DeckScreen() {
     .sort((a, b) => cards[b].level - cards[a].level);
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 120 }}>
+    <ScrollView contentContainerStyle={{ paddingHorizontal: 14, gap: 12, paddingBottom: 120 }}>
       <Rise>
-        <View style={{ alignItems: 'center', gap: 6 }}>
-          <Ribbon text="Battle Deck" tone="blue" size={22} />
-          <Body size={13}>Avg Lv {avg.toFixed(1)} · {elixir.toFixed(1)} elixir</Body>
-        </View>
+        <HeroSpace offset={30}>
+          <Ribbon text="BATTLE DECK" size={26} />
+          <Body size={13} color="#fff">Avg Lv {avg.toFixed(1)} · {elixir.toFixed(1)} elixir</Body>
+        </HeroSpace>
       </Rise>
       <Rise delay={40}>
         <Panel>

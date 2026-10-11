@@ -6,8 +6,9 @@ import { useGame, avgDeckLevel } from '../state/game';
 import { useUi } from '../state/ui';
 import { haptic } from '../notify';
 import { C } from '../theme';
-import { Body, Btn, CardTile, Display, Panel, Progress, Tag, Well, Ribbon } from '../ui/kit';
-import { CHAR_ART } from '../data/cosmeticArt';
+import { Body, Btn, CardTile, Display, Panel, Progress, Well, Ribbon } from '../ui/kit';
+import { CHAR_ART, GAME_BG } from '../data/cosmeticArt';
+import { DriftBackground } from '../ui/Backdrop';
 
 /**
  * The coach's screen: run the scouting, show the measurements, offer a swap.
@@ -74,18 +75,17 @@ export function CoachSheet() {
   return (
     <Modal visible={open} animationType="slide" transparent onRequestClose={close}>
       <View style={st.wrap}>
+        <DriftBackground source={GAME_BG.home} dim={0.55} />
         <ScrollView contentContainerStyle={{ padding: 14, gap: 12, paddingTop: 60, paddingBottom: 60 }}>
           <View style={st.between}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1, flexWrap: 'wrap' }}>
-              <Image source={CHAR_ART.coach} style={{ width: 60, height: 60 }} resizeMode="contain" accessibilityLabel="AI Coach" />
-              <Ribbon text="AI Coach" tone="blue" size={22} />
-              <Tag text="ON-DEVICE SIMULATION" color={C.teal} />
-            </View>
+            <View />
             <Btn label="✕" tone="ghost" size="sm" onPress={close} />
           </View>
-          <Body size={13}>
-            The coach plays your eight cards against all {RIVALS.length} rival decks — {SEEDS} seeds each, every seed played from both sides of the arena — using the same deterministic battle engine as the 3D arena, with the game&apos;s AI pilot on both seats. 90-second matches, so it fits on a phone. Nothing leaves this device.
-          </Body>
+          <View style={{ alignItems: 'center', marginTop: 40 }}>
+            <Image source={CHAR_ART.coach} style={{ width: 130, height: 130 }} resizeMode="contain" accessibilityLabel="AI Coach" />
+            <Ribbon text="AI COACH" size={26} />
+            <Body size={14} style={{ textAlign: 'center' }}>Finds the swap that wins you more battles.</Body>
+          </View>
 
           {phase === 'idle' ? <Btn label="SCOUT MY DECK" size="lg" onPress={() => void scout()} /> : null}
 
@@ -163,7 +163,7 @@ export function CoachSheet() {
 }
 
 const st = StyleSheet.create({
-  wrap: { flex: 1, backgroundColor: '#0a1a3d' },
+  wrap: { flex: 1, backgroundColor: '#0A1028' },
   between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   swapRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, marginVertical: 10 },
 });

@@ -79,7 +79,7 @@ const TONES: Record<Tone, { top: string; mid?: string; bottom: string; edge: str
   skr: { top: '#FFE08A', mid: '#F2B33D', bottom: '#C98316', edge: '#8A5A0C', text: '#3A2200' },
   blue: { top: '#9B6CFF', bottom: '#6A3FE0', edge: '#3F2399', text: '#fff' },
   green: { top: '#6CF2B5', bottom: '#2DB57A', edge: '#1A6E4A', text: '#fff' },
-  ghost: { top: 'rgba(255,255,255,0.10)', bottom: 'rgba(255,255,255,0.04)', edge: 'rgba(184,134,43,0.55)', text: '#fff' },
+  ghost: { top: '#26336A', bottom: '#18234D', edge: '#0B1230', text: '#fff' },
 };
 
 /**

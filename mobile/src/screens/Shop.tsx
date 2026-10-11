@@ -15,7 +15,7 @@ import { ARENA_SKINS, FRAME_SKINS, ownsSkin, usePassChain, type SkinDef } from '
 
 import { buySkin } from '../game/actions';
 import { readableError } from '../chain/send';
-import { FEATURE_ART, ITEM_ART, REWARD_ART } from '../data/cosmeticArt';
+import { FEATURE_ART, ITEM_ART, PREMIUM_UI, REWARD_ART } from '../data/cosmeticArt';
 import { HeroSpace } from '../ui/Backdrop';
 import { ProofSeal } from '../ui/ProofSheet';
 
@@ -124,10 +124,12 @@ function Cosmetics() {
     <Panel>
       <View style={st.between}>
         <Display size={20}>Skins</Display>
-        <Tag
-          text={pc.status === 'live' ? '✓ YOURS ON CHAIN' : pc.status === 'preview' ? 'SOON' : pc.status === 'offline' ? 'OFFLINE' : ' '}
-          color={pc.status === 'live' ? C.skr : C.goldHi}
-        />
+        {pc.status === 'live' ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Image source={PREMIUM_UI.stamp} style={{ width: 22, height: 22 }} />
+            <Body size={12} bold color={C.gold}>Owned</Body>
+          </View>
+        ) : pc.status === 'offline' ? <Tag text="OFFLINE" color={C.dim} /> : null}
       </View>
       <Display size={16} style={{ marginTop: 8 }}>Arena skins</Display>
       <View style={st.skinRow}>{ARENA_SKINS.map((s) => item(s, 'arena'))}</View>

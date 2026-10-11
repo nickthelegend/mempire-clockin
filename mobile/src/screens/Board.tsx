@@ -225,7 +225,7 @@ export function BoardSheet() {
 }
 
 const st = StyleSheet.create({
-  wrap: { flex: 1, backgroundColor: '#0a1a3d' },
+  wrap: { flex: 1, backgroundColor: '#0A1028' },
   between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   banner: {
     flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: R.panel,

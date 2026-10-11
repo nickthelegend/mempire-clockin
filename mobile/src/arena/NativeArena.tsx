@@ -536,7 +536,7 @@ export function NativeArena() {
 
         <Hud onQuit={quit} onHeight={setHudH} />
 
-        <LinearGradient colors={['#8a5a2b', C.wood, C.woodDark]} style={[st.tray, { paddingBottom: Math.max(insets.bottom, 10), paddingLeft: trayPadX + insets.left, paddingRight: trayPadX + insets.right }]}>
+        <LinearGradient colors={['#18234D', '#121B3D', '#0A1028']} style={[st.tray, { paddingBottom: Math.max(insets.bottom, 10), paddingLeft: trayPadX + insets.left, paddingRight: trayPadX + insets.right }]}>
           <View style={st.elixirRow}>
             <View style={st.elixirBar}>
               {Array.from({ length: 10 }, (_, i) => (
@@ -636,7 +636,7 @@ const st = StyleSheet.create({
   sub: { color: C.dim, fontFamily: F.uiBold, fontSize: 11, letterSpacing: 1 },
   crowns: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4 },
   crown: { fontFamily: F.display, fontSize: 22 },
-  tray: { paddingTop: 8, paddingHorizontal: 10, borderTopWidth: 3, borderTopColor: C.woodEdge },
+  tray: { paddingTop: 8, paddingHorizontal: 10, borderTopWidth: 1.5, borderTopColor: 'rgba(247,215,116,0.6)' },
   elixirRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   elixirBar: { flex: 1, height: 18, flexDirection: 'row', gap: 2, backgroundColor: C.ink, borderRadius: 9, padding: 2, borderWidth: 2, borderColor: 'rgba(0,0,0,0.5)' },
   elixirCell: { flex: 1, backgroundColor: 'rgba(216,56,216,0.18)', borderRadius: 4, overflow: 'hidden' },

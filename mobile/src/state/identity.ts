@@ -68,15 +68,40 @@ export const useIdentity = create<IdentityState>((set, get) => ({
   },
 }));
 
-/** "alice.skr" once resolved, the short address until then (and forever if none). */
-export function useDisplayName(address: string | null | undefined, n = 4): { label: string; skr: string | null } {
+/** Player names the user chose for their own wallet(s), kept on this device. */
+const NICK_KEY = (a: string) => `mempire.nick.v1.${a}`;
+export const useNicknames = create<{ nicks: Record<string, string>; setNick: (a: string, n: string) => void; load: (a: string) => Promise<void> }>((set, get) => ({
+  nicks: {},
+  setNick: (a, n) => {
+    const clean = n.replace(/[^\p{L}\p{N} _.-]/gu, '').trim().slice(0, 18);
+    set({ nicks: { ...get().nicks, [a]: clean } });
+    void AsyncStorage.setItem(NICK_KEY(a), clean).catch(() => {});
+  },
+  load: async (a) => {
+    const v = await AsyncStorage.getItem(NICK_KEY(a)).catch(() => null);
+    if (v) set({ nicks: { ...get().nicks, [a]: v } });
+  },
+}));
+
+/** "Emperor #9ph8": the default player name for an address with no .skr name. */
+export const defaultPlayerName = (address: string | null | undefined): string =>
+  (address ? `Emperor #${address.slice(-4)}` : 'Emperor');
+
+/**
+ * The name shown for a player: their .skr name once resolved, else the name
+ * they chose on this device, else "Emperor #xxxx". `short` keeps the address
+ * form for the proof sheets.
+ */
+export function useDisplayName(address: string | null | undefined, n = 4): { label: string; skr: string | null; short: string } {
   const skr = useIdentity((s) => (address ? s.names[address] : undefined));
+  const nick = useNicknames((s) => (address ? s.nicks[address] : undefined));
   useEffect(() => {
     if (!address) return;
     try { new PublicKey(address); } catch { return; }
     void useIdentity.getState().resolve(address);
+    void useNicknames.getState().load(address);
   }, [address]);
-  return { label: displayName(address, skr, n), skr: skr ?? null };
+  return { label: skr || nick || defaultPlayerName(address), skr: skr ?? null, short: displayName(address, null, n) };
 }
 
 /** Forward lookup for the "find a Seeker" field: alice.skr → owner address. */

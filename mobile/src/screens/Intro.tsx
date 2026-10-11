@@ -52,7 +52,7 @@ function Art({ kind }: { kind: (typeof SLIDES)[number]['art'] }) {
     return (
       <View style={st.artRow}>
         {INTRO_FIGHTERS.map((t, i) => (
-          <LinearGradient key={t} colors={['#3a2a6e', '#1b2c55']} style={[st.card, { transform: [{ rotate: `${(i - 1) * 10}deg` }, { translateY: i === 1 ? -10 : 4 }] }]}>
+          <LinearGradient key={t} colors={['#18234D', '#0A1028']} style={[st.card, { transform: [{ rotate: `${(i - 1) * 10}deg` }, { translateY: i === 1 ? -10 : 4 }] }]}>
             <Image source={CARD_ART[t]} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
           </LinearGradient>
         ))}

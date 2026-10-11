@@ -8,6 +8,7 @@ import { haptic } from '../notify';
 import { ARCH_NAMES, C, R } from '../theme';
 import { ArchIcon, Body, Btn, CardTile, Display, Panel, Rise, Tag, Ribbon } from '../ui/kit';
 import { ARCHETYPES } from '../../../app/src/sim/archetypes';
+import { HeroSpace } from '../ui/Backdrop';
 
 const ALL_KINDS = [
   { id: 'all', label: 'All' },
@@ -91,12 +92,12 @@ export function CardsScreen() {
   const upgradable = Object.entries(cards).filter(([, c]) => c.level < MAX_LEVEL && c.copies >= COPIES_TO_LEVEL[c.level]).length;
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 120 }}>
+    <ScrollView contentContainerStyle={{ paddingHorizontal: 14, gap: 12, paddingBottom: 120 }}>
       <Rise>
-        <View style={{ alignItems: 'center', gap: 6 }}>
-          <Ribbon text="Fighters" tone="blue" />
-          <Body size={13}>{found}/{ROSTER.length} found{upgradable ? ` · ${upgradable} ready to upgrade` : ''}</Body>
-        </View>
+        <HeroSpace offset={30}>
+          <Ribbon text="FIGHTERS" size={26} />
+          <Body size={13} color="#fff">{found}/{ROSTER.length} found{upgradable ? ` · ${upgradable} ready to upgrade` : ''}</Body>
+        </HeroSpace>
       </Rise>
       <View style={{ flexDirection: 'row', gap: 8 }}>
         {KINDS.map((k) => (

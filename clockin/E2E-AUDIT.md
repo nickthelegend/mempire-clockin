@@ -98,3 +98,25 @@ Shipped as **1.6.1** (versionCode 14): APK sha256 `0cc79691963a181cf74fa1d2cf9a5
 - **Native 3D arena at full frame rate**: the simulator renders OpenGL in software (3–4 fps). On a phone, Auto picks the native arena; check 60 fps and the pause overlay after backgrounding.
 - **Push / local notification delivery** (streak reminder): schedule fires only on a device; leave the app unopened past the reminder time.
 - **Seeker Genesis Token perk**: needs a wallet holding the SGT on mainnet (read-only check).
+
+## 1.6.2: the blocked devnet steps, finished on live devnet (12 Oct)
+
+The public RPC cleared at about 01:06 IST. Every step below was run against devnet and read back with `getTransaction`.
+
+| # | Step | Result | Devnet proof | Screen |
+|---|---|---|---|---|
+| 41 | Blink: `POST /api/actions/challenge?rival=blue-chips` → the returned memo tx signed by the account and sent | PASS (fee payer = the account, memo `mempire:challenge:v1:blue-chips`) | [4s1QTnag…](https://explorer.solana.com/tx/4s1QTnagqAxhP49AouUr5xodoSxAVtVbawp33iRhYP4W2jb3LgaKiNUKpw73MkrK4uGue8MD2Zz7oYRVowz2bUWp?cluster=devnet) | |
+| 42 | Session delegate, fresh owner `5WDk…iwSw` (`mobile/scripts/e2e-session.ts`, the app's own builders): `create_session` → SessionRecord expiresAt 1792352717 | PASS | [3Ndvsuiq…](https://explorer.solana.com/tx/3NdvsuiqKhbyrJKry3MpRZrXtzbUbGYGiQNyoyJndTBo1fU2fHhbmpai9uCduDHDp2B7dcS4zWq66WCSRTbQC1mf?cluster=devnet) | |
+| 43 | Session-signed `clock_in` with war pledge BONK (no owner signature) → ClockInState day 20261011, streak 1, warSide 1 | PASS | [39R1fweq…](https://explorer.solana.com/tx/39R1fweqjUaDTMfrZxKsauDJF7as1QywXCRc7GYQeULuqx4N9g9iCpc68JBzTZHdGgUBbQTmy21FzQBp9GivnUC8?cluster=devnet) | |
+| 44 | `revoke_session` signed by the session key + float sweep → SessionRecord gone (`null`) | PASS | [A9Tj8b8b…](https://explorer.solana.com/tx/A9Tj8b8bSnRVD5xFR8SzZQRjyxc7E3nm9KYstapttMVbMc7N3VkGEbWZfPeE1zhRQvUgJSG17h4QdJQf79nMXFs?cluster=devnet) | |
+| 45 | Season War: pledge BONK in the app; global tally read from chain on the phone shows BONK 2 Clock-Ins · 2 wallets, with the session owner #1 | PASS | tally reads the WAR_REF history (incl. #43) | game-war-pledge-bonk, game-war-tally-bonk |
+| 46 | Ghost Duel post from the app (DUEL A FRIEND after a native Standard match, 3 deploys) | PASS | [4iKK9ebU…](https://explorer.solana.com/tx/4iKK9ebU9L2Z3AVbBBCyf5sTPhr8o1ZKbhdqRxwjWFSXrvrbvyi1xvshngeZj9mdYqJhLPGCdgEs3YNNUYcxPRav?cluster=devnet) | game-ghost-posted-qr |
+| 47 | Scan to duel: the Solana Pay QR's Action (`/api/actions/duel?c=…`) POSTed, signed and sent | PASS (memo `mempire:duel-accept:v1:4iKK…`) | [2PktR8gM…](https://explorer.solana.com/tx/2PktR8gM1C9XCqRaYSaZxZJpBHHWtAmq5e1wBZS8xpPbxFsSaXaTExKAonbKhAmDKYhVTj7uqoTGa2a2rsUGJ8oa?cluster=devnet) | |
+| 48 | Ghost opened from the deep link `mempire://duel?c=4iKK…` (read from chain: "verified on chain", 3 recorded moves) → fought in the native arena → re-simulated "replay confirms it" → result posted | PASS | [4VhBjmmU…](https://explorer.solana.com/tx/4VhBjmmUW5krucyUxxcE5CChujMCXsmtJxgvea2g5mN4CtFSgidmPEbGus32VhJJFrQ9mQ5E8nhxoahx1PdCmFx5?cluster=devnet) | game-duel-from-deeplink, game-ghost-fought-result-posted |
+| 49 | A second ghost (AoG9…'s) fought and answered | PASS | [ACKTfX75…](https://explorer.solana.com/tx/ACKTfX75FKzefJsNHKSqcqqEGQhqXPBXccc94UGPBjdBGi7Mtsk7VEoaJEfq7NHeFnvM2fHvwPR3msHsvWXQU2p?cluster=devnet) | game-duel-result-posted |
+| 50 | Chain Powers with the RPC healthy: 10 of 11 powers ACTIVE (Seeker locked: no Genesis Token on a dev wallet) | PASS | — | game-chainpowers |
+
+Spent for these steps: 0.03 SOL to the second owner plus fees, from the hub.
+
+### 1.6.2 game UI
+One design system (`mobile/src/theme.ts`, `src/ui/kit.tsx`, `src/ui/Backdrop.tsx`): navy palette with gold rims, hero headers with the painted art, ribbon titles, the Emperor mascot, stamp seals, gold price pills, HUD pills (trophy, SKR), icon-only tab bar. Hashes, PDAs and the cluster name only appear inside the Proof sheets. Screens: `clockin/screens/e2e/game-*.png`.

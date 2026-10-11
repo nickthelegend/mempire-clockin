@@ -363,7 +363,7 @@ export function OnChainSheet() {
 }
 
 const st = StyleSheet.create({
-  wrap: { flex: 1, backgroundColor: '#0a1a3d' },
+  wrap: { flex: 1, backgroundColor: '#0A1028' },
   hero: { width: 220, height: 170, alignItems: 'center', justifyContent: 'center' },
   heroGlow: {
     position: 'absolute', width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(255,196,34,0.18)',

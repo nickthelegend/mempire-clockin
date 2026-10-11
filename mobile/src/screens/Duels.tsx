@@ -169,13 +169,17 @@ function Board() {
           <View key={c.sig} style={st.challenge}>
             <View style={st.row}>
               <View style={{ flex: 1 }}>
-                <View style={[st.row, { justifyContent: 'flex-start', gap: 6 }]}>
-                  <Who address={c.signer} />
-                  <Body size={12} color={C.dim}>{mine ? 'challenged anyone' : 'challenges you'} · {ago(c.time)}</Body>
+                <View style={[st.row, { justifyContent: 'flex-start', gap: 8 }]}>
+                  <Image source={UI_ART.avatar_guest} style={{ width: 34, height: 34, borderRadius: 17, borderWidth: 2, borderColor: mine ? C.gold : C.purple }} />
+                  <View style={{ flexShrink: 1 }}>
+                    <Who address={c.signer} />
+                    <Body size={12} color={C.dim}>{ago(c.time)}</Body>
+                  </View>
+                  <Image source={ITEM_ART.vs} style={{ width: 26, height: 26 }} resizeMode="contain" />
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                  <ProofSeal label="ON CHAIN" info={{ title: 'Ghost challenge', art: FEATURE_ART.ghostduel, glow: C.bluePale, about: 'This challenge is a transaction carrying the recorded moves. Every answer is replayed on your phone before it gets a ✓.', proofs: [{ label: `challenge ${short(c.sig, 6)}`, url: explorerTx(c.sig) }] }} />
-                  <Body size={11} color={C.dim}>{rs.length} answer{rs.length === 1 ? '' : 's'}</Body>
+                  <ProofSeal compact info={{ title: 'Ghost challenge', art: FEATURE_ART.ghostduel, glow: C.bluePale, about: 'This challenge is a transaction carrying the recorded moves. Every answer is replayed on your phone before it gets a ✓.', proofs: [{ label: `challenge ${short(c.sig, 6)}`, url: explorerTx(c.sig) }] }} />
+                  <Body size={12} color={C.dim}>{rs.length ? `${rs.length} fight${rs.length === 1 ? '' : 's'}` : 'No fights yet'}</Body>
                 </View>
               </View>
               {mine ? (
@@ -243,6 +247,7 @@ function sendGhost() {
   haptic.tap();
   const m = prepareMatch(1, false);
   m.renderer = 'native';
+  m.forcedRenderer = true; // a ghost is recorded by the native arena only
   useUi.getState().openBattle(m);
 }
 

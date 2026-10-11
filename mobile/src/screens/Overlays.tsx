@@ -27,6 +27,7 @@ import { readableError } from '../chain/send';
 import { CHAR_ART, FEATURE_ART, ITEM_ART, REWARD_ART, MASCOT } from '../data/cosmeticArt';
 import { ProofSeal } from '../ui/ProofSheet';
 import { Celebrate, usePopIn } from '../ui/Celebrate';
+import { defaultPlayerName, useNicknames } from '../state/identity';
 
 /** Chest opening: shake, burst, then the fighters land one by one. */
 function PopIn({ children }: { children: React.ReactNode }) {
@@ -264,7 +265,7 @@ function DuelResult({ r }: { r: MatchResult }) {
       ) : d.challengeSig ? (
         <Btn
           label="POST RESULT"
-          sub="put your win on the record"
+          sub="put this duel on the record"
           tone="gold"
           size="sm"
           busy={busy}
@@ -363,6 +364,27 @@ export function ResultSheet() {
   );
 }
 
+/** The player name shown in the HUD and on boards (a .skr name always wins). */
+function NameEditor({ address }: { address: string }) {
+  const nick = useNicknames((st2) => st2.nicks[address]);
+  const [v, setV] = useState<string | null>(null);
+  return (
+    <View style={{ marginTop: 8, gap: 4 }}>
+      <Body size={12} bold>Player name</Body>
+      <TextInput
+        value={v ?? nick ?? ''}
+        onChangeText={setV}
+        onEndEditing={() => { if (v !== null) { useNicknames.getState().setNick(address, v); setV(null); } }}
+        placeholder={defaultPlayerName(address)}
+        placeholderTextColor={C.dim}
+        maxLength={18}
+        style={{ backgroundColor: C.panelRaised, color: '#fff', borderRadius: 12, paddingHorizontal: 12, minHeight: 44, borderWidth: 1, borderColor: 'rgba(247,215,116,0.35)', fontSize: 15 }}
+        accessibilityLabel="Player name"
+      />
+    </View>
+  );
+}
+
 export function WalletSheet() {
   const open = useUi((s) => s.walletOpen);
   const setOpen = useUi((s) => s.setWalletOpen);
@@ -379,9 +401,10 @@ export function WalletSheet() {
         <ScrollView bounces={false} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <Panel>
           <View style={st.row}>
-            <Display size={22}>Wallet & settings</Display>
-            <Tag text={kind === 'dev' ? 'DEVNET ONLY' : sgt ? 'SEEKER VERIFIED' : 'MWA'} color={kind === 'dev' ? C.goldHi : C.teal} />
+            <Display size={22}>Profile</Display>
+            {sgt ? <Tag text="SEEKER" color={C.teal} /> : null}
           </View>
+          <NameEditor address={address} />
           <Body color={C.dimOnWood}>{walletLabel(kind)}</Body>
           <Pressable onPress={() => { void Clipboard.setStringAsync(address); haptic.tap(); say('Address copied'); }}>
             <Well style={{ marginVertical: 10 }}>

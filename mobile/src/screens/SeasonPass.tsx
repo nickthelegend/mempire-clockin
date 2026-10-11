@@ -92,9 +92,10 @@ function PremiumCard() {
         />
       </View>
       {premium ? (
-        <Body size={12} color="#fff">
-          You hold the Season {SEASON_ID} pass. It is bound to your wallet for good, and every premium reward is unlocked.
-        </Body>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Image source={PREMIUM_UI.stamp} style={{ width: 26, height: 26 }} />
+          <Body size={14} bold color={C.gold}>Pass owned · soulbound</Body>
+        </View>
       ) : pc.status === 'live' ? (
         <>
           <Body size={12} color="#fff">
@@ -121,7 +122,7 @@ function PremiumCard() {
         <Shimmerish />
       )}
       {sig || premium ? (
-        <ProofSeal info={{ title: 'Season Pass', art: REWARD_ART.pass, glow: C.gold, about: 'A soulbound token: it cannot be sold or sent, so the pass is yours alone. The game reads it from your wallet every time.', proofs: [...(sig ? [{ label: `purchase ${short(sig, 6)}`, url: explorerTx(sig) }] : []), { label: `pass ${short(passMint(SEASON_ID).toBase58(), 6)}`, url: explorerAddr(passMint(SEASON_ID).toBase58()) }] }} />
+        <ProofSeal compact tone="gold" info={{ title: 'Season Pass', art: REWARD_ART.pass, glow: C.gold, about: 'A soulbound token: it cannot be sold or sent, so the pass is yours alone. The game reads it from your wallet every time.', proofs: [...(sig ? [{ label: `purchase ${short(sig, 6)}`, url: explorerTx(sig) }] : []), { label: `pass ${short(passMint(SEASON_ID).toBase58(), 6)}`, url: explorerAddr(passMint(SEASON_ID).toBase58()) }] }} />
       ) : null}
     </Well>
   );
@@ -287,7 +288,7 @@ export function SeasonPassSheet() {
 }
 
 const st = StyleSheet.create({
-  wrap: { flex: 1, backgroundColor: '#0a1a3d' },
+  wrap: { flex: 1, backgroundColor: '#0A1028' },
   between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   headRow: { flexDirection: 'row', gap: 8, alignItems: 'center', paddingHorizontal: 2 },
   row: { flexDirection: 'row', gap: 8, alignItems: 'stretch' },

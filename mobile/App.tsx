@@ -64,8 +64,8 @@ void SplashScreen.preventAutoHideAsync();
 
 const TABS: { id: Tab; label: string; icon: ImageSourcePropType }[] = [
   { id: 'home', label: 'Home', icon: NAV_ART.home },
-  { id: 'cards', label: 'Cards', icon: UI_ART.tab_cards },
-  { id: 'deck', label: 'Deck', icon: NAV_ART.deck },
+  { id: 'cards', label: 'Cards', icon: NAV_ART.deck },
+  { id: 'deck', label: 'Deck', icon: NAV_ART.battle },
   { id: 'duels', label: 'Duels', icon: NAV_ART.duels },
   { id: 'shop', label: 'Shop', icon: NAV_ART.shop },
 ];
@@ -87,12 +87,10 @@ function Header() {
   return (
     <View style={[st.header, { paddingTop: insets.top + 6 }]}>
       <Pressable style={({ pressed }) => [st.who, pressed && { opacity: 0.75 }]} onPress={() => { haptic.tap(); setWalletOpen(true); }} accessibilityRole="button" accessibilityLabel="Wallet and settings">
-        <Image source={UI_ART.avatar_guest} style={st.avatar} />
+        <Image source={UI_ART.avatar_guest} style={[st.avatar, { borderColor: siws ? C.gold : C.dim }]} />
         <View style={{ flexShrink: 1 }}>
-          <Body size={13} color={who.skr ? C.teal : '#fff'} bold numberOfLines={1} style={{ maxWidth: 130 }}>{who.label}</Body>
-          <Body size={10} color={sgt ? C.teal : kind === 'dev' ? C.goldHi : C.dim} bold numberOfLines={2}>
-            {sgt ? 'SEEKER ✓' : siws ? 'SIGNED IN ✓' : kind === 'dev' ? 'PRACTICE' : 'WALLET'}
-          </Body>
+          <Display size={15} color={who.skr ? C.teal : '#fff'} style={{ maxWidth: 140 }}>{who.label}</Display>
+          {sgt ? <Body size={10} color={C.teal} bold>SEEKER</Body> : null}
         </View>
       </Pressable>
       <View style={{ flexDirection: 'row', gap: 8, flexShrink: 0, alignItems: 'center' }}>
@@ -126,6 +124,24 @@ function NetIcon() {
   );
 }
 
+/** Icon-only tab: the active one springs up 8 px, scales 1.15× and glows gold. */
+function TabIcon({ icon, label, on, dot, onPress }: { icon: ImageSourcePropType; label: string; on: boolean; dot: boolean; onPress: () => void }) {
+  const v = useRef(new Animated.Value(on ? 1 : 0)).current;
+  useEffect(() => {
+    Animated.spring(v, { toValue: on ? 1 : 0, friction: 6, tension: 140, useNativeDriver: true }).start();
+  }, [on, v]);
+  return (
+    <Pressable accessibilityRole="tab" accessibilityState={{ selected: on }} accessibilityLabel={label} onPress={onPress} style={st.tab} hitSlop={4}>
+      <Animated.View style={[st.tabGlow, { opacity: v, transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }] }]} />
+      <Animated.View style={{ transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, -8] }) }, { scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 1.15] }) }] }}>
+        <Animated.Image source={icon} style={{ width: 42, height: 42, opacity: v.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] }) }} resizeMode="contain" />
+        {dot ? <View style={st.dot} /> : null}
+      </Animated.View>
+      <Animated.View style={[st.tabUnderline, { opacity: v }]} />
+    </Pressable>
+  );
+}
+
 function TabBar() {
   const insets = useSafeAreaInsets();
   const tab = useUi((s) => s.tab);
@@ -143,19 +159,7 @@ function TabBar() {
         const on = tab === t.id;
         const dot = (t.id === 'cards' && upgradable) || (t.id === 'home' && chestReady);
         return (
-          <Pressable
-            key={t.id}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: on }}
-            accessibilityLabel={t.label}
-            onPress={() => { if (!on) { haptic.tap(); setTab(t.id); } }}
-            style={[st.tab, on && st.tabOn]}
-          >
-            {on ? <View style={st.tabGlow} /> : null}
-            <Image source={t.icon} style={{ width: 30, height: 30, transform: [{ translateY: on ? -6 : 0 }, { scale: on ? 1.25 : 1 }], opacity: on ? 1 : 0.7 }} resizeMode="contain" />
-            <Text maxFontSizeMultiplier={1.1} style={{ fontFamily: 'LilitaOne_400Regular', fontSize: 11, color: on ? C.goldHi : C.dim, marginTop: on ? -2 : 2 }}>{t.label}</Text>
-            {dot ? <View style={st.dot} /> : null}
-          </Pressable>
+          <TabIcon key={t.id} icon={t.icon} label={t.label} on={on} dot={dot} onPress={() => { if (!on) { haptic.tap(); setTab(t.id); } }} />
         );
       })}
     </View>
@@ -439,16 +443,16 @@ const st = StyleSheet.create({
   cloud: { position: 'absolute', width: 22, height: 12, borderRadius: 6, bottom: 8, backgroundColor: 'rgba(255,255,255,0.25)' },
   tabs: {
     flexDirection: 'row', backgroundColor: C.bg, borderTopWidth: 1, borderTopColor: 'rgba(247,215,116,0.55)',
-    paddingTop: 8, paddingHorizontal: 6,
+    paddingTop: 10, paddingHorizontal: 8, minHeight: 72,
   },
-  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4, minHeight: 52 },
-  tabOn: {},
+  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 60 },
   tabGlow: {
-    position: 'absolute', bottom: 10, width: 46, height: 14, borderRadius: 23, backgroundColor: 'rgba(247,201,72,0.35)',
-    shadowColor: C.gold, shadowOpacity: 1, shadowRadius: 12, shadowOffset: { width: 0, height: 0 },
+    position: 'absolute', width: 64, height: 64, borderRadius: 32, top: -8, backgroundColor: 'rgba(247,201,72,0.18)',
+    shadowColor: C.gold, shadowOpacity: 0.9, shadowRadius: 16, shadowOffset: { width: 0, height: 0 },
   },
+  tabUnderline: { position: 'absolute', bottom: 2, width: 18, height: 4, borderRadius: 2, backgroundColor: C.gold },
   dot: {
-    position: 'absolute', top: 2, right: '28%', width: 10, height: 10, borderRadius: 5,
+    position: 'absolute', top: -2, right: -4, width: 11, height: 11, borderRadius: 6,
     backgroundColor: C.red, borderWidth: 1.5, borderColor: '#fff',
   },
 });
