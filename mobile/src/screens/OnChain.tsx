@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { PublicKey } from '@solana/web3.js';
 import { Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { ALL_SKINS, PASS_PROGRAM, hasPremium, ownsSkin, passMint, usePassChain, SEASON_ID } from '../chain/pass';
-import { clockStatePda, programLive, readClockState, type ClockState } from '../chain/clockin';
+import { clockStatePda, programLive, readClockState, readSessionRecord, type ClockState } from '../chain/clockin';
 import { CLUSTER_LABEL, connection, explorerAddr, explorerTx, short } from '../chain/solana';
 import { SKR_LABEL, SKR_LIVE, SKR_MINT } from '../chain/skr';
 import { ACTIONS_BASE, actionUrl, blinkUrl } from '../game/blink';
@@ -69,11 +69,15 @@ export function OnChainSheet() {
   const [live, setLive] = useState<boolean | null>(null);
   const [state, setState] = useState<ClockState | null | undefined>(undefined);
   const [passBlink, setPassBlink] = useState<'on' | 'off' | null>(null);
+  /** Does this phone's session key have a SessionRecord on this cluster? */
+  const [record, setRecord] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!open || !address) return;
     let gone = false;
     void programLive(connection).then((ok) => { if (!gone) setLive(ok); });
+    const key = useSession.getState().cur?.session;
+    if (key) void readSessionRecord(connection, address, key).then((r) => { if (!gone) setRecord(!!r); }).catch(() => { if (!gone) setRecord(null); });
     void readClockState(connection, address).then((s) => { if (!gone) setState(s); }).catch(() => { if (!gone) setState(null); });
     void usePassChain.getState().refresh(address);
     if (!useWar.getState().board) void useWar.getState().refresh();
@@ -110,11 +114,11 @@ export function OnChainSheet() {
 
           <Row
             title="Session key (approve once)"
-            tone={notDeployed ? 'pending' : session ? 'live' : 'off'}
-            chip={session ? (notDeployed ? `MEMO LINK · ${final}` : `EXPIRES ${new Date(session.expiresAt * 1000).toLocaleDateString()}`) : 'OFF'}
+            tone={notDeployed || (session && record === false) ? 'pending' : session ? 'live' : 'off'}
+            chip={session ? (notDeployed ? `MEMO LINK · ${final}` : record === false ? 'NO RECORD HERE · TOGGLE TO RE-LINK' : `EXPIRES ${new Date(session.expiresAt * 1000).toLocaleDateString()}`) : 'OFF'}
             links={session ? [{ label: `key ${short(session.session)}`, url: explorerAddr(session.session) }, { label: 'link tx', url: explorerTx(session.linkSig) }] : undefined}
           >
-            <Line>{session ? `SessionRecord PDA checked by mempire_pass on every Clock-In${sessionChain ? ` · ${sessionChain.accepted} session Clock-In(s) accepted from chain` : ''}.` : 'Turn on "Approve once · 7 days" on the Clock-In card.'}</Line>
+            <Line>{session && record === false ? 'This key was linked on another cluster (or with the memo-only link): there is no SessionRecord here, so Clock-Ins use your wallet. Turn the toggle off and on to link it on this cluster.' : session ? `SessionRecord PDA checked by mempire_pass on every Clock-In${sessionChain ? ` · ${sessionChain.accepted} session Clock-In(s) accepted from chain` : ''}.` : 'Turn on "Approve once · 7 days" on the Clock-In card.'}</Line>
           </Row>
 
           <Row

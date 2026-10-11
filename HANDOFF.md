@@ -95,6 +95,14 @@ It is read-only and uses the existing caches. On a cluster without `mempire_pass
 
 The QR codes come from `qrcode-generator` (pure JS) and are shown as a GIF data URL, so there is no native module. Tests: `app/tests/scan-duel.test.ts`.
 
+**Simulator (iPhone 17)**, screenshots in `clockin/screens/final/`. These were taken against a local validator with `mempire_pass` loaded: the public devnet RPC rate-limited this machine's IP (HTTP 429) for over an hour after the sweep, probably because other agents share the address.
+
+- **01 / 06:** the On-chain screen, live. It shows SIWS verified; the session key, re-linked, which created its SessionRecord on this cluster through the new landing path; the Clock-In PDA link; the pass mint and the program; the SKR stand-in; 1 duel sent; the war tally; the Season Pass Blink live (read from the Vercel Action on devnet); and the Seeker identity.
+- **02:** the wallet sheet's ON-CHAIN STATUS entry.
+- **03 / 04:** a native-arena Rush match, two cards deployed, then DUEL A FRIEND posted the ghost on chain and the Scan to duel card appeared. The Solana Pay QR was decoded from the screenshot with jsQR to `solana:https%3A%2F%2Fmempire-actions.vercel.app%2Fapi%2Factions%2Fduel%3Fc%3DYYeU…NSBp`, and the app-link QR to `mempire://duel?c=YYeU…NSBp`.
+- **05:** opening that app link loads the duel from chain ("matches its on-chain commitment").
+- **Fix found on the way:** the session row now checks that the phone's key has a SessionRecord on the current cluster. A key linked on another cluster says "no record here · toggle to re-link" instead of claiming one.
+
 ## Go devnet (final step)
 
 **Done on Oct 11 (see above).** It is still the command for any re-run, which is idempotent, and for shipping. Everything that goes on devnet is one command:
