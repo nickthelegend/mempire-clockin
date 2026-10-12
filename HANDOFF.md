@@ -4,6 +4,15 @@ Status as of 2026-10-12, 03:20 IST (1.6.3). This file records only what was run 
 
 ## What was verified, and how
 
+**Current state (1.6.3):** the full end-to-end run on live devnet is in
+[`clockin/E2E-AUDIT.md`](clockin/E2E-AUDIT.md). The Release build on the
+iPhone 17 simulator covered the Clock-In PDA, SKR stand-in faucet mints and
+payments, the session key, chest commits, the Season Pass, skins, Season War,
+Ghost Duels and Blinks, each with its devnet transaction. The table below is
+the **first pass (1.0.x, Oct 7)**, from before the stand-in mint and
+`mempire_pass` were on devnet. Its "not on-chain yet" and "SIMULATED" notes
+are historical. The release APK has still not been run on Android hardware.
+
 All app verification was on the **iOS simulator** (iPhone 17,
 `91D81975-0680-40B8-92D2-725D726953AF`), running a **Release** build of
 `mobile/` with the JS bundle embedded, so no Metro was involved. Screenshots
@@ -515,7 +524,7 @@ Re-verified on the iPhone 17 simulator after these changes, with a Release build
 - A standard match played to the end and showed the native DEFEAT sheet (-15 trophies).
 - The relocated quit button opened the confirm; Leave produced a native loss result.
 
-Uploaded to the `clockin-v1` release with `--clobber`. (That was the round-2 build; the current upload is the native-arena build, versionCode 3; see *APK* above.)
+Uploaded to the `clockin-v1` release with `--clobber`. (That was the round-2 build. It has since been superseded; the current upload is 1.6.3, versionCode 16; see *APK* above.)
 
 Still unverified on Android, by necessity: real MWA approval with a wallet,
 WebGL performance in the Android WebView, notification delivery, and haptics.

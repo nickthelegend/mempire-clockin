@@ -115,7 +115,11 @@ SKR earned from streaks buys **Streak Shields**, so the habit protects itself.
 
 **Devnet transaction links: [`clockin/DEVNET-EVIDENCE.md`](DEVNET-EVIDENCE.md)** (Oct 11). It has 13 real devnet transactions, each made with the app's own builders: a session link (`create_session`), a session-signed `clock_in` with the war pledge, an on-chain chest commit plus a verified roll, SKR faucet claims, the Season Pass and a skin bought, a Shop payment, and a ghost-duel challenge with its replay-verified result. SIWS is verified off-chain. The Season Pass Blink is live. Without SOL the app still degrades honestly: the Clock-In is kept on the device and labelled "Not on-chain: no devnet SOL for the network fee".
 
-What *has* been executed on-chain is the same code against a local validator
+**End-to-end audit of 1.6.x on live devnet: [`clockin/E2E-AUDIT.md`](E2E-AUDIT.md)**
+(Oct 11 and 12). The Release build ran on the iOS simulator, and every on-chain step
+links its devnet transaction.
+
+Before devnet, the same code ran against a local validator
 that runs the real devnet `spl-token-faucet` program (`npm run verify:local`,
 9/9 checks). In that run, Clock-In memos land and mint the stand-in SKR, the
 streak is rebuilt from chain, a Shop payment reaches the treasury, and the
@@ -157,11 +161,14 @@ decimals, `transferChecked`. The public `spl-token-faucet` program
 (`4bXpkKSV8swHSnwqtzuboGPaPDeEgAn4Vt8GfarV5rZt`) holds its mint authority, so
 the Clock-In transaction mints the day's reward and no key ships in the APK.
 `mobile/scripts/setup-skr-devnet.mjs` creates the mint with one command.
-**Status in the submitted APK:** the stand-in mint has **not** been deployed
-yet (it needs about 0.02 devnet SOL). The APK therefore runs SKR as a
-device-local balance, labelled **SIMULATED** on every screen where it
-appears. After `setup-skr-devnet.mjs` runs, a rebuild switches the same
-screens over to the on-chain stand-in.
+**Status in the submitted APK (1.6.3):** the stand-in mint is live on devnet
+([`AWruExU2wyLGxFBqAeDs1YtNKJtbo9ucdGKWENaXY6ez`](https://explorer.solana.com/address/AWruExU2wyLGxFBqAeDs1YtNKJtbo9ucdGKWENaXY6ez?cluster=devnet),
+created Oct 11) and its config is in the bundle, so Clock-In rewards, Shop
+payments, the Season Pass and skins all move on-chain stand-in SKR. The
+end-to-end audit shows the faucet mints, the `buy_pass` and `buy_skin`
+transfers to the treasury vault, and the double-tap checks
+([`E2E-AUDIT.md`](E2E-AUDIT.md) rows 4, 5, 12 and 14). If a build ever ships
+without that config, the app falls back to a device-local balance and says so.
 
 ## AI
 

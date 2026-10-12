@@ -1,13 +1,107 @@
-# Mempire
+# Mempire for Seeker
 
-**Every coin is a fighter — and the Seeker app gives you a reason to show up every day.**
-A 3D real-time Clash Royale-style card battler on Solana where the roster is the
-market itself — memecoins, majors and tokenised stocks, each one a card with its
-own art, archetype and stats. This repository is Mempire's entry to the
-**Solana Mobile CLOCK IN** hackathon: a native Android (Seeker) and iOS app built
-around a daily Clock-In loop. The whole app is native, including the 3D battle.
+**Clock in. Fight. Rule the season.**
 
-## Mempire for Seeker (CLOCK IN)
+A native Solana Mobile card battler where every coin is a fighter. Clock in once a day to keep a streak that lives on Solana, play 30-second battles in a native 3D arena, send friends a ghost of your match to beat, and climb a soulbound Season Pass paid in SKR.
+
+[![Download APK](https://img.shields.io/badge/Download-APK%201.6.3-3DDC84?logo=android&logoColor=white)](https://github.com/nickthelegend/mempire-clockin/releases/tag/clockin-v1)
+[![mempire_pass on devnet](https://img.shields.io/badge/devnet-mempire__pass-9945FF?logo=solana&logoColor=white)](https://explorer.solana.com/address/3aykd5NLqwjALGiaPykRiGJhv1ehJsjxqVsjQ5qGtr7G?cluster=devnet)
+[![E2E audit](https://img.shields.io/badge/E2E%20audit-live%20devnet-F5C04A)](clockin/E2E-AUDIT.md)
+
+- **APK:** [`clockin-v1` release](https://github.com/nickthelegend/mempire-clockin/releases/tag/clockin-v1): `mempire-clockin.apk`, version 1.6.3 (versionCode 16), sha256 `d3928c765feec83f3adb600f6e08f73db1be857117c623cad614fdc0d88f383f`
+- **Demo video:** link in the hackathon submission
+- **Devnet program (`mempire_pass`):** [`3aykd5NLqwjALGiaPykRiGJhv1ehJsjxqVsjQ5qGtr7G`](https://explorer.solana.com/address/3aykd5NLqwjALGiaPykRiGJhv1ehJsjxqVsjQ5qGtr7G?cluster=devnet)
+- **Network:** Solana devnet only. No real funds move.
+
+![Mempire on Seeker: Daily Clock-In, native 3D battle, Ghost Duels board, Season Pass](docs/hero.png)
+
+## Why Seeker users come back daily
+
+- **A streak worth keeping.** One tap a day pays a 7-day ladder of chests and SKR, with a Legendary chest on day 7. Each Clock-In is recorded in an on-chain PDA, an evening reminder fires before the streak lapses, and SKR buys a Streak Shield so one missed day doesn't reset it.
+- **A full session in under a minute.** Three daily quests, a chest timer that pings you when it's ready, and a 30-second Rush match. The AI Coach on the phone plays your deck against every rival and suggests one swap.
+- **Reasons that come from other people.** Ghost Duels let a friend fight your exact recorded moves, and the result is re-simulated from chain. Your side in the BONK vs POPCAT Season War is tallied from everyone's Clock-Ins, and the 25-tier Season Pass runs for a month.
+
+## Solana and Solana Mobile tech
+
+Every proof link below is a real devnet transaction from the [end-to-end audit](clockin/E2E-AUDIT.md), run in the Release build and read back with `getTransaction`.
+
+| Feature | How | Proof |
+|---|---|---|
+| **MWA + Seed Vault** | Mobile Wallet Adapter 2.3 is the primary wallet on Android: Seed Vault on Seeker, or Phantom and Solflare. The auth token is kept in the OS keystore, and every transaction is approved in the wallet. A labelled devnet-only dev wallet covers iOS. | [`wallet.ts`](mobile/src/wallet/wallet.ts). Not yet run on Android hardware |
+| **Sign In With Solana** | MWA `authorize` with a SIWS payload (domain, nonce, `solana:devnet`), so Seed Vault connects and signs in with one sheet. The ed25519 signature is verified on the phone. | Off-chain, audit row 2 |
+| **Session key** | One wallet approval creates a 7-day `SessionRecord` PDA. After that, daily Clock-Ins and chest commits are signed by the session key with no prompt. Revoking it returns the fee float. | [create](https://explorer.solana.com/tx/3NdvsuiqKhbyrJKry3MpRZrXtzbUbGYGiQNyoyJndTBo1fU2fHhbmpai9uCduDHDp2B7dcS4zWq66WCSRTbQC1mf?cluster=devnet) · [session-signed Clock-In](https://explorer.solana.com/tx/39R1fweqjUaDTMfrZxKsauDJF7as1QywXCRc7GYQeULuqx4N9g9iCpc68JBzTZHdGgUBbQTmy21FzQBp9GivnUC8?cluster=devnet) · [revoke](https://explorer.solana.com/tx/A9Tj8b8bSnRVD5xFR8SzZQRjyxc7E3nm9KYstapttMVbMc7N3VkGEbWZfPeE1zhRQvUgJSG17h4QdJQf79nMXFs?cluster=devnet) |
+| **Clock-In PDA** | `clock_in` writes a `ClockInState` PDA (day, streak, war side), allowed once per UTC day (`AlreadyClockedIn`). The same transaction carries a memo and mints the day's SKR. | [Clock-In](https://explorer.solana.com/tx/5bxhhCP7TteXeqwAFg8FB29YqT4jfsMiAu14uv46c6PW4JQKFkZKUyRwSJ58TNLkYJH77M5z4GPQh7i4oWyw813?cluster=devnet) |
+| **Provably fair chests** | Each chest commits on chain to a slot 32 slots ahead, before that block exists. `sha256(blockhash ‖ chestId ‖ owner)` then drives the drop table, and **Verify → Recompute** re-derives the drops in the app. This uses Solana slot hashes, not a VRF. | [commit](https://explorer.solana.com/tx/5bxhhCP7TteXeqwAFg8FB29YqT4jfsMiAu14uv46c6PW4JQKFkZKUyRwSJ58TNLkYJH77M5z4GPQh7i4oWyw813?cluster=devnet) · [deciding block](https://explorer.solana.com/block/509981107?cluster=devnet) |
+| **Ghost Duels** | A match's input log is posted on chain. A friend opens it from a link or QR code, fights the same seed in the native arena, and the result is re-simulated from chain before it gets a ✓. | [ghost posted](https://explorer.solana.com/tx/4iKK9ebU9L2Z3AVbBBCyf5sTPhr8o1ZKbhdqRxwjWFSXrvrbvyi1xvshngeZj9mdYqJhLPGCdgEs3YNNUYcxPRav?cluster=devnet) · [fought, result posted](https://explorer.solana.com/tx/4VhBjmmUW5krucyUxxcE5CChujMCXsmtJxgvea2g5mN4CtFSgidmPEbGus32VhJJFrQ9mQ5E8nhxoahx1PdCmFx5?cluster=devnet) |
+| **Season Pass (Token-2022, soulbound)** | `buy_pass` takes 150 SKR to a treasury vault and mints a NonTransferable token with MetadataPointer and TokenMetadata, all in one instruction. A receipt PDA blocks a second purchase. Premium status comes from what the chain says the wallet holds. | [buy pass](https://explorer.solana.com/tx/2a8db2SEzGjvZfTz71ABLPByTZZSKCwsHLrj6CD55uaVTg5WEfM4UueUDBHUZjCsGhimsRsiyQ7k2nfWDTPNS9Bj?cluster=devnet) |
+| **Skins for SKR** | Arena skins and card frames are transferable Token-2022 tokens with on-chain metadata, bought with `buy_skin` and rendered by the native 3D arena. | [buy skin](https://explorer.solana.com/tx/42EZEWyqRGQR1EGZhFBgQPH3Shwf6aXD9A7woFJk4nZSYZ78HTvTScGshHkpXZ2QExiphC4CvE1Cb4G3S4ywZEM7?cluster=devnet) |
+| **Season War** | BONK vs POPCAT. Your side is written into every Clock-In (PDA field plus memo), and the phone tallies the global war from chain. | [BONK pledge](https://explorer.solana.com/tx/39R1fweqjUaDTMfrZxKsauDJF7as1QywXCRc7GYQeULuqx4N9g9iCpc68JBzTZHdGgUBbQTmy21FzQBp9GivnUC8?cluster=devnet) |
+| **Blinks** | Solana Actions on Vercel ([mempire-actions.vercel.app](https://mempire-actions.vercel.app)): Challenge a friend, Accept a duel (also a Solana Pay QR), and Buy Season Pass. | [challenge](https://explorer.solana.com/tx/4s1QTnagqAxhP49AouUr5xodoSxAVtVbawp33iRhYP4W2jb3LgaKiNUKpw73MkrK4uGue8MD2Zz7oYRVowz2bUWp?cluster=devnet) · [QR duel accept](https://explorer.solana.com/tx/2PktR8gM1C9XCqRaYSaZxZJpBHHWtAmq5e1wBZS8xpPbxFsSaXaTExKAonbKhAmDKYhVTj7uqoTGa2a2rsUGJ8oa?cluster=devnet) |
+| **Seeker Genesis Token** | A read-only mainnet check for a Token-2022 account in the SGT group (`GT22s89n…`). Holders earn double SKR on every Clock-In. | [`seeker.ts`](mobile/src/chain/seeker.ts). Not tested with a real SGT holder |
+
+## SKR integration
+
+SKR is the currency of consistency: you earn it by showing up and spend it on staying in the game. It never buys power.
+
+- **Earn:** 5 to 30 SKR per Clock-In on the 7-day ladder, plus SKR for wins and daily quests. Seeker Genesis Token holders earn double.
+- **Spend:** Streak Shield (15), Seeker Chest (40), Rush Unlock (8), the Season Pass (150, paid into a treasury vault by `buy_pass`), and skins (60 for an arena skin, 25 for a card frame).
+- **On devnet, a stand-in mint.** Real SKR doesn't exist on devnet, so the app uses a clearly labelled stand-in, [`AWruExU2…`](https://explorer.solana.com/address/AWruExU2wyLGxFBqAeDs1YtNKJtbo9ucdGKWENaXY6ez?cluster=devnet), with the same shape as SKR: classic SPL, 6 decimals, `transferChecked`. The public `spl-token-faucet` program holds its mint authority, so the Clock-In transaction mints the reward and no key ships in the APK.
+- **Mainnet SKR is ready.** The real SKR mint (`SKRbvo6Gf7GondiT3BbTfuRDPqLWei4j2Qy2NPGZhW3`) is already in the code, and the app reads the wallet's real mainnet SKR balance (read-only). Moving payments to it needs a mainnet deploy of `mempire_pass` and a config change. That hasn't been done yet.
+- **No staking.**
+
+## Architecture
+
+```mermaid
+flowchart LR
+  App["Mempire app<br/>Expo / React Native<br/>native 3D arena"]
+  Wallet["Seed Vault / MWA wallet"]
+  Pass["mempire_pass program<br/>devnet"]
+  T22["Token-2022<br/>soulbound pass, skins"]
+  SKR["SKR<br/>devnet stand-in mint"]
+  PDA["ClockInState and<br/>SessionRecord PDAs"]
+  Memo["Memo program<br/>chest commits, ghost duels"]
+  Blinks["Blinks / Solana Actions<br/>Vercel"]
+
+  App <-->|"MWA 2.3: SIWS, sign"| Wallet
+  Wallet -->|"signed transactions"| Pass
+  App -->|"session key: daily Clock-In"| Pass
+  Pass --> PDA
+  Pass -->|"mint pass and skins"| T22
+  Pass -->|"SKR to treasury"| SKR
+  App --> Memo
+  App -->|"Share Blink, QR"| Blinks
+  Blinks -->|"buy pass"| Pass
+  Blinks -->|"challenge, duel accept"| Memo
+```
+
+## Install
+
+1. Download `mempire-clockin.apk` from the [`clockin-v1` release](https://github.com/nickthelegend/mempire-clockin/releases/tag/clockin-v1) and check it: `shasum -a 256 mempire-clockin.apk` should print `d3928c765feec83f3adb600f6e08f73db1be857117c623cad614fdc0d88f383f`.
+2. Install it on a Seeker or any Android phone (allow installs from this source), or use `adb install mempire-clockin.apk`.
+3. Open the app and tap **Connect Wallet** (Seed Vault or any MWA wallet), or **Use dev wallet**. Fund the address with devnet SOL from [faucet.solana.com](https://faucet.solana.com) for on-chain Clock-Ins.
+
+### Build from source
+
+```bash
+cd mobile && npm install
+npm run ios:sim                # iOS simulator (dev wallet)
+npm run apk                    # signed release APK; needs the MEMPIRE_KEYSTORE* env vars (see HANDOFF.md)
+cd ../app && npx vitest run    # game and chain tests (152 at 1.6.3)
+cd ../chain/pass && anchor test   # mempire_pass on a local validator
+```
+
+## What's verified
+
+- **End-to-end audit on live devnet** ([`clockin/E2E-AUDIT.md`](clockin/E2E-AUDIT.md)). The Release build ran on the iPhone 17 simulator with no Metro, and every on-chain step was read back with `getTransaction`. That covers the Clock-In, session key, chests, Season Pass, skins, Season War, Ghost Duels and Blinks. Failures found during the audit were fixed and re-checked.
+- **A devnet sweep with the app's own transaction builders**: 13 transactions in [`clockin/DEVNET-EVIDENCE.md`](clockin/DEVNET-EVIDENCE.md).
+- **Tests:** 152/152 app tests; `anchor test` for `mempire_pass`; negative cases simulated on real devnet accounts (a soulbound transfer, a second pass purchase, a second Clock-In on the same day, a stranger's Clock-In).
+- **Not yet verified on Android hardware.** The APK is built and signed with Gradle, but it hasn't been run on a phone or emulator. MWA and Seed Vault, the native arena's frame rate on a real GPU, notification delivery, and the Seeker Genesis Token perk with a real holder all still need a device. On the simulator, OpenGL is software-rendered at 3 to 4 fps, so in Auto mode the arena falls back to the bundled web arena.
+
+Full status and commands: [HANDOFF.md](HANDOFF.md). Submission material: [`clockin/`](clockin/).
+
+---
+
+## Feature details (Seeker app)
 
 `mobile/` is an Expo 57 / React Native 0.86 app, and it is native end to end.
 The 3D battle is the web game's own React Three Fiber scene, rendered natively
@@ -17,59 +111,43 @@ drag-to-deploy, the shared deterministic simulation, and the same AI rival.
 | | What it does | Where |
 |---|---|---|
 | **Mobile Wallet Adapter** | Primary sign-in on Android (Seed Vault on Seeker, Phantom, Solflare). Auth token kept in the OS keystore, every transaction approved in the wallet. A clearly labelled **devnet-only dev wallet** covers iOS and wallet-less emulators. | `mobile/src/wallet/wallet.ts` |
-| **Daily Clock-In** | One tap a day. A 7-day reward ladder (chests and SKR, Legendary chest on day 7), streak + best streak, reminders before the streak lapses. Each Clock-In is a **signed devnet memo** (`mempire:clockin:v1:day=…:streak=…`), so the streak is a public record anyone can rebuild from chain. | `mobile/src/game/rules.ts`, `mobile/src/chain/solana.ts` |
+| **Daily Clock-In** | One tap a day. A 7-day reward ladder (chests and SKR, Legendary chest on day 7), streak + best streak, reminders before the streak lapses. Each Clock-In is a `mempire_pass::clock_in` instruction that updates the wallet's `ClockInState` PDA, plus a signed memo (`mempire:clockin:v1:day=…:streak=…`), so the streak is a public record anyone can rebuild from chain. | `mobile/src/game/rules.ts`, `mobile/src/chain/clockin.ts` |
 | **SKR** | Earned by clocking in and winning; spent on **Streak Shields** (miss a day, keep the streak), a **Seeker Chest**, and **Rush Unlock**. Never on power. On devnet it is a labelled stand-in mint with real SKR's shape (classic SPL, 6 decimals, `transferChecked`), paid out by the public `spl-token-faucet` program so no key ships in the app. **Seeker Genesis Token** holders earn double SKR (read-only mainnet check). | `mobile/src/chain/skr.ts`, `mobile/src/chain/seeker.ts` |
 | **AI Coach (on-device)** | Runs the game's real deterministic battle engine headless on the phone: your deck vs every rival, both seats, fixed seeds — then searches for the single swap from your collection that wins more, and shows the numbers behind it. No server, no LLM, nothing leaves the device. | `mobile/src/game/coach.ts` |
 | **First run** | A three-beat intro (Clock-In, battle, SKR), then a guided 30-second first battle with touch-through coach marks and a Golden welcome chest. Skippable, and replayable from settings. | `mobile/src/screens/Intro.tsx`, `CoachMarks.tsx` |
 | **Daily quests** | Clock in, win a battle, deploy 10 cards. They reset at UTC midnight, pay SKR, and finishing all three adds a Silver chest. There is also an evening streak-at-risk reminder and a "Challenge a friend" share (deep link plus web fallback). | `mobile/src/game/rules.ts`, `src/notify.ts` |
 | **Season Pass (Token-2022)** | 25 tiers, free + premium, XP from clock-ins, quests and battles; rewards are chests, chest slots, Streak Shields, frames and emotes — never stats. The premium pass is a **soulbound Token-2022 token** (NonTransferable + MetadataPointer + TokenMetadata) bought for SKR from the `mempire_pass` program in one instruction; premium is whatever the chain says the wallet holds. Live on devnet since Oct 11 (`clockin/DEVNET-EVIDENCE.md`). | `chain/pass/`, `mobile/src/chain/pass.ts`, `mobile/src/game/season.ts` |
 | **Skins & wardrobe** | 3 arena skins (Neon Night, Golden Hour, Frozen Ledger) rendered by the native 3D arena from baked texture variants, and 4 card frames — transferable Token-2022 tokens with on-chain metadata, sold for SKR, equipped in Deck → Wardrobe. | `app/src/three/skin.ts`, `mobile/src/screens/Shop.tsx` |
-| **Season War, board, share card** | BONK vs POPCAT: your side is written into each signed Clock-In memo. A per-coin board of your battles, and a result share card (image + challenge link). Unlicensed company fighters are hidden from the mobile build. | `mobile/src/game/board.ts`, `mobile/src/screens/ShareCard.tsx` |
+| **Season War, board, share card** | BONK vs POPCAT: your side is written into each Clock-In (the `ClockInState` war side and the memo), and the global tally is read from chain on the phone. A per-coin board of your battles, and a result share card (image + challenge link). Unlicensed company fighters are hidden from the mobile build. | `mobile/src/game/board.ts`, `mobile/src/screens/ShareCard.tsx` |
 | **Sign In With Solana** | One tap: MWA `authorize` with a SIWS payload (domain, nonce, issuedAt, `solana:devnet`), so Seed Vault authorizes and signs in one sheet. The ed25519 signature and the signed fields are verified on the phone ("Signed in with Seed Vault"). Wallets without SIWS sign the same message via `signMessages`. On iOS the dev wallet signs it locally. | `mobile/src/chain/siws.ts`, `mobile/src/wallet/wallet.ts` |
 | **.skr names** | The player's `.skr` (AllDomains, read-only mainnet, cached, 6 s cap) replaces the address in the header, wallet sheet, share card and leaderboard row, and never blocks: the short address shows until the name arrives. **Find a Seeker** resolves `alice.skr` ↔ address. | `mobile/src/chain/skrName.ts`, `mobile/src/state/identity.ts` |
-| **Approve once, play all week** | One wallet signature links a session key (SecureStore) for 7 days, with a memo `mempire:session:v1:<key>:<expiresAt>` and a 0.001 SOL fee float. Daily Clock-Ins are then signed by that key, with no prompt, and name the owner. The ledger read-back accepts them only with an owner-signed, unexpired, unrevoked link. Revoke sweeps the float back. | `mobile/src/chain/session.ts`, `mobile/src/wallet/sessionKey.ts` |
-| **Provably fair chests** | Each chest commits to a future slot (current + 32). On open, `sha256(blockhash ‖ chestId ‖ owner)` drives the same drop table. The reveal has **Verify**: slot, blockhash, formula, explorer link and an in-app **Recompute**. Verifiable with Solana slot hashes (not VRF). | `mobile/src/chain/fair.ts` |
-| **Blinks** | Solana Actions on Vercel ([mempire-actions.vercel.app](https://mempire-actions.vercel.app)): **Challenge a friend** (a signed devnet memo plus the app deep link) and **Buy Season Pass** (the `mempire_pass` instruction; disabled until it is on devnet). **Share Blink** is in the app. | `actions/`, `mobile/src/game/blink.ts` |
+| **Approve once, play all week** | One wallet signature runs `create_session`: a `SessionRecord` PDA names the session key (kept in SecureStore) and its 7-day expiry, with a link memo and a 0.001 SOL fee float. Daily Clock-Ins and chest commits are then signed by that key with no prompt, and the program checks the record on every `clock_in`. `revoke_session` closes it and sweeps the float back. | `mobile/src/chain/session.ts`, `mobile/src/wallet/sessionKey.ts` |
+| **Provably fair chests** | Each chest commits on chain (a memo, batched into the Clock-In or signed by the session key) to a future slot (current + 32). On open, `sha256(blockhash ‖ chestId ‖ owner)` drives the same drop table. The reveal has **Verify**: slot, blockhash, formula, explorer link and an in-app **Recompute**. Verifiable with Solana slot hashes (not VRF). | `mobile/src/chain/fair.ts` |
+| **Blinks** | Solana Actions on Vercel ([mempire-actions.vercel.app](https://mempire-actions.vercel.app)): **Challenge a friend** (a signed devnet memo plus the app deep link) **Accept a duel** (also a Solana Pay QR), and **Buy Season Pass** (the `mempire_pass` instruction, live on devnet). **Share Blink** is in the app. | `actions/`, `mobile/src/game/blink.ts` |
 | **Collection, deck, chests** | 44 fighters in the Seeker app (stock fighters are web-only), levels from duplicates, chest timers with local notifications, haptics throughout. | `mobile/src/screens/` |
 | **Native 3D arena** | The web game's scene (`app/src/three`) runs in an expo-gl GL view. Its canvas-drawn textures are baked to PNG by a deterministic script. The native HUD has hand, elixir, timer and crowns, plus PanResponder drag-to-deploy with a ground raycast and haptics on deploys and crowns. It uses the same deterministic sim and bot as the web client. **Safety net:** if the native scene fails to start, throws, or holds under 20 fps for 5 s early in a match, the *same* match (same seed, decks and rival) restarts in the bundled web arena, and the result records which renderer ran. Settings offer Auto / Native 3D / Web (compat). Parity is proven by a test: both match stores play identical scripted matches to identical end states (`app/tests`). | `mobile/src/arena/` |
 
 **Honest status of the native arena:** I verified it on the iOS simulator. There, OpenGL ES is a software renderer and the scene draws at about 4 fps; full matches still play to a result. Frame rate on real GPU hardware has not been measured, because no Android device or emulator was available. That is exactly why the automatic fallback exists. Auto mode uses the web arena on simulators.
 
-### Solana Mobile tech pack
+### Ghost Duels
 
-These are five Seeker-native Solana features, shown in the table above.
-Each has unit tests (`cd app && npx vitest run`, 72 tests in total) and an
-end-to-end check on a local validator:
-`bash mobile/scripts/verify-solana-tech.sh` (session key and fair chests, 19
-checks) and `bash actions/scripts/verify-local.sh` (both Blinks, including a
-Season Pass minted from the Blink transaction, 8 checks). Every one was also
-run in the app on the iOS simulator (screens in `clockin/screens/solana-tech/`).
+Send any native-arena match as a ghost: its input log goes on chain as a memo,
+and a friend opens it from a Blink, a deep link or a Solana Pay QR. They fight
+your exact moves on the same seed, and their result is posted and re-simulated
+on the phone before the board shows "replay confirms it". Code:
+`mobile/src/chain/duels.ts`, `mobile/src/state/duels.ts`, `actions/api/actions/duel.ts`.
 
-How they work:
-- **SIWS.** The sign-in is verified on the phone; nothing is sent to a server.
-- **Session key.** The key's authority is a rule anyone can recompute from
-  chain: an owner-signed link that has not expired and has not been revoked.
-  It is not an on-chain delegate.
-- **Chests.** Drops are fixed by a blockhash nobody knew when the chest was
-  earned. The commit is stored on the device, and this is not a VRF.
+### Tests and checks
 
-What is not verified yet:
-- None of the five features has been run on an Android device, and MWA
-  `signIn` has not been tested with a real wallet.
-- The Season Pass Blink stays disabled until `mempire_pass` is deployed on
-  devnet.
-- dial.to was down when I tested, so the Blink was only seen through curl
-  and on a local validator.
+- `cd app && npx vitest run`: 152/152 at 1.6.3.
+- `cd chain/pass && anchor test`: `mempire_pass` on a local validator.
+- `bash mobile/scripts/verify-solana-tech.sh` (session key and fair chests) and
+  `bash actions/scripts/verify-local.sh` (Blinks, including a Season Pass minted
+  from the Blink transaction), both on a local validator.
+- The live devnet run is [`clockin/E2E-AUDIT.md`](clockin/E2E-AUDIT.md); exact
+  commands are in [HANDOFF.md](HANDOFF.md).
 
-Details and exact commands are in [HANDOFF.md](HANDOFF.md#solana-mobile-tech-pack-branch-solana-tech-oct-8).
-
-**Release APK:** `mempire-clockin.apk` on the [`clockin-v1` release](https://github.com/nickthelegend/mempire-clockin/releases/tag/clockin-v1), version 1.6.3 (versionCode 16), sha256 `d3928c765feec83f3adb600f6e08f73db1be857117c623cad614fdc0d88f383f`. Devnet only. It is signed with the project's release key and has not been run on an Android device yet.
-
-Build and run (details in [HANDOFF.md](HANDOFF.md)): from `mobile/`, `npm run ios:sim`
-(iOS simulator), `npm run apk` (signed release APK). Submission material is in
-[`clockin/`](clockin/).
-
-## The game
+## The web game
 
 The game below is the web client the arena comes from. You never hand over your
 holdings: coins are *characters*, not collateral. The web build also runs at
@@ -100,7 +178,7 @@ Stakes escrow only when the match actually starts — cancelling a search costs
 nothing. If an opponent abandons, the pot is recoverable by timeout, and the
 result screen always says which of those happened.
 
-## Architecture
+## Web game architecture
 
 ```
 app/    Vite + React + TS + React Three Fiber + Zustand
@@ -177,7 +255,7 @@ cd chain && BASE_RPC=https://api.devnet.solana.com npx tsx scripts/e2e-rollup.ts
 cd chain && npx tsx scripts/e2e-rollup.ts
 ```
 
-## Run it
+## Run the web game
 
 ```bash
 # app — reads the live devnet program; guest mode needs no wallet
@@ -324,7 +402,7 @@ Art and audio are generated through the Higgsfield CLI and committed:
 (cuts grid sheets into keyed transparent PNGs). One STYLE FORMULA, held
 byte-identical across every prompt, keeps the set coherent.
 
-## Status & roadmap
+## Web game status & roadmap
 
 - [x] Deterministic sim + bot + 3D battle + full screen flow (playable now)
 - [x] Drag-and-drop deploy, crown score, sound, spawn/damage VFX
